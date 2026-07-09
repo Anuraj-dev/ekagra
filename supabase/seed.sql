@@ -21,6 +21,7 @@ on conflict do nothing;
 
 insert into public.goals (id, owner_id, title, identity_role)
 values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'Ship the focus loop', 'Builder')
+     , ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'Review the focus loop', 'Reviewer')
 on conflict (id) do nothing;
 
 insert into public.tasks (id, owner_id, title, status, goal_id, estimated_blocks)

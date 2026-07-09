@@ -11,7 +11,7 @@ create table public.friendships (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references public.profiles (id) on delete cascade,
   addressee_id uuid not null references public.profiles (id) on delete cascade,
-  status text not null default 'pending' check (status in ('pending', 'accepted', 'blocked')),
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'declined', 'blocked')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (requester_id <> addressee_id)
@@ -113,6 +113,73 @@ begin
 end;
 $$;
 
+create or replace function public.enforce_task_goal_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.goal_id is not null and not exists (
+    select 1
+    from public.goals
+    where goals.id = new.goal_id
+      and goals.owner_id = new.owner_id
+  ) then
+    raise exception using
+      errcode = '23514',
+      message = 'task owner must match goal owner';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger tasks_enforce_goal_owner
+  before insert or update of owner_id, goal_id on public.tasks
+  for each row execute function public.enforce_task_goal_owner();
+
+create or replace function public.prevent_goal_owner_change_with_tasks()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.owner_id is distinct from old.owner_id
+     and exists (select 1 from public.tasks where tasks.goal_id = old.id) then
+    raise exception using
+      errcode = '23514',
+      message = 'goal owner cannot change while it has tasks';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger goals_prevent_owner_change_with_tasks
+  before update of owner_id on public.goals
+  for each row execute function public.prevent_goal_owner_change_with_tasks();
+
+create or replace function public.prevent_friendship_participant_change()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.requester_id is distinct from old.requester_id
+     or new.addressee_id is distinct from old.addressee_id then
+    raise exception using
+      errcode = '23514',
+      message = 'friendship participants are immutable';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger friendships_prevent_participant_change
+  before update of requester_id, addressee_id on public.friendships
+  for each row execute function public.prevent_friendship_participant_change();
+
 create trigger goals_set_updated_at before update on public.goals
 for each row execute function public.set_updated_at();
 create trigger tasks_set_updated_at before update on public.tasks
@@ -154,10 +221,10 @@ create policy profiles_owner_update on public.profiles
 create policy friendships_participant_select on public.friendships
   for select using (requester_id = auth.uid() or addressee_id = auth.uid());
 create policy friendships_requester_insert on public.friendships
-  for insert with check (requester_id = auth.uid());
-create policy friendships_participant_update on public.friendships
-  for update using (requester_id = auth.uid() or addressee_id = auth.uid())
-  with check (requester_id = auth.uid() or addressee_id = auth.uid());
+  for insert with check (requester_id = auth.uid() and status = 'pending');
+create policy friendships_addressee_update on public.friendships
+  for update using (addressee_id = auth.uid())
+  with check (addressee_id = auth.uid() and status in ('accepted', 'declined'));
 create policy friendships_participant_delete on public.friendships
   for delete using (requester_id = auth.uid() or addressee_id = auth.uid());
 
@@ -254,7 +321,9 @@ select
   coalesce(sum(sessions.earned_block::integer), 0)::integer as actual_blocks,
   coalesce(sum(sessions.honest_minutes), 0)::integer as actual_honest_minutes
 from public.tasks
-left join public.sessions on sessions.task_id = tasks.id
+left join public.sessions
+  on sessions.task_id = tasks.id
+ and sessions.owner_id = tasks.owner_id
 where tasks.owner_id = auth.uid()
 group by tasks.id, tasks.owner_id, tasks.goal_id, tasks.title, tasks.estimated_blocks
 union all
@@ -269,8 +338,12 @@ select
   coalesce(sum(sessions.earned_block::integer), 0)::integer as actual_blocks,
   coalesce(sum(sessions.honest_minutes), 0)::integer as actual_honest_minutes
 from public.goals
-left join public.tasks on tasks.goal_id = goals.id
-left join public.sessions on sessions.task_id = tasks.id
+left join public.tasks
+  on tasks.goal_id = goals.id
+ and tasks.owner_id = goals.owner_id
+left join public.sessions
+  on sessions.task_id = tasks.id
+ and sessions.owner_id = goals.owner_id
 where goals.owner_id = auth.uid()
 group by goals.id, goals.owner_id, goals.title;
 

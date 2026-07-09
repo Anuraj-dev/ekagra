@@ -64,7 +64,9 @@ jobs:
       - run: bun scripts/phase-2-smoke.ts
       - name: Dump edge function logs
         if: failure()
-        run: cat /tmp/ekagra-functions.log
+        run: |
+          cat /tmp/ekagra-functions.log || true
+          docker ps -a --format "{{.Names}}" | grep edge | xargs -r -n1 docker logs --tail 100
       - if: always()
         run: supabase stop
 

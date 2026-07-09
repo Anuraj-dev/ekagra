@@ -1,9 +1,10 @@
 import {
   type DeviceRegistrationResponse,
   parseDeviceRegistrationRequest,
+  parseUuid,
 } from '../../../packages/core/src/index.ts';
 import { ApiError, body, json, method } from '../_shared/http.ts';
-import { adminClient, handle, requireUser } from '../_shared/supabase.ts';
+import { adminClient, databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
 
 function token(): string {
   const bytes = new Uint8Array(32);
@@ -20,7 +21,29 @@ Deno.serve((request) =>
   handle(request, async () => {
     const { ownerId } = await requireUser(request);
     const client = adminClient();
+    const query = new URL(request.url).searchParams;
     if (request.method === 'POST') {
+      const id = query.get('id');
+      if (id !== null) {
+        if (query.get('action') !== null && query.get('action') !== 'rotate') {
+          throw new ApiError('bad_request', 'Device POST with id only supports token rotation.');
+        }
+        const deviceId = parseUuid(id, 'id');
+        const deviceToken = token();
+        const result = await client
+          .from('devices')
+          .update({ token_hash: await hash(deviceToken), revoked_at: null })
+          .eq('owner_id', ownerId)
+          .eq('id', deviceId)
+          .select('id')
+          .single();
+        if (result.error) throw databaseApiError(result.error, 'Could not rotate device token.');
+        const response: DeviceRegistrationResponse = { deviceId: result.data.id, deviceToken };
+        return json(response);
+      }
+      if (query.get('action') !== null) {
+        throw new ApiError('bad_request', 'Device action requires a device id.');
+      }
       const input = parseDeviceRegistrationRequest(await body(request));
       const deviceToken = token();
       const result = await client
@@ -32,9 +55,23 @@ Deno.serve((request) =>
         })
         .select('id')
         .single();
-      if (result.error) throw new ApiError('internal_error', 'Could not register device.');
+      if (result.error) throw databaseApiError(result.error, 'Could not register device.');
       const response: DeviceRegistrationResponse = { deviceId: result.data.id, deviceToken };
       return json(response, 201);
+    }
+    if (request.method === 'DELETE') {
+      const id = query.get('id');
+      if (!id) throw new ApiError('bad_request', 'id query parameter is required.');
+      const deviceId = parseUuid(id, 'id');
+      const result = await client
+        .from('devices')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('owner_id', ownerId)
+        .eq('id', deviceId)
+        .select('id')
+        .single();
+      if (result.error) throw databaseApiError(result.error, 'Could not revoke device.');
+      return new Response(null, { status: 204 });
     }
     method(request, ['GET']);
     const result = await client
@@ -42,7 +79,7 @@ Deno.serve((request) =>
       .select('id,label,revoked_at,last_seen_at,created_at')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false });
-    if (result.error) throw new ApiError('internal_error', 'Could not load devices.');
+    if (result.error) throw databaseApiError(result.error, 'Could not load devices.');
     return json({ devices: result.data });
   }),
 );

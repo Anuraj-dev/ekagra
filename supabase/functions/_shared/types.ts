@@ -72,8 +72,10 @@ export interface SessionRepository {
   }): Promise<SessionRow>;
   updateSession(ownerId: string, sessionId: string, patch: SessionPatch): Promise<SessionRow>;
   ensureDayRecord(ownerId: string): Promise<void>;
-  getTodayBlocks(ownerId: string): Promise<number>;
-  getWeeklyMinutes(ownerId: string): Promise<number>;
+  getDevicePollAggregates(ownerId: string): Promise<{
+    todayBlocks: number;
+    weeklyMinutes: number;
+  }>;
   getNextPlannedTask(ownerId: string): Promise<TaskRow | null>;
 }
 

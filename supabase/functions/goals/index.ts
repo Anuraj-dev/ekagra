@@ -2,9 +2,10 @@ import {
   type Goal,
   parseGoalCreateRequest,
   parseGoalUpdateRequest,
+  parseUuid,
 } from '../../../packages/core/src/index.ts';
 import { ApiError, body, json, method } from '../_shared/http.ts';
-import { handle, requireUser } from '../_shared/supabase.ts';
+import { databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
 import type { GoalRow } from '../_shared/types.ts';
 
 const fields = 'id,title,identity_role,deadline,archived_at,created_at,updated_at';
@@ -30,7 +31,7 @@ Deno.serve((request) =>
         .select(fields)
         .eq('owner_id', ownerId)
         .order('created_at', { ascending: false });
-      if (result.error) throw new ApiError('internal_error', 'Could not load goals.');
+      if (result.error) throw databaseApiError(result.error, 'Could not load goals.');
       return json({ goals: (result.data as GoalRow[]).map(view) });
     }
     if (request.method === 'POST') {
@@ -45,11 +46,12 @@ Deno.serve((request) =>
         })
         .select(fields)
         .single();
-      if (result.error) throw new ApiError('bad_request', 'Could not create goal.');
+      if (result.error) throw databaseApiError(result.error, 'Could not create goal.');
       return json({ goal: view(result.data as GoalRow) }, 201);
     }
     const id = new URL(request.url).searchParams.get('id');
     if (!id) throw new ApiError('bad_request', 'id query parameter is required.');
+    const goalId = parseUuid(id, 'id');
     if (request.method === 'PATCH') {
       const input = parseGoalUpdateRequest(await body(request));
       const update = {
@@ -61,19 +63,21 @@ Deno.serve((request) =>
         .from('goals')
         .update(update)
         .eq('owner_id', ownerId)
-        .eq('id', id)
+        .eq('id', goalId)
         .select(fields)
         .single();
-      if (result.error)
-        throw new ApiError(
-          result.error.code === 'PGRST116' ? 'not_found' : 'bad_request',
-          'Could not update goal.',
-        );
+      if (result.error) throw databaseApiError(result.error, 'Could not update goal.');
       return json({ goal: view(result.data as GoalRow) });
     }
     method(request, ['DELETE']);
-    const result = await client.from('goals').delete().eq('owner_id', ownerId).eq('id', id);
-    if (result.error) throw new ApiError('internal_error', 'Could not delete goal.');
+    const result = await client
+      .from('goals')
+      .delete()
+      .eq('owner_id', ownerId)
+      .eq('id', goalId)
+      .select('id')
+      .single();
+    if (result.error) throw databaseApiError(result.error, 'Could not delete goal.');
     return new Response(null, { status: 204 });
   }),
 );

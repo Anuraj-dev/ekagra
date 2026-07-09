@@ -94,8 +94,24 @@ async function main(): Promise<void> {
     registered.response.status === 201,
     `device registration failed: ${JSON.stringify(registered.data)}`,
   );
-  assert(registered.data.deviceToken, 'device registration returned no token');
-  const deviceHeaders = { 'x-device-token': registered.data.deviceToken };
+  assert(
+    registered.data.deviceToken && registered.data.deviceId,
+    'device registration returned no device',
+  );
+  const originalDeviceToken = registered.data.deviceToken;
+  const deviceId = registered.data.deviceId;
+
+  const rotated = await request(`devices?id=${deviceId}&action=rotate`, {
+    method: 'POST',
+    headers: authorization,
+  });
+  assert(rotated.response.ok && rotated.data.deviceToken, 'device token rotation failed');
+  assert(rotated.data.deviceToken !== originalDeviceToken, 'device token was not rotated');
+  const oldToken = await fetch(`${baseUrl}/device-poll`, {
+    headers: { apikey: anonKey, 'x-device-token': originalDeviceToken },
+  });
+  assert(oldToken.status === 401, 'rotated device token must invalidate the old token');
+  const deviceHeaders = { 'x-device-token': rotated.data.deviceToken };
 
   const poll = await fetch(`${baseUrl}/device-poll`, {
     headers: { apikey: anonKey, ...deviceHeaders },
@@ -141,6 +157,15 @@ async function main(): Promise<void> {
     headers: { apikey: anonKey, 'x-device-token': 'invalid-device-token' },
   });
   assert(invalidDevice.status === 401, 'invalid device token must return 401');
+  const revoked = await request(`devices?id=${deviceId}`, {
+    method: 'DELETE',
+    headers: authorization,
+  });
+  assert(revoked.response.status === 204, 'device revoke failed');
+  const revokedDevice = await fetch(`${baseUrl}/device-poll`, {
+    headers: { apikey: anonKey, ...deviceHeaders },
+  });
+  assert(revokedDevice.status === 401, 'revoked device token must return 401');
   console.log('Phase 2 Edge Function smoke test passed.');
 }
 

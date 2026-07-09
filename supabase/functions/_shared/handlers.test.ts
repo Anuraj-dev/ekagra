@@ -65,11 +65,11 @@ function repository(): SessionRepository & { active: SessionRow | null } {
       return fake.active;
     },
     async ensureDayRecord() {},
-    async getTodayBlocks() {
-      return fake.active?.earned_block ? 1 : 0;
-    },
-    async getWeeklyMinutes() {
-      return fake.active?.honest_minutes ?? 0;
+    async getDevicePollAggregates() {
+      return {
+        todayBlocks: fake.active?.earned_block ? 1 : 0,
+        weeklyMinutes: fake.active?.honest_minutes ?? 0,
+      };
     },
     async getNextPlannedTask() {
       return task;

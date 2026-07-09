@@ -3,7 +3,7 @@ import {
   parseMorningCommitRequest,
 } from '../../../packages/core/src/index.ts';
 import { ApiError, body, json, method } from '../_shared/http.ts';
-import { adminClient, handle, requireUser } from '../_shared/supabase.ts';
+import { adminClient, databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
 
 Deno.serve((request) =>
   handle(request, async () => {
@@ -14,42 +14,12 @@ Deno.serve((request) =>
 
     if (ritual === 'morning-commit') {
       const input = parseMorningCommitRequest(await body(request));
-      const tasks = await client
-        .from('tasks')
-        .select('id,status')
-        .eq('owner_id', ownerId)
-        .in('id', input.taskIds);
-      if (tasks.error) throw new ApiError('internal_error', 'Could not verify morning tasks.');
-      if (
-        (tasks.data?.length ?? 0) !== input.taskIds.length ||
-        tasks.data?.some((task) => !['inbox', 'planned'].includes(task.status))
-      ) {
-        throw new ApiError('bad_request', 'Morning commit tasks must belong to you and be open.');
-      }
-
-      const clearPlan = await client
-        .from('tasks')
-        .update({ status: 'inbox' })
-        .eq('owner_id', ownerId)
-        .eq('status', 'planned');
-      if (clearPlan.error)
-        throw new ApiError('internal_error', 'Could not reset the previous morning plan.');
-      const setPlan = await client
-        .from('tasks')
-        .update({ status: 'planned' })
-        .eq('owner_id', ownerId)
-        .in('id', input.taskIds);
-      if (setPlan.error) throw new ApiError('internal_error', 'Could not save the morning plan.');
-      const record = await client
-        .from('day_records')
-        .upsert(
-          { owner_id: ownerId, morning_task_ids: input.taskIds },
-          { onConflict: 'owner_id,record_date' },
-        )
-        .select('record_date,morning_task_ids,plan_match,went_wrong_tag,note,updated_at')
-        .single();
-      if (record.error) throw new ApiError('internal_error', 'Could not save the morning commit.');
-      return json({ ritual: 'morning-commit', dayRecord: record.data });
+      const result = await client.rpc('commit_morning_plan', {
+        p_owner_id: ownerId,
+        p_task_ids: input.taskIds,
+      });
+      if (result.error) throw databaseApiError(result.error, 'Could not save the morning commit.');
+      return json({ ritual: 'morning-commit', dayRecord: result.data });
     }
 
     if (ritual === 'evening-close') {

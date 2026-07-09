@@ -10,11 +10,23 @@ function env(name: string): string {
   return value;
 }
 
+export function databaseApiError(
+  error: { code?: string; message?: string },
+  fallback = 'Database request failed.',
+): ApiError {
+  if (error.code === 'PGRST116') return new ApiError('not_found', 'Record not found.');
+  if (error.code === '23505') return new ApiError('conflict', 'That record already exists.');
+  if (error.code === '23514') {
+    return new ApiError('bad_request', error.message ?? 'Database validation failed.');
+  }
+  if (error.code === '23503')
+    return new ApiError('bad_request', 'Referenced record does not exist.');
+  if (error.code === '42501') return new ApiError('forbidden', 'You are not allowed to do that.');
+  return new ApiError('internal_error', fallback);
+}
+
 function databaseError(error: { code?: string; message?: string }): never {
-  if (error.code === '23505') throw new ApiError('conflict', 'That record already exists.');
-  if (error.code === '23514')
-    throw new ApiError('bad_request', error.message ?? 'Database validation failed.');
-  throw new ApiError('internal_error', 'Database request failed.');
+  throw databaseApiError(error);
 }
 
 function row<T>(data: T | null, error: { code?: string; message?: string } | null): T {
@@ -86,34 +98,19 @@ function sessionRepository(client: SupabaseClient): SessionRepository {
         );
       if (result.error) return databaseError(result.error);
     },
-    async getTodayBlocks(ownerId) {
-      const start = new Date();
-      start.setUTCHours(0, 0, 0, 0);
-      const result = await client
-        .from('sessions')
-        .select('id')
-        .eq('owner_id', ownerId)
-        .eq('outcome', 'completed')
-        .gte('started_at', start.toISOString());
+    async getDevicePollAggregates(ownerId) {
+      const result = await client.rpc('get_device_poll_aggregates', { p_owner_id: ownerId });
+      const aggregate = result.data as
+        | { today_blocks: number; weekly_minutes: number }
+        | { today_blocks: number; weekly_minutes: number }[]
+        | null;
       if (result.error) return databaseError(result.error);
-      return result.data?.length ?? 0;
-    },
-    async getWeeklyMinutes(ownerId) {
-      const start = new Date();
-      const day = start.getUTCDay();
-      start.setUTCDate(start.getUTCDate() - (day === 0 ? 6 : day - 1));
-      start.setUTCHours(0, 0, 0, 0);
-      const result = await client
-        .from('sessions')
-        .select('honest_minutes')
-        .eq('owner_id', ownerId)
-        .not('ended_at', 'is', null)
-        .gte('started_at', start.toISOString());
-      if (result.error) return databaseError(result.error);
-      return (result.data ?? []).reduce(
-        (total, session) => total + Number(session.honest_minutes ?? 0),
-        0,
-      );
+      const row = Array.isArray(aggregate) ? aggregate[0] : aggregate;
+      if (!row) throw new ApiError('internal_error', 'Database returned no aggregate row.');
+      return {
+        todayBlocks: Number(row.today_blocks ?? 0),
+        weeklyMinutes: Number(row.weekly_minutes ?? 0),
+      };
     },
     async getNextPlannedTask(ownerId) {
       const result = await client
@@ -181,10 +178,13 @@ export async function deviceForToken(
   if (result.error?.code === 'PGRST116')
     throw new ApiError('unauthorized', 'Invalid device token.');
   const device = row(result.data as DeviceRecord | null, result.error);
-  await client
-    .from('devices')
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq('id', device.id);
+  const lastSeen = device.last_seen_at === null ? NaN : Date.parse(device.last_seen_at);
+  if (!Number.isFinite(lastSeen) || lastSeen <= Date.now() - 60_000) {
+    await client
+      .from('devices')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('id', device.id);
+  }
   return { device, ownerId: device.owner_id };
 }
 

@@ -1,10 +1,12 @@
 import {
   parseTaskCreateRequest,
+  parseTaskStatus,
   parseTaskUpdateRequest,
+  parseUuid,
   type Task,
 } from '../../../packages/core/src/index.ts';
 import { ApiError, body, json, method } from '../_shared/http.ts';
-import { handle, requireUser } from '../_shared/supabase.ts';
+import { databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
 import type { TaskRow } from '../_shared/types.ts';
 
 const fields = 'id,title,status,goal_id,estimated_blocks,completed_at,created_at,updated_at';
@@ -25,7 +27,7 @@ function view(row: TaskRow): Task {
 async function requireId(request: Request): Promise<string> {
   const id = new URL(request.url).searchParams.get('id');
   if (!id) throw new ApiError('bad_request', 'id query parameter is required.');
-  return id;
+  return parseUuid(id, 'id');
 }
 
 Deno.serve((request) =>
@@ -38,9 +40,9 @@ Deno.serve((request) =>
         .select(fields)
         .eq('owner_id', ownerId)
         .order('created_at', { ascending: false });
-      if (status) query = query.eq('status', status);
+      if (status !== null) query = query.eq('status', parseTaskStatus(status));
       const result = await query;
-      if (result.error) throw new ApiError('internal_error', 'Could not load tasks.');
+      if (result.error) throw databaseApiError(result.error, 'Could not load tasks.');
       return json({ tasks: (result.data as TaskRow[]).map(view) });
     }
     if (request.method === 'POST') {
@@ -55,11 +57,7 @@ Deno.serve((request) =>
         })
         .select(fields)
         .single();
-      if (result.error)
-        throw new ApiError(
-          result.error.code === '23514' ? 'bad_request' : 'conflict',
-          'Could not create task.',
-        );
+      if (result.error) throw databaseApiError(result.error, 'Could not create task.');
       return json({ task: view(result.data as TaskRow) }, 201);
     }
 
@@ -79,16 +77,18 @@ Deno.serve((request) =>
         .eq('id', id)
         .select(fields)
         .single();
-      if (result.error)
-        throw new ApiError(
-          result.error.code === 'PGRST116' ? 'not_found' : 'bad_request',
-          'Could not update task.',
-        );
+      if (result.error) throw databaseApiError(result.error, 'Could not update task.');
       return json({ task: view(result.data as TaskRow) });
     }
     method(request, ['DELETE']);
-    const result = await client.from('tasks').delete().eq('owner_id', ownerId).eq('id', id);
-    if (result.error) throw new ApiError('internal_error', 'Could not delete task.');
+    const result = await client
+      .from('tasks')
+      .delete()
+      .eq('owner_id', ownerId)
+      .eq('id', id)
+      .select('id')
+      .single();
+    if (result.error) throw databaseApiError(result.error, 'Could not delete task.');
     return new Response(null, { status: 204 });
   }),
 );

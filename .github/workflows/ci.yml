@@ -48,7 +48,7 @@ jobs:
           echo "SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
       - name: Start Edge Functions
-        run: supabase functions serve --no-verify-jwt > /tmp/ekagra-functions.log 2>&1 &
+        run: supabase functions serve > /tmp/ekagra-functions.log 2>&1 &
       - name: Wait for Edge Functions
         run: |
           for attempt in {1..30}; do

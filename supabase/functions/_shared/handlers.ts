@@ -180,13 +180,14 @@ export function createSessionHandlers(repository: SessionRepository): {
 export function createDevicePollHandler(repository: SessionRepository): DevicePollHandler {
   return async ({ ownerId, now }) => {
     const active = await repository.getActiveSession(ownerId);
+    const aggregates = await repository.getDevicePollAggregates(ownerId);
     if (active === null) {
       return {
         t: null,
         c: '00:00',
         p: 'idle',
-        b: await repository.getTodayBlocks(ownerId),
-        w: await repository.getWeeklyMinutes(ownerId),
+        b: aggregates.todayBlocks,
+        w: aggregates.weeklyMinutes,
         n: new Date(now).toISOString(),
       };
     }
@@ -201,8 +202,8 @@ export function createDevicePollHandler(repository: SessionRepository): DevicePo
       t: active.task?.title?.slice(0, 16) ?? null,
       c: `${minutes}:${remainder}`,
       p: state.phase,
-      b: await repository.getTodayBlocks(ownerId),
-      w: await repository.getWeeklyMinutes(ownerId),
+      b: aggregates.todayBlocks,
+      w: aggregates.weeklyMinutes,
       n: new Date(now).toISOString(),
     };
   };

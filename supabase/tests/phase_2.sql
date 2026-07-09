@@ -1,6 +1,6 @@
 begin;
 
-select plan(18);
+select plan(27);
 
 select has_table('public', 'devices', 'device registry exists');
 select has_column('public', 'sessions', 'running_since', 'sessions persist the current running segment');
@@ -120,6 +120,65 @@ select is(
   (select count(*) from public.devices where owner_id = '00000000-0000-0000-0000-000000000001'),
   0::bigint,
   'another user cannot read a device registry row'
+);
+
+select is(
+  (select today_blocks from public.get_device_poll_aggregates('00000000-0000-0000-0000-000000000001')),
+  1,
+  'device aggregate returns today earned blocks as one row'
+);
+select is(
+  (select weekly_minutes from public.get_device_poll_aggregates('00000000-0000-0000-0000-000000000001')),
+  67,
+  'device aggregate returns weekly honest minutes as one row'
+);
+
+select lives_ok(
+  $$insert into public.tasks (id, owner_id, title, status)
+    values
+      ('70000000-0000-0000-0000-000000000001',
+       '00000000-0000-0000-0000-000000000001', 'Old plan', 'planned'),
+      ('70000000-0000-0000-0000-000000000002',
+       '00000000-0000-0000-0000-000000000001', 'New plan', 'inbox')$$,
+  'morning commit fixture tasks can be created'
+);
+select lives_ok(
+  $$select public.commit_morning_plan(
+    '00000000-0000-0000-0000-000000000001',
+    array['70000000-0000-0000-0000-000000000002']::uuid[]
+  )$$,
+  'morning commit applies the new plan atomically'
+);
+select is(
+  (select status from public.tasks where id = '70000000-0000-0000-0000-000000000001'),
+  'inbox',
+  'morning commit clears the previous plan'
+);
+select is(
+  (select status from public.tasks where id = '70000000-0000-0000-0000-000000000002'),
+  'planned',
+  'morning commit sets the selected plan'
+);
+select is(
+  (select morning_task_ids from public.day_records
+   where owner_id = '00000000-0000-0000-0000-000000000001'
+     and record_date = current_date),
+  array['70000000-0000-0000-0000-000000000002']::uuid[],
+  'morning commit records the selected tasks on the day record'
+);
+select throws_ok(
+  $$select public.commit_morning_plan(
+    '00000000-0000-0000-0000-000000000001',
+    array['20000000-0000-0000-0000-000000000001']::uuid[]
+  )$$,
+  '23514',
+  null,
+  'morning commit rejects closed tasks'
+);
+select is(
+  (select status from public.tasks where id = '70000000-0000-0000-0000-000000000002'),
+  'planned',
+  'rejected morning commit leaves the existing plan unchanged'
 );
 
 select * from finish();

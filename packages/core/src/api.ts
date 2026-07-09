@@ -158,6 +158,11 @@ export type DeviceRegistrationResponse = {
   deviceToken: string;
 };
 
+export type DeviceActionResponse = {
+  session: Session | null;
+  serverNow: string;
+};
+
 export type DeviceRegistrationRequest = {
   label?: string;
 };
@@ -182,10 +187,21 @@ function stringValue(value: unknown, field: string, maxLength = 200): string {
 
 function uuidValue(value: unknown, field: string): string {
   const result = stringValue(value, field, 80);
-  if (!/^[0-9a-f-]{36}$/i.test(result)) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result)) {
     throw new ContractError(`${field} must be a UUID.`);
   }
   return result;
+}
+
+export function parseUuid(value: unknown, field: string): string {
+  return uuidValue(value, field);
+}
+
+export function parseTaskStatus(value: unknown, field = 'status'): TaskStatus {
+  if (!['inbox', 'planned', 'done', 'cancelled'].includes(String(value))) {
+    throw new ContractError(`${field} is invalid.`);
+  }
+  return value as TaskStatus;
 }
 
 function optionalUuid(value: unknown, field: string): string | null | undefined {
@@ -257,10 +273,7 @@ export function parseTaskUpdateRequest(value: unknown): TaskUpdateRequest {
         : integerValue(input.estimatedBlocks, 'estimatedBlocks', 1, 100);
   }
   if (input.status !== undefined) {
-    if (!['inbox', 'planned', 'done', 'cancelled'].includes(String(input.status))) {
-      throw new ContractError('status is invalid.');
-    }
-    result.status = input.status as TaskStatus;
+    result.status = parseTaskStatus(input.status);
   }
   if (Object.keys(result).length === 0)
     throw new ContractError('At least one task field is required.');

@@ -12,3 +12,13 @@ A focus-first life-management app: goal-bound Pomodoro sessions synced across Ex
 Stack: Expo (React Native) + web · Supabase · NodeMCU/ESP8266 (16x2 LCD + buzzer).
 
 PRD and roadmap live in the GitHub issues.
+
+## Phase 0 scaffold
+
+```bash
+bun install
+bun test
+bun run lint
+```
+
+Local tests are intentionally pure TypeScript. Supabase/Docker database tests run in GitHub Actions only; use `supabase db reset` locally only when debugging a CI failure. UI implementation remains design-gated.

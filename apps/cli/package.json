@@ -1,0 +1,15 @@
+{
+  "name": "@ekagra/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts"
+  },
+  "bin": {
+    "ekagra": "src/index.ts"
+  },
+  "dependencies": {
+    "@ekagra/core": "workspace:*"
+  }
+}

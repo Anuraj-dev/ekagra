@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, phase-0-scaffold]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-unit:
+    name: Lint and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun test
+
+  supabase:
+    name: Fresh Supabase migrations and database tests
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start -x studio -x imgproxy
+      - run: supabase db lint --local
+      - run: supabase db reset --local
+      - run: supabase test db
+      - if: always()
+        run: supabase stop
+
+  # Browser/Docker E2E is intentionally absent until a UI exists. When added,
+  # it belongs in this CI-only job family and is never part of local `bun test`.

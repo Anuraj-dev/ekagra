@@ -1,12 +1,12 @@
+import { ApiError, body, json, method } from '../_shared/http.ts';
+import { databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
+import type { GoalRow } from '../_shared/types.ts';
 import {
   type Goal,
   parseGoalCreateRequest,
   parseGoalUpdateRequest,
   parseUuid,
-} from '../../../packages/core/src/index.ts';
-import { ApiError, body, json, method } from '../_shared/http.ts';
-import { databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
-import type { GoalRow } from '../_shared/types.ts';
+} from '../_vendor/core/index.ts';
 
 const fields = 'id,title,identity_role,deadline,archived_at,created_at,updated_at';
 

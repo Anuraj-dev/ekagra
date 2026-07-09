@@ -1,10 +1,10 @@
+import { ApiError, body, json, method } from '../_shared/http.ts';
+import { adminClient, databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
 import {
   type DeviceRegistrationResponse,
   parseDeviceRegistrationRequest,
   parseUuid,
-} from '../../../packages/core/src/index.ts';
-import { ApiError, body, json, method } from '../_shared/http.ts';
-import { adminClient, databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
+} from '../_vendor/core/index.ts';
 
 function token(): string {
   const bytes = new Uint8Array(32);

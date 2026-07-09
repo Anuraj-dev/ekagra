@@ -1,7 +1,7 @@
-import { parseSessionCommand, parseSessionStartRequest } from '../../../packages/core/src/index.ts';
 import { createSessionHandlers } from '../_shared/handlers.ts';
 import { body, json, method } from '../_shared/http.ts';
 import { adminClient, handle, repositoryForClient, requireUser } from '../_shared/supabase.ts';
+import { parseSessionCommand, parseSessionStartRequest } from '../_vendor/core/index.ts';
 
 Deno.serve((request) =>
   handle(request, async () => {

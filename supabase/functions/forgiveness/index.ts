@@ -1,6 +1,6 @@
-import { parseForgivenessApplyRequest } from '../../../packages/core/src/index.ts';
 import { ApiError, body, json, method } from '../_shared/http.ts';
 import { handle, requireUser } from '../_shared/supabase.ts';
+import { parseForgivenessApplyRequest } from '../_vendor/core/index.ts';
 
 Deno.serve((request) =>
   handle(request, async () => {

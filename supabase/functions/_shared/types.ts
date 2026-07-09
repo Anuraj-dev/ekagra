@@ -6,7 +6,7 @@ import type {
   SessionStartRequest,
   Task,
   TimerConfig,
-} from '../../../packages/core/src/index.ts';
+} from '../_vendor/core/index.ts';
 
 export type TaskRow = {
   id: string;

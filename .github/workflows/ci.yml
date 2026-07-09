@@ -20,6 +20,10 @@ jobs:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
+      - name: Core vendor copy is in sync
+        run: |
+          ./scripts/sync-core-vendor.sh
+          git diff --exit-code supabase/functions/_vendor
       - run: bun run lint
       - run: bun test
 

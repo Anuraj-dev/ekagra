@@ -1,10 +1,7 @@
-import {
-  type DeviceActionResponse,
-  parseDeviceActionRequest,
-} from '../../../packages/core/src/index.ts';
 import { createSessionHandlers } from '../_shared/handlers.ts';
 import { body, json, method } from '../_shared/http.ts';
 import { adminClient, deviceForToken, handle, repositoryForClient } from '../_shared/supabase.ts';
+import { type DeviceActionResponse, parseDeviceActionRequest } from '../_vendor/core/index.ts';
 
 Deno.serve((request) =>
   handle(request, async () => {

@@ -7,7 +7,7 @@ import {
   type Session,
   type TimerState,
   transition,
-} from '../../../packages/core/src/index.ts';
+} from '../_vendor/core/index.ts';
 import { ApiError, type ApiFailure } from './http.ts';
 import type {
   DevicePollHandler,

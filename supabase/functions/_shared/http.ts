@@ -1,8 +1,4 @@
-import {
-  type ApiErrorBody,
-  type ApiErrorCode,
-  ContractError,
-} from '../../../packages/core/src/index.ts';
+import { type ApiErrorBody, type ApiErrorCode, ContractError } from '../_vendor/core/index.ts';
 
 export class ApiError extends Error {
   constructor(

@@ -1,13 +1,13 @@
+import { ApiError, body, json, method } from '../_shared/http.ts';
+import { databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
+import type { TaskRow } from '../_shared/types.ts';
 import {
   parseTaskCreateRequest,
   parseTaskStatus,
   parseTaskUpdateRequest,
   parseUuid,
   type Task,
-} from '../../../packages/core/src/index.ts';
-import { ApiError, body, json, method } from '../_shared/http.ts';
-import { databaseApiError, handle, requireUser } from '../_shared/supabase.ts';
-import type { TaskRow } from '../_shared/types.ts';
+} from '../_vendor/core/index.ts';
 
 const fields = 'id,title,status,goal_id,estimated_blocks,completed_at,created_at,updated_at';
 

@@ -57,7 +57,10 @@ async function main(): Promise<void> {
     headers: authorization,
     body: JSON.stringify({ taskId: '20000000-0000-0000-0000-000000000001' }),
   });
-  assert(missing.response.status === 404, 'foreign or missing task must be rejected');
+  assert(
+    missing.response.status === 404,
+    `foreign or missing task must be rejected (got ${missing.response.status}: ${JSON.stringify(missing.data)})`,
+  );
 
   const createdTask = await request('tasks', {
     method: 'POST',

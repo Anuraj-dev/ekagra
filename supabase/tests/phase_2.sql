@@ -116,11 +116,13 @@ select is(
   'device belongs to its registering owner'
 );
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
+set local role authenticated;
 select is(
   (select count(*) from public.devices where owner_id = '00000000-0000-0000-0000-000000000001'),
   0::bigint,
   'another user cannot read a device registry row'
 );
+reset role;
 
 select is(
   (select today_blocks from public.get_device_poll_aggregates('00000000-0000-0000-0000-000000000001')),

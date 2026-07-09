@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, phase-0-scaffold]
+    branches: [main, phase-0-scaffold, phase-1-timer-engine, phase-2-api]
   workflow_dispatch:
 
 permissions:
@@ -29,13 +29,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - run: bun install --frozen-lockfile
       - run: supabase start -x studio -x imgproxy
       - run: supabase db lint --local
       - run: supabase db reset --local
       - run: supabase test db
+      - name: Export local Supabase connection values
+        run: |
+          supabase status -o env > /tmp/supabase.env
+          set -a
+          source /tmp/supabase.env
+          echo "SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+      - name: Start Edge Functions
+        run: supabase functions serve --no-verify-jwt > /tmp/ekagra-functions.log 2>&1 &
+      - name: Wait for Edge Functions
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:54321/functions/v1/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/ekagra-functions.log
+          exit 1
+      - run: bun scripts/phase-2-smoke.ts
       - if: always()
         run: supabase stop
 

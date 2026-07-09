@@ -400,3 +400,5 @@ export function accountSession(outcome: SessionOutcome, elapsedMinutes: number):
     earnedBlock: outcome === 'completed',
   };
 }
+
+export * from './api';

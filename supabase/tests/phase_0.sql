@@ -29,13 +29,12 @@ select lives_ok(
             'pending')$$,
   'requester can insert a pending friendship'
 );
+update public.friendships
+set status = 'accepted'
+where id = '40000000-0000-0000-0000-000000000001';
 select is(
-  (with updated as (
-     update public.friendships
-     set status = 'accepted'
-     where id = '40000000-0000-0000-0000-000000000001'
-     returning id
-   ) select count(*) from updated),
+  (select count(*) from public.friendships
+   where id = '40000000-0000-0000-0000-000000000001' and status = 'accepted'),
   0::bigint,
   'requester cannot update their own friendship request'
 );

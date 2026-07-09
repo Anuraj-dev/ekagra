@@ -43,6 +43,8 @@ export type TimerState = {
   elapsedMs: number;
   /** Server time at which the current work session began. */
   sessionStartedAt: number | null;
+  /** Most recent server time accepted by a timer transition. */
+  lastObservedAt: number | null;
 };
 
 export type TimerConfig = Partial<TimerDurations>;
@@ -160,6 +162,15 @@ function elapsedAt(state: TimerState, now: number): number {
   return Math.min(durationMs, Math.max(0, state.elapsedMs + runningMs));
 }
 
+function validateMonotonicNow(state: TimerState, now: number): void {
+  if (state.lastObservedAt !== null && now < state.lastObservedAt) {
+    throw new TimerError(
+      'invalid-time',
+      'A timer transition cannot use a server timestamp earlier than the last observed time.',
+    );
+  }
+}
+
 function invalidTransition(state: TimerState, event: TimerEvent): never {
   throw new TimerError(
     'invalid-transition',
@@ -177,6 +188,7 @@ function idleState(state: TimerState): TimerState {
     startedAt: null,
     elapsedMs: 0,
     sessionStartedAt: null,
+    lastObservedAt: null,
   };
 }
 
@@ -197,6 +209,7 @@ export function createTimerState(config: TimerConfig = {}): TimerState {
     startedAt: null,
     elapsedMs: 0,
     sessionStartedAt: null,
+    lastObservedAt: null,
   };
 }
 
@@ -223,6 +236,10 @@ export function remainingMs(state: TimerState, now: number): number {
 export function transition(state: TimerState, event: TimerEvent, now: number): TimerTransition {
   validateNow(now);
 
+  if (event.type !== 'start') {
+    validateMonotonicNow(state, now);
+  }
+
   if (event.type === 'start') {
     if (state.phase !== 'idle' || state.status !== 'idle') {
       return invalidTransition(state, event);
@@ -241,6 +258,7 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
         startedAt: now,
         elapsedMs: 0,
         sessionStartedAt: now,
+        lastObservedAt: now,
       },
       session: null,
     };
@@ -251,12 +269,15 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
       return invalidTransition(state, event);
     }
 
+    // Pausing at or after expiry records a fully elapsed period. It remains
+    // paused so the caller can explicitly complete it and earn its block.
     return {
       state: {
         ...state,
         status: 'paused',
         startedAt: null,
         elapsedMs: elapsedAt(state, now),
+        lastObservedAt: now,
       },
       session: null,
     };
@@ -272,6 +293,7 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
         ...state,
         status: 'running',
         startedAt: now,
+        lastObservedAt: now,
       },
       session: null,
     };
@@ -306,7 +328,15 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
   }
 
   if (event.type === 'complete') {
-    if (state.status !== 'running' || state.phase === 'idle') {
+    const elapsed = elapsedAt(state, now);
+    const periodComplete = elapsed >= currentDurationMs(state);
+    const canComplete =
+      state.phase !== 'idle' &&
+      (state.status === 'running' || (state.status === 'paused' && periodComplete));
+
+    // A paused period may be completed only after it has reached zero. This
+    // makes pause-at-expiry completable without allowing early completion.
+    if (!canComplete) {
       return invalidTransition(state, event);
     }
 
@@ -324,7 +354,6 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
       };
     }
 
-    const elapsed = elapsedAt(state, now);
     validateTaskId(state.taskId);
     const completedBlocks = state.completedBlocks + 1;
     const nextPhase = completedBlocks % 4 === 0 ? 'long_break' : 'short_break';
@@ -340,6 +369,7 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
         startedAt: now,
         elapsedMs: 0,
         sessionStartedAt: null,
+        lastObservedAt: now,
       },
       session: {
         taskId: state.taskId,

@@ -94,6 +94,40 @@ describe('timer state machine', () => {
     expect(remainingMs(resumed, 105_000)).toBe(25 * minute - 10_000);
   });
 
+  test('rejects a backward clock across pause and resume', () => {
+    const running = start(createTimerState(), 1_000).state;
+    const paused = transition(running, { type: 'pause' }, 10 * minute + 1_000).state;
+
+    expect(() => transition(paused, { type: 'resume' }, 5 * minute + 1_000)).toThrow(
+      'earlier than the last observed time',
+    );
+
+    const resumed = transition(paused, { type: 'resume' }, 10 * minute + 1_000).state;
+    const completed = completeWork(resumed, 25 * minute + 1_000);
+
+    expect(completed.session).toMatchObject({ honestMinutes: 25, earnedBlock: true });
+  });
+
+  test('pausing at expiry leaves a completable paused work period', () => {
+    const running = start(createTimerState(), 1_000).state;
+    const paused = transition(running, { type: 'pause' }, 1_000 + 25 * minute).state;
+
+    expect(paused).toMatchObject({
+      status: 'paused',
+      startedAt: null,
+      elapsedMs: 25 * minute,
+    });
+
+    const result = transition(paused, { type: 'complete' }, 1_000 + 25 * minute);
+
+    expect(result.session).toMatchObject({
+      outcome: 'completed',
+      honestMinutes: 25,
+      earnedBlock: true,
+    });
+    expect(result.state.completedBlocks).toBe(1);
+  });
+
   test('rejects commands that do not match the current state', () => {
     const initial = createTimerState();
     const running = start(initial).state;
@@ -202,6 +236,19 @@ describe('timer state machine', () => {
     expect(result.state.phase).toBe('idle');
   });
 
+  test('rejects abandonment outside a work phase', () => {
+    const initial = createTimerState();
+    expect(() => transition(initial, { type: 'abandon', tag: 'energy' }, 1_000)).toThrow(
+      'Cannot abandon',
+    );
+
+    const work = start(initial).state;
+    const shortBreak = completeWork(work, 1_000 + 25 * minute).state;
+    expect(() =>
+      transition(shortBreak, { type: 'abandon', tag: 'energy' }, 1_000 + 25 * minute),
+    ).toThrow('Cannot abandon');
+  });
+
   test('does not complete a paused or unfinished work period', () => {
     const running = start(createTimerState(), 1_000).state;
     const paused = transition(running, { type: 'pause' }, 1_001).state;
@@ -210,6 +257,34 @@ describe('timer state machine', () => {
     expect(() => transition(running, { type: 'complete' }, 1_000 + 24 * minute)).toThrow(
       'reach zero',
     );
+  });
+
+  test('does not complete the same returned state twice', () => {
+    const running = start(createTimerState(), 1_000).state;
+    const first = completeWork(running, 1_000 + 25 * minute);
+
+    expect(() => transition(first.state, { type: 'complete' }, 1_000 + 25 * minute)).toThrow(
+      'reach zero',
+    );
+    expect(first.state.completedBlocks).toBe(1);
+  });
+
+  test('does not mutate state or event inputs', () => {
+    const state = createTimerState();
+    const event = {
+      type: 'start' as const,
+      taskId: ' task-1 ',
+      durations: { workMinutes: 50 },
+    };
+    const stateBefore = structuredClone(state);
+    const eventBefore = structuredClone(event);
+
+    const result = transition(state, event, 1_000);
+
+    expect(state).toEqual(stateBefore);
+    expect(event).toEqual(eventBefore);
+    expect(result.state.taskId).toBe('task-1');
+    expect(result.state.durations?.workMinutes).toBe(50);
   });
 });
 

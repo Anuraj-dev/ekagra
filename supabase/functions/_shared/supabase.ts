@@ -14,7 +14,6 @@ export function databaseApiError(
   error: { code?: string; message?: string },
   fallback = 'Database request failed.',
 ): ApiError {
-  console.error('database error', JSON.stringify(error), new Error('at').stack);
   if (error.code === 'PGRST116') return new ApiError('not_found', 'Record not found.');
   if (error.code === '23505') return new ApiError('conflict', 'That record already exists.');
   if (error.code === '23514') {
@@ -154,17 +153,7 @@ export async function requireUser(request: Request): Promise<{
 }
 
 export function adminClient(): SupabaseClient {
-  const key = env('SUPABASE_SERVICE_ROLE_KEY');
-  try {
-    const payload = JSON.parse(atob(key.split('.')[1] ?? ''));
-    console.error(
-      'admin key role',
-      JSON.stringify({ role: payload.role, url: env('SUPABASE_URL') }),
-    );
-  } catch {
-    console.error('admin key not a JWT', key.slice(0, 12));
-  }
-  return createClient(env('SUPABASE_URL'), key);
+  return createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
 }
 
 export function repositoryForClient(client: SupabaseClient): SessionRepository {

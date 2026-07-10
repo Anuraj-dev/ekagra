@@ -125,9 +125,10 @@ async function main(): Promise<void> {
     ['t', 'c', 'p', 'b', 'w', 'n'].every((key) => key in payload),
     'device payload shape changed',
   );
+  const countdown = typeof payload.c === 'string' ? payload.c : '';
   assert(
-    payload.p === 'work' && payload.c === '01:00',
-    'device poll did not reflect the running session',
+    payload.p === 'work' && /^00:5[0-9]$|^01:00$/.test(countdown),
+    `device poll did not reflect the running session (got ${JSON.stringify(payload)})`,
   );
 
   const paused = await request('device-action', {

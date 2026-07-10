@@ -1,0 +1,28 @@
+{
+  "idle": { "t": null, "c": "00:00", "p": "idle", "b": 3, "w": 120, "n": "2026-07-10T10:00:00Z" },
+  "work": {
+    "t": "Write the firmware",
+    "c": "24:59",
+    "p": "work",
+    "b": 2,
+    "w": 90,
+    "n": "2026-07-10T10:00:00Z"
+  },
+  "break": {
+    "t": null,
+    "c": "05:00",
+    "p": "short_break",
+    "b": 2,
+    "w": 90,
+    "n": "2026-07-10T10:00:00Z"
+  },
+  "longTitle": {
+    "t": "This is a deliberately long focus task",
+    "c": "50:00",
+    "p": "work",
+    "b": 0,
+    "w": 0,
+    "n": "2026-07-10T10:00:00Z"
+  },
+  "malformed": { "t": "oops", "p": "work" }
+}

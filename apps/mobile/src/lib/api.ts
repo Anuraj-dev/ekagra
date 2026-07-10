@@ -1,6 +1,7 @@
 import type {
   ApiErrorBody,
   CurrentSessionResponse,
+  DayRecord,
   DeviceRegistrationResponse,
   EveningCloseRequest,
   Goal,
@@ -15,7 +16,10 @@ import type {
   TaskStatus,
   TaskUpdateRequest,
 } from '@ekagra/core';
+import { parseDayRecord } from '@ekagra/core';
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, supabase } from './supabase';
+
+const DAY_RECORD_COLUMNS = 'record_date,morning_task_ids,plan_match,went_wrong_tag,note,updated_at';
 
 /** A typed error carrying the contract's error code, thrown for any non-2xx response. */
 export class ApiError extends Error {
@@ -128,6 +132,24 @@ export const ritualsApi = {
       query: { ritual: 'evening-close' },
       body: payload,
     }),
+};
+
+// --- Day records ------------------------------------------------------------
+
+export const dayRecordsApi = {
+  /**
+   * Recent plan-vs-actual rows, newest first. Read directly from `day_records`
+   * (owner-scoped RLS; writes still go through the rituals edge function).
+   */
+  recent: async (limit = 14): Promise<DayRecord[]> => {
+    const { data, error } = await supabase
+      .from('day_records')
+      .select(DAY_RECORD_COLUMNS)
+      .order('record_date', { ascending: false })
+      .limit(limit);
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map(parseDayRecord);
+  },
 };
 
 // --- Forgiveness ------------------------------------------------------------

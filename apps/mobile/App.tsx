@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
 import { DataProvider } from './src/data/DataProvider';
+import { loadCuePrefs } from './src/lib/cuePrefs';
 import { scheduleDailyCues } from './src/lib/notifications';
 import { isSupabaseConfigured } from './src/lib/supabase';
 import { RootNavigator } from './src/nav/RootNavigator';
@@ -69,9 +70,14 @@ function ConfigNotice() {
 function Gate() {
   const { session, loading } = useAuth();
 
-  // Local daily cues are scheduled once the user is authenticated.
+  // Local daily cues are scheduled once the user is authenticated, using the
+  // user's chosen cue times (defaults until they change them in Settings).
   useEffect(() => {
-    if (session) void scheduleDailyCues();
+    if (!session) return;
+    void (async () => {
+      const prefs = await loadCuePrefs();
+      await scheduleDailyCues(prefs.morning, prefs.evening);
+    })();
   }, [session]);
 
   if (loading) {

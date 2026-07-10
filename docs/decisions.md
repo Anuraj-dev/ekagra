@@ -47,5 +47,13 @@
 ## 2026-07-10 — Sub-agent model routing updated (Raja)
 **Why:** GPT Sol (medium) for heavy/architectural backend, Sol (low) for reviews, GPT-5.6 Luna for heavy frontend with Opus fallback. Codex ChatGPT account 400-rejects explicit -m ids → use account default at the same effort levels.
 
+<<<<<<< HEAD
 ## 2026-07-10 — Phase 6 motivation calendar uses UTC and targeted forgiveness
 **Why:** V1 needs one deterministic day/week boundary across Postgres views and edge callers before user timezone storage exists. A weekly token targets the latest explicit miss, or a missing pre-today date after the user's first non-empty morning commitment in that UTC ISO week; this preserves a real consecutive-day streak without forgiving unfinished today or pre-tracking gaps. Per-user timezone boundaries are deferred.
+=======
+## 2026-07-10 — Codex model ids corrected + usage window
+**Why:** Fully-qualified ids (`-m gpt-5.6-sol|terra|luna`) DO work on the ChatGPT account — only short ids (`gpt-sol`) 400-reject (verified via frontend-ai-model-benchmark runs). Supersedes the earlier "use account default" note. Raja: use codex extensively only through ~2026-07-11 (quota reset window), then strategic-only (Codex Plus).
+
+## 2026-07-10 — Subagent fix-cycle cap (Raja)
+**Why:** Resumed agents replay ever-growing transcripts — cost rises, quality plateaus. Max ~2 cycles (build + one fix round) per agent; repeat mistakes → fresh spawn with distilled findings, or higher effort. Same-agent continuation only when its in-context knowledge is genuinely load-bearing.
+>>>>>>> origin/main

@@ -37,11 +37,12 @@ select throws_ok(
 );
 reset role;
 
--- anon cannot read releases (select policy is scoped to authenticated).
+-- anon cannot read releases (table privileges are revoked from anon).
 set local role anon;
-select is(
-  (select count(*) from public.app_releases),
-  0::bigint,
+select throws_ok(
+  'select count(*) from public.app_releases',
+  '42501',
+  'permission denied for table app_releases',
   'anon cannot select releases'
 );
 reset role;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
 import { PlayIcon, SettingsIcon } from '../components/icons';
@@ -34,7 +34,21 @@ export function Today() {
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
   const name = (session?.user.user_metadata?.name as string | undefined) ?? '';
-  const now = new Date();
+
+  // Cue state re-evaluates over time: a Today screen left open across a cue
+  // time must still surface the banner, so tick every 30s and on refocus.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    const interval = setInterval(tick, 30_000);
+    window.addEventListener('focus', tick);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', tick);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, []);
 
   const cuePrefs = useMemo(() => loadCuePrefs(), []);
   const cue = ritualCueState({

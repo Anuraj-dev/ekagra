@@ -1,4 +1,4 @@
-import type { DistractionTag } from '@ekagra/core';
+import type { DistractionTag, Session } from '@ekagra/core';
 import { DISTRACTION_TAGS, remainingMs } from '@ekagra/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeftIcon, PauseIcon, ResumeGlyph } from '../components/icons';
@@ -21,13 +21,12 @@ const TAG_COPY: Record<DistractionTag, string> = {
 export function Focus() {
   const { close } = useNav();
   const {
-    session,
+    session: activeSession,
     goals,
     tasks,
     sessionAnchorMs,
     serverClockOffset,
     sessionCommand,
-    recordSessionEnd,
     reloadSession,
     earnedByTask,
   } = useData();
@@ -37,9 +36,17 @@ export function Focus() {
   const [ending, setEnding] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [deskConnected, setDeskConnected] = useState(false);
-  const completingRef = useRef(false);
+  // Terminal session kept locally so the ended state renders immediately
+  // (DataProvider clears the active session on terminal outcomes).
+  const [endedSession, setEndedSession] = useState<Session | null>(null);
+  // One shared guard for every terminal command (auto-complete AND manual end),
+  // so they can't race each other at zero.
+  const terminalRef = useRef(false);
 
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
+  const session = activeSession ?? endedSession;
+  const terminal =
+    session !== null && (session.status === 'completed' || session.status === 'abandoned');
   const task = session ? (tasks.find((t) => t.id === session.taskId) ?? null) : null;
 
   // Desk-light footer only renders when a paired device was recently seen.
@@ -69,10 +76,10 @@ export function Focus() {
     return () => window.clearInterval(id);
   }, [serverClockOffset]);
 
-  const running = session?.status === 'running';
+  const running = session?.status === 'running' && !terminal;
   const timerState = useMemo(
-    () => (session ? timerStateFromSession(session, sessionAnchorMs) : null),
-    [session, sessionAnchorMs],
+    () => (activeSession ? timerStateFromSession(activeSession, sessionAnchorMs) : null),
+    [activeSession, sessionAnchorMs],
   );
 
   const remaining = useMemo(() => {
@@ -82,31 +89,41 @@ export function Focus() {
   }, [timerState, nowMs]);
 
   const totalMs = (session?.plannedMinutes ?? 25) * 60_000;
-  const progress = totalMs > 0 ? 1 - remaining / totalMs : 0;
+  const progress = terminal
+    ? session?.status === 'completed'
+      ? 1
+      : totalMs > 0
+        ? Math.min(1, (session.elapsedSeconds * 1000) / totalMs)
+        : 0
+    : totalMs > 0
+      ? 1 - remaining / totalMs
+      : 0;
 
   const complete = useCallback(async () => {
-    if (completingRef.current) return;
-    completingRef.current = true;
+    if (terminalRef.current) return;
+    terminalRef.current = true;
     try {
       const ended = await sessionCommand({ action: 'complete' });
-      recordSessionEnd(ended);
+      // Render the terminal state immediately; the timed close is cosmetic.
+      setEndedSession(ended);
       setCelebrate(true);
       window.setTimeout(() => {
         close();
       }, 2600);
     } catch {
-      // If the server rejects (e.g. not yet zero), re-sync and let the tick retry.
-      completingRef.current = false;
-      await reloadSession();
+      // Server rejected (e.g. not yet zero, or already ended elsewhere):
+      // release the guard and reconcile with the server's view.
+      terminalRef.current = false;
+      await reloadSession().catch(() => {});
     }
-  }, [sessionCommand, recordSessionEnd, close, reloadSession]);
+  }, [sessionCommand, close, reloadSession]);
 
   // Auto-complete when a running work block reaches zero.
   useEffect(() => {
-    if (running && remaining <= 0 && !completingRef.current && session) {
+    if (running && remaining <= 0 && !terminalRef.current && activeSession) {
       void complete();
     }
-  }, [running, remaining, complete, session]);
+  }, [running, remaining, complete, activeSession]);
 
   if (!session) {
     return (
@@ -136,21 +153,35 @@ export function Focus() {
   const total = task?.estimatedBlocks ?? 1;
 
   async function togglePause() {
-    if (busy) return;
+    // No pause/resume once a terminal command is in flight or the session ended.
+    if (busy || terminal || terminalRef.current) return;
+    // Resuming an expired block would be an invalid transition — complete instead.
+    if (!running && remaining <= 0) {
+      void complete();
+      return;
+    }
     setBusy(true);
     try {
       await sessionCommand({ action: running ? 'pause' : 'resume' });
+    } catch {
+      // Likely already ended (e.g. auto-complete won the race) — reconcile.
+      await reloadSession().catch(() => {});
     } finally {
       setBusy(false);
     }
   }
 
   async function endSession(tag: DistractionTag) {
+    if (terminal || terminalRef.current) return;
+    terminalRef.current = true;
     setBusy(true);
     try {
       const ended = await sessionCommand({ action: 'abandon', distractionTag: tag });
-      recordSessionEnd(ended);
+      setEndedSession(ended);
       close();
+    } catch {
+      terminalRef.current = false;
+      await reloadSession().catch(() => {});
     } finally {
       setBusy(false);
     }
@@ -216,7 +247,14 @@ export function Focus() {
             <ChevronLeftIcon />
           </button>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            {running ? (
+            {terminal ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: 2, background: tokens.green }} />
+                <span className="overline" style={{ color: tokens.t2 }}>
+                  {session.status === 'completed' ? 'Block earned' : 'Session ended'}
+                </span>
+              </div>
+            ) : running ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 6, height: 6, borderRadius: 2, background: tokens.ember }} />
                 <span className="overline" style={{ color: tokens.t2 }}>
@@ -265,10 +303,18 @@ export function Focus() {
         >
           <TimerRing
             progress={progress}
-            status={running ? 'running' : 'paused'}
-            phase="work"
-            timeLabel={formatClock(Math.ceil(remaining / 1000))}
-            subLabel={running ? 'Remaining' : 'Paused'}
+            status={running || terminal ? 'running' : 'paused'}
+            phase={terminal && session.status === 'completed' ? 'break' : 'work'}
+            timeLabel={terminal ? formatClock(0) : formatClock(Math.ceil(remaining / 1000))}
+            subLabel={
+              terminal
+                ? session.status === 'completed'
+                  ? 'Earned'
+                  : 'Ended'
+                : running
+                  ? 'Remaining'
+                  : 'Paused'
+            }
           />
         </div>
 
@@ -309,7 +355,7 @@ export function Focus() {
         )}
       </div>
 
-      {/* Controls */}
+      {/* Controls — removed entirely once the session is terminal. */}
       <div
         style={{
           display: 'flex',
@@ -318,13 +364,14 @@ export function Focus() {
           gap: 22,
           marginBottom: 46,
           zIndex: 1,
+          visibility: terminal ? 'hidden' : 'visible',
         }}
       >
         <button
           type="button"
           aria-label={running ? 'Pause timer' : 'Resume timer'}
           onClick={togglePause}
-          disabled={busy}
+          disabled={busy || terminal}
           style={
             running
               ? {
@@ -355,6 +402,7 @@ export function Focus() {
         <button
           type="button"
           onClick={() => setEnding(true)}
+          disabled={busy || terminal}
           style={{
             fontSize: running ? 13 : 14,
             fontWeight: 700,

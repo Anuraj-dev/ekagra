@@ -167,10 +167,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     async (command: SessionCommand) => {
       const res = await sessionsApi.command(command);
       applyServerNow(res.serverNow);
-      setSession(res.session);
-      return res.session;
+      const ended = res.session;
+      if (ended && (ended.status === 'completed' || ended.status === 'abandoned')) {
+        // A terminal session is not active: record its accounting, clear the
+        // active slot so Today can start the next block, and refresh tasks.
+        recordSessionEnd(ended);
+        setSession(null);
+        void reloadTasks().catch(() => {});
+      } else {
+        setSession(ended);
+      }
+      return ended;
     },
-    [applyServerNow],
+    [applyServerNow, recordSessionEnd, reloadTasks],
   );
 
   const closeEvening = useCallback(async (payload: EveningCloseRequest) => {

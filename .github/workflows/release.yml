@@ -113,7 +113,9 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-        run: ./android/gradlew -p android assembleRelease
+        # arm64-only: a 4-ABI APK exceeds the Supabase free-tier 50MB upload
+        # cap; every supported device is arm64-v8a.
+        run: ./android/gradlew -p android assembleRelease -PreactNativeArchitectures=arm64-v8a
 
       - name: Collect artifacts
         if: steps.gate.outputs.skip == 'false'

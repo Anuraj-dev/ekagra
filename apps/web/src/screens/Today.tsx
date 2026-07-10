@@ -1,0 +1,324 @@
+import { useMemo, useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
+import { DayLedger } from '../components/DayLedger';
+import { PlayIcon, SettingsIcon } from '../components/icons';
+import { TaskCard } from '../components/TaskCard';
+import { CircleButton, GhostButton, SectionRow } from '../components/ui';
+import { useData } from '../data/DataProvider';
+import { formatClock, formatLongDate, greeting } from '../lib/format';
+import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
+import { useNav } from '../nav/navigation';
+import { color as tokens } from '../theme/tokens';
+
+export function Today() {
+  const { open } = useNav();
+  const { session } = useAuth();
+  const {
+    goals,
+    tasks,
+    todayEarnedBlocks,
+    todayHonestMinutes,
+    earnedByTask,
+    startSession,
+    session: activeSession,
+  } = useData();
+
+  const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
+  const committed = useMemo(() => tasks.filter((t) => t.status === 'planned'), [tasks]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
+  const selected = committed.find((t) => t.id === selectedId) ?? null;
+  const name = (session?.user.user_metadata?.name as string | undefined) ?? '';
+  const now = new Date();
+
+  async function start() {
+    // Client-side hard-block: no owned planned task selected → cannot start.
+    if (!selected || activeSession) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await startSession(selected.id);
+      open('focus');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start the session.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="scroll" style={{ paddingBottom: 24 }}>
+      {/* Header */}
+      <div
+        className="enter"
+        style={{ position: 'relative', padding: '58px 20px 0', overflow: 'hidden' }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            right: -60,
+            top: -40,
+            width: 220,
+            height: 180,
+            background:
+              'radial-gradient(circle at center, rgba(240,138,62,.10) 0%, rgba(240,138,62,0) 66%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div style={{ position: 'absolute', right: 20, top: 56 }}>
+          <CircleButton aria-label="Settings" onClick={() => open('settings')}>
+            <SettingsIcon />
+          </CircleButton>
+        </div>
+        <div className="overline" style={{ color: tokens.t4 }}>
+          {formatLongDate(now)}
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.4px', marginTop: 8 }}>
+          {greeting(now)}
+          {name ? `, ${name}` : ''}
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: tokens.t3,
+            marginTop: 6,
+            lineHeight: 1.45,
+          }}
+        >
+          <b style={{ color: tokens.ember, fontWeight: 800 }}>{todayEarnedBlocks}</b> of{' '}
+          {plannedBlocks} blocks earned · {todayHonestMinutes} honest minutes
+        </div>
+      </div>
+
+      <div className="enter-delay">
+        <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />
+
+        {committed.length === 0 ? (
+          <EmptyCommit onCommit={() => open('morning-commit')} />
+        ) : (
+          <>
+            <SectionRow
+              label={`Committed · ${committed.length} task${committed.length === 1 ? '' : 's'}`}
+              action={<GhostButton onClick={() => open('morning-commit')}>Edit</GhostButton>}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
+              {committed.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  goalColor={goalColor(task.goalId, colorMap)}
+                  goalName={goalName(task.goalId, goals)}
+                  earnedBlocks={earnedByTask[task.id] ?? 0}
+                  selected={task.id === selectedId}
+                  onClick={() => setSelectedId(task.id)}
+                />
+              ))}
+            </div>
+
+            {/* Start focus bar — disabled well (hard-block visible) until a task is picked. */}
+            <div style={{ padding: '20px 16px 0' }}>
+              <StartBar
+                selectedTitle={selected?.title ?? null}
+                disabled={!selected || busy || Boolean(activeSession)}
+                onStart={start}
+              />
+              {error && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#E4796B',
+                    marginTop: 8,
+                    padding: '0 4px',
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Close the day entry — recessed. */}
+            <button
+              type="button"
+              onClick={() => open('evening-close')}
+              style={{
+                display: 'flex',
+                width: 'calc(100% - 32px)',
+                margin: '12px 16px 0',
+                background: tokens.surface2,
+                border: `1px solid ${tokens.lineSoft}`,
+                borderRadius: 16,
+                padding: '15px 18px',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                textAlign: 'left',
+              }}
+            >
+              <span>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: tokens.t2 }}>
+                  Close the day
+                </span>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: tokens.t4,
+                    marginTop: 2,
+                  }}
+                >
+                  {todayHonestMinutes} honest minutes so far
+                </span>
+              </span>
+              <span style={{ color: tokens.t4, fontSize: 18 }}>›</span>
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StartBar({
+  selectedTitle,
+  disabled,
+  onStart,
+}: {
+  selectedTitle: string | null;
+  disabled: boolean;
+  onStart: () => void;
+}) {
+  if (!selectedTitle) {
+    return (
+      <div
+        style={{
+          borderRadius: 16,
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          background: tokens.surface2,
+          border: `1px solid ${tokens.lineSoft}`,
+        }}
+      >
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 999,
+            flex: 'none',
+            background: tokens.surface3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <PlayIcon fill={tokens.t4} />
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: tokens.t3 }}>
+            Pick a task to start
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 2 }}>
+            A focus block always belongs to a task
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onStart}
+      disabled={disabled}
+      style={{
+        width: '100%',
+        borderRadius: 16,
+        padding: '16px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        textAlign: 'left',
+        background: 'rgba(240,138,62,.10)',
+        border: '1px solid rgba(240,138,62,.45)',
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <span
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 999,
+          flex: 'none',
+          background: tokens.ember,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <PlayIcon />
+      </span>
+      <span>
+        <span style={{ display: 'block', fontSize: 16, fontWeight: 800, letterSpacing: '-.1px' }}>
+          Start focus
+        </span>
+        <span
+          style={{
+            display: 'block',
+            fontSize: 12,
+            fontWeight: 600,
+            color: tokens.t3,
+            marginTop: 2,
+          }}
+        >
+          {selectedTitle}
+        </span>
+      </span>
+      <span
+        className="tabular"
+        style={{
+          marginLeft: 'auto',
+          fontSize: 20,
+          fontWeight: 800,
+          color: tokens.ember,
+          letterSpacing: '-.5px',
+        }}
+      >
+        {formatClock(25 * 60)}
+      </span>
+    </button>
+  );
+}
+
+function EmptyCommit({ onCommit }: { onCommit: () => void }) {
+  return (
+    <div style={{ padding: '32px 20px' }}>
+      <SectionRow label="No plan yet" />
+      <div style={{ padding: '0 16px' }}>
+        <p style={{ fontSize: 14, fontWeight: 600, color: tokens.t3, lineHeight: 1.5 }}>
+          Commit 1–3 tasks to start the day. You can't start a focus block without a plan.
+        </p>
+        <button
+          type="button"
+          onClick={onCommit}
+          style={{
+            marginTop: 16,
+            borderRadius: 999,
+            padding: 15,
+            width: '100%',
+            fontSize: 15,
+            fontWeight: 800,
+            background: tokens.ember,
+            color: '#0E0F12',
+          }}
+        >
+          Morning Commit
+        </button>
+      </div>
+    </div>
+  );
+}

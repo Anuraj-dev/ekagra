@@ -1,0 +1,152 @@
+/* Global reset + Ekagra shell. CSS variables are injected at runtime from tokens.ts. */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-deep);
+  font-family: "Manrope", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--t1);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input,
+textarea {
+  font-family: inherit;
+}
+
+/* The device frame — the whole app lives inside a 390-wide column, centered. */
+.app-frame {
+  width: 390px;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 844px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--t1);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-frame.focus {
+  background: var(--bg-focus);
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.overline {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Screen enter: content fade + 8px rise, single header->body stagger. */
+@keyframes screenEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.enter {
+  animation: screenEnter 320ms var(--ease) both;
+}
+.enter-delay {
+  animation: screenEnter 320ms var(--ease) both;
+  animation-delay: 60ms;
+}
+
+/* Timer ring motion */
+@keyframes progBreath {
+  0%,
+  100% {
+    opacity: 0.94;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes breatheGlow {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes ringFlash {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes toastRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ring-vignette {
+  animation: breatheGlow 7s ease-in-out infinite;
+}
+.ring-prog--running {
+  animation: progBreath 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter,
+  .enter-delay {
+    animation: none;
+  }
+  .ring-vignette,
+  .ring-prog--running {
+    animation: none;
+  }
+}

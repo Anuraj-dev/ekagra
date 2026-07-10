@@ -221,6 +221,16 @@ export type DayRecord = {
   updatedAt: string;
 };
 
+export type AppRelease = {
+  id: string;
+  platform: string;
+  version: string;
+  apkUrl: string;
+  sha256: string | null;
+  notes: string | null;
+  createdAt: string;
+};
+
 export type DeviceAction = 'start_next_planned' | 'pause';
 
 export type DeviceActionRequest = {

@@ -6,6 +6,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
+import { UpdateBanner } from './src/components/UpdateBanner';
 import { DataProvider } from './src/data/DataProvider';
 import { loadCuePrefs } from './src/lib/cuePrefs';
 import { scheduleDailyCues } from './src/lib/notifications';
@@ -92,9 +93,12 @@ function Gate() {
 
   return (
     <DataProvider>
-      <NavigationContainer theme={navTheme}>
-        <RootNavigator />
-      </NavigationContainer>
+      <View style={{ flex: 1 }}>
+        <NavigationContainer theme={navTheme}>
+          <RootNavigator />
+        </NavigationContainer>
+        <UpdateBanner />
+      </View>
     </DataProvider>
   );
 }

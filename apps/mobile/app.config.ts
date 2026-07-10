@@ -23,6 +23,9 @@ const config: ExpoConfig = {
     backgroundColor: '#0E0F12',
   },
   android: {
+    package: 'dev.anuraj.ekagra',
+    // Lets the in-app updater hand a downloaded APK to the system installer.
+    permissions: ['REQUEST_INSTALL_PACKAGES'],
     backgroundColor: '#0E0F12',
     adaptiveIcon: {
       backgroundColor: '#0A0B0E',

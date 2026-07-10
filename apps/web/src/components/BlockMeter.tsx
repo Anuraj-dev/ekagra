@@ -30,8 +30,8 @@ export function BlockMeter({
       {Array.from({ length: segments }, (_, i) => {
         const done = i < earned;
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length decorative segments, index is the identity
           <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length decorative segments, index is the identity
             key={`seg-${segments}-${i}`}
             style={{
               height: 6,

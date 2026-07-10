@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { type DeviceSummary, devicesApi } from '../lib/api';
@@ -13,17 +13,17 @@ export function Settings() {
   const [newToken, setNewToken] = useState<{ deviceId: string; deviceToken: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       setDevices(await devicesApi.list());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load devices.');
     }
-  }
+  }, []);
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
 
   async function pairDevice() {
     setError(null);

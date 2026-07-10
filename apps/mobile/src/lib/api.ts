@@ -183,8 +183,17 @@ export const insightsApi = {
     const { data, error } = await supabase
       .from('daily_activity')
       .select('user_id,activity_date,earned_blocks,honest_minutes')
-      .single();
+      .maybeSingle();
     if (error) throw new ApiError(500, 'internal_error', error.message);
+    if (!data) {
+      // No row means no activity yet today — zero totals, not a failure.
+      return {
+        userId: '',
+        activityDate: new Date().toISOString().slice(0, 10),
+        earnedBlocks: 0,
+        honestMinutes: 0,
+      };
+    }
     return {
       userId: String(data.user_id),
       activityDate: String(data.activity_date),

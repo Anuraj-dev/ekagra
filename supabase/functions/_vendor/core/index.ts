@@ -330,8 +330,11 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
   if (event.type === 'complete' || event.type === 'completeEarly') {
     const elapsed = elapsedAt(state, now);
     const periodComplete = elapsed >= currentDurationMs(state);
+    // Early completion is a statement about work ("I finished the task"), so
+    // it is only valid during a work period — breaks end via `complete`.
     const canComplete =
       state.phase !== 'idle' &&
+      (event.type !== 'completeEarly' || state.phase === 'work') &&
       (state.status === 'running' ||
         (state.status === 'paused' && (periodComplete || event.type === 'completeEarly')));
 

@@ -92,8 +92,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setSession(res.session);
   }, [applyServerNow]);
 
+  // Tickets guard against an older in-flight activity fetch resolving after a
+  // newer one and overwriting fresher totals (e.g. reloadAll racing the
+  // post-session refresh).
+  const activityTicket = useRef(0);
   const reloadTodayActivity = useCallback(async () => {
+    const ticket = ++activityTicket.current;
     const activity = await insightsApi.todayActivity();
+    if (ticket !== activityTicket.current) return;
     setTodayEarnedBlocks(activity.earnedBlocks);
     setTodayHonestMinutes(activity.honestMinutes);
   }, []);
@@ -102,24 +108,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const [goalList, taskList, current, activity] = await Promise.all([
+      const [goalList, taskList, current] = await Promise.all([
         goalsApi.list(),
         tasksApi.list(),
         sessionsApi.current(),
-        insightsApi.todayActivity(),
+        reloadTodayActivity(),
       ]);
       setGoals(goalList);
       setTasks(taskList);
       applyServerNow(current.serverNow);
       setSession(current.session);
-      setTodayEarnedBlocks(activity.earnedBlocks);
-      setTodayHonestMinutes(activity.honestMinutes);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load your data.');
     } finally {
       setLoading(false);
     }
-  }, [applyServerNow]);
+  }, [applyServerNow, reloadTodayActivity]);
 
   useEffect(() => {
     void reloadAll();

@@ -179,6 +179,15 @@ describe('timer state machine', () => {
     });
   });
 
+  test('rejects early completion during a break', () => {
+    const work = start(createTimerState(), 1_000).state;
+    const shortBreak = completeWork(work, 1_000 + 25 * minute).state;
+
+    expect(() => transition(shortBreak, { type: 'completeEarly' }, 1_000 + 26 * minute)).toThrow(
+      'Cannot completeEarly',
+    );
+  });
+
   test('completes a break and returns to idle, preserving the earned-block total', () => {
     const work = start(createTimerState(), 1_000).state;
     const shortBreak = completeWork(work, 1_000 + 25 * minute).state;

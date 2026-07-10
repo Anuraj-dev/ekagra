@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Ekagra splash mark</title>
+  <desc id="desc">A focused ember inside a broken concentric timer ring on transparency.</desc>
+  <g transform="translate(512 512) scale(.7) translate(-512 -512)">
+    <g fill="none" stroke="#F08A3E" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 352 231 A 268 268 0 0 1 690 256" stroke-width="30"/>
+      <path d="M 747 335 A 268 268 0 0 1 742 665" stroke-width="30"/>
+      <path d="M 672 762 A 268 268 0 0 1 350 793" stroke-width="30"/>
+      <path d="M 278 693 A 268 268 0 0 1 281 350" stroke-width="30"/>
+      <path d="M 402 351 A 164 164 0 0 1 622 379" stroke-width="16" opacity="0.58"/>
+      <path d="M 649 416 A 164 164 0 0 1 641 589" stroke-width="16" opacity="0.58"/>
+      <path d="M 602 647 A 164 164 0 0 1 425 675" stroke-width="16" opacity="0.58"/>
+    </g>
+    <path d="M512 326 C491 367 434 418 434 496 C434 575 469 624 512 650 C555 624 590 575 590 496 C590 418 533 367 512 326 Z" fill="#F08A3E"/>
+    <path d="M512 394 C498 422 478 449 478 492 C478 533 493 561 512 578 C531 561 546 533 546 492 C546 449 526 422 512 394 Z" fill="#F5A868"/>
+    <circle cx="512" cy="491" r="22" fill="#0A0B0E"/>
+  </g>
+</svg>

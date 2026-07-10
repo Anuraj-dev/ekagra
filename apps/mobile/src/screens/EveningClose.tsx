@@ -107,7 +107,7 @@ export function EveningClose() {
               </Text>
             )}
             <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 14 })}>
-              {`${todayEarnedBlocks} blocks banked · ${todayHonestMinutes} honest minutes`}
+              {`${todayEarnedBlocks} block${todayEarnedBlocks === 1 ? '' : 's'} banked · ${todayHonestMinutes} honest minute${todayHonestMinutes === 1 ? '' : 's'}`}
             </Text>
           </View>
           <Pressable onPress={() => nav.goBack()} style={{ marginTop: 20 }}>

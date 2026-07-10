@@ -1,6 +1,7 @@
 import type {
   EveningCloseRequest,
   Goal,
+  GoalCreateRequest,
   Session,
   SessionCommand,
   Task,
@@ -43,6 +44,7 @@ type DataContextValue = {
   reloadSession: () => Promise<void>;
   reloadAll: () => Promise<void>;
   createTask: (payload: TaskCreateRequest) => Promise<Task>;
+  createGoal: (payload: GoalCreateRequest) => Promise<Goal>;
   updateTask: (id: string, payload: TaskUpdateRequest) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
   commitMorning: (taskIds: string[]) => Promise<void>;
@@ -119,6 +121,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reloadAll();
   }, [reloadAll]);
+
+  const createGoal = useCallback(async (payload: GoalCreateRequest) => {
+    const goal = await goalsApi.create(payload);
+    setGoals(await goalsApi.list());
+    return goal;
+  }, []);
 
   const createTask = useCallback(
     async (payload: TaskCreateRequest) => {
@@ -206,6 +214,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       reloadSession,
       reloadAll,
       createTask,
+      createGoal,
       updateTask,
       deleteTask,
       commitMorning,
@@ -229,6 +238,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       reloadSession,
       reloadAll,
       createTask,
+      createGoal,
       updateTask,
       deleteTask,
       commitMorning,

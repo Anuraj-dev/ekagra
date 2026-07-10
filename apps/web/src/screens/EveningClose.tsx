@@ -92,7 +92,8 @@ export function EveningClose() {
                 </div>
               )}
               <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 14 }}>
-                {todayEarnedBlocks} blocks banked · {todayHonestMinutes} honest minutes
+                {todayEarnedBlocks} block{todayEarnedBlocks === 1 ? '' : 's'} banked ·{' '}
+                {todayHonestMinutes} honest minute{todayHonestMinutes === 1 ? '' : 's'}
               </div>
             </div>
             <button

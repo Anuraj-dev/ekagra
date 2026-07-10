@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
@@ -24,6 +25,7 @@ import { overline, tabular, text } from '../theme/typography';
 /** Settings — pushed modal over Today (not a tab). Account + paired devices. */
 export function Settings() {
   const nav = useNavigation<RootNav>();
+  const insets = useSafeAreaInsets();
   const { session, signOut } = useAuth();
   const [devices, setDevices] = useState<DeviceSummary[]>([]);
   const [newToken, setNewToken] = useState<{ deviceId: string; deviceToken: string } | null>(null);
@@ -96,7 +98,7 @@ export function Settings() {
 
   return (
     <Screen>
-      <ScreenHeader title="Settings" onBack={() => nav.goBack()} />
+      <ScreenHeader title="Settings" onBack={() => nav.goBack()} topInset={insets.top} />
 
       <Enter delay={60}>
         {/* Account */}

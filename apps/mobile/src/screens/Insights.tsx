@@ -1,6 +1,6 @@
 import type { DayRecord, IdentityRoleHours, RitualCorrelation, WeeklyReview } from '@ekagra/core';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
@@ -398,34 +398,35 @@ function Heatmap({ rows }: { rows: HeatCell[] }) {
   const values = new Map(
     rows.map((row) => [`${row.dayOfWeek}-${row.hourOfDay}`, row.earnedBlocks]),
   );
+  // Columns flex to share the full row width so the grid fills the screen
+  // instead of collapsing into a fixed-width strip on the left.
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={{ flexDirection: 'row' }}>
-        {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day, index) => (
-          <View key={day} style={{ marginRight: 3, gap: 3, alignItems: 'center' }}>
-            <Text style={text(700, { fontSize: 9, color: color.t4 })}>{day[0].toUpperCase()}</Text>
-            {HOURS.map((hour) => {
-              const value = values.get(`${index + 1}-${hour}`) ?? 0;
-              return (
-                <View
-                  key={hour}
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: 3,
-                    backgroundColor: value
-                      ? value / max > 0.5
-                        ? color.ember
-                        : color.emberDim
-                      : color.surface3,
-                  }}
-                />
-              );
-            })}
-          </View>
-        ))}
-      </View>
-    </ScrollView>
+    <View style={{ flexDirection: 'row', gap: 3 }}>
+      {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day, index) => (
+        <View key={day} style={{ flex: 1, gap: 3, alignItems: 'stretch' }}>
+          <Text style={text(700, { fontSize: 9, color: color.t4, textAlign: 'center' })}>
+            {day[0].toUpperCase()}
+          </Text>
+          {HOURS.map((hour) => {
+            const value = values.get(`${index + 1}-${hour}`) ?? 0;
+            return (
+              <View
+                key={hour}
+                style={{
+                  height: 12,
+                  borderRadius: 3,
+                  backgroundColor: value
+                    ? value / max > 0.5
+                      ? color.ember
+                      : color.emberDim
+                    : color.surface3,
+                }}
+              />
+            );
+          })}
+        </View>
+      ))}
+    </View>
   );
 }
 const textStyle = (tint: string) => text(600, { fontSize: 13, color: tint });

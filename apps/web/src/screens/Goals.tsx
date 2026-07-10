@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor } from '../lib/goals';
 import { color as tokens } from '../theme/tokens';
 
 /** Goals — goal cards with role overline and weekly-rate meters (session-local data for now). */
 export function Goals() {
-  const { goals, tasks, earnedByTask } = useData();
+  const { goals, tasks, earnedByTask, createGoal } = useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
 
   return (
@@ -34,6 +34,7 @@ export function Goals() {
             No goals yet. Goals give tasks a color and a reason.
           </p>
         )}
+        <GoalComposer onCreate={createGoal} />
         {goals.map((goal) => {
           const gColor = goalColor(goal.id, colorMap);
           const goalTasks = tasks.filter((t) => t.goalId === goal.id);
@@ -87,6 +88,142 @@ export function Goals() {
             Rolling rates, not streaks. A slow week is data.
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Inline create-goal flow: a "+ New goal" affordance that expands into a small
+ * form (title + identity role), mirroring the quick-capture pattern on Tasks.
+ */
+function GoalComposer({
+  onCreate,
+}: {
+  onCreate: (payload: { title: string; identityRole: string }) => Promise<unknown>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [role, setRole] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canSave = title.trim().length > 0 && role.trim().length > 0 && !busy;
+
+  async function save() {
+    if (!canSave) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onCreate({ title: title.trim(), identityRole: role.trim() });
+      setTitle('');
+      setRole('');
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the goal.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: '8px 4px',
+          textAlign: 'left',
+          cursor: 'pointer',
+          fontSize: 13,
+          fontWeight: 700,
+          color: tokens.ember,
+        }}
+      >
+        + New goal
+      </button>
+    );
+  }
+
+  const inputStyle: CSSProperties = {
+    background: tokens.surface2,
+    border: `1.5px solid ${tokens.line}`,
+    borderRadius: 12,
+    padding: 14,
+    color: tokens.t1,
+    fontSize: 15,
+    fontWeight: 500,
+    width: '100%',
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <div
+      style={{
+        background: tokens.surface,
+        border: `1px solid ${tokens.line}`,
+        borderRadius: 16,
+        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Goal — what are you building?"
+        // biome-ignore lint/a11y/noAutofocus: focus moves into the form the user just opened
+        autoFocus
+        style={inputStyle}
+      />
+      <input
+        value={role}
+        onChange={(e) => setRole(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save();
+        }}
+        placeholder="Identity role — e.g. Engineer, Writer"
+        style={inputStyle}
+      />
+      {error && <p style={{ fontSize: 13, fontWeight: 600, color: '#E4796B' }}>{error}</p>}
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <button
+          type="button"
+          disabled={!canSave}
+          onClick={() => void save()}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: canSave ? 'pointer' : 'default',
+            fontSize: 13,
+            fontWeight: 700,
+            color: canSave ? tokens.ember : tokens.t4,
+          }}
+        >
+          {busy ? 'Saving…' : 'Create goal'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            fontSize: 13,
+            fontWeight: 700,
+            color: tokens.t4,
+          }}
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );

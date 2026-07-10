@@ -88,7 +88,7 @@ export function Today() {
         </Text>
         <Text style={text(600, { fontSize: 13, color: color.t3, marginTop: 6, lineHeight: 19 })}>
           <Text style={text(800, { color: color.ember })}>{todayEarnedBlocks}</Text>
-          {` of ${plannedBlocks} blocks earned · ${todayHonestMinutes} honest minutes`}
+          {` of ${plannedBlocks} block${plannedBlocks === 1 ? '' : 's'} earned · ${todayHonestMinutes} honest minute${todayHonestMinutes === 1 ? '' : 's'}`}
         </Text>
       </Enter>
 
@@ -175,7 +175,7 @@ export function Today() {
               <View>
                 <Text style={text(700, { fontSize: 14, color: color.t2 })}>Close the day</Text>
                 <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 2 })}>
-                  {todayHonestMinutes} honest minutes so far
+                  {todayHonestMinutes} honest minute{todayHonestMinutes === 1 ? '' : 's'} so far
                 </Text>
               </View>
               <Text style={{ color: color.t4, fontSize: 18 }}>›</Text>

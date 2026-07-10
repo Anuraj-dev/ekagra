@@ -474,7 +474,7 @@ function Heatmap({ rows }: { rows: HeatCell[] }) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '34px repeat(24, 13px)',
+          gridTemplateColumns: '34px repeat(24, minmax(13px, 1fr))',
           gap: 3,
           minWidth: 420,
         }}
@@ -491,7 +491,8 @@ function Heatmap({ rows }: { rows: HeatCell[] }) {
                   key={hour}
                   title={`${day} ${hour}:00 · ${value} blocks`}
                   style={{
-                    width: 13,
+                    width: '100%',
+                    minWidth: 13,
                     height: 13,
                     borderRadius: 3,
                     background: value

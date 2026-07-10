@@ -131,7 +131,8 @@ export function Today() {
           }}
         >
           <b style={{ color: tokens.ember, fontWeight: 800 }}>{todayEarnedBlocks}</b> of{' '}
-          {plannedBlocks} blocks earned · {todayHonestMinutes} honest minutes
+          {plannedBlocks} block{plannedBlocks === 1 ? '' : 's'} earned · {todayHonestMinutes} honest
+          minute{todayHonestMinutes === 1 ? '' : 's'}
         </div>
       </div>
 
@@ -238,7 +239,7 @@ export function Today() {
                     marginTop: 2,
                   }}
                 >
-                  {todayHonestMinutes} honest minutes so far
+                  {todayHonestMinutes} honest minute{todayHonestMinutes === 1 ? '' : 's'} so far
                 </span>
               </span>
               <span style={{ color: tokens.t4, fontSize: 18 }}>›</span>

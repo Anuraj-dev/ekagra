@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  parseDayRecord,
   parseDeviceActionRequest,
   parseEveningCloseRequest,
   parseMorningCommitRequest,
@@ -42,5 +43,58 @@ describe('API contract validators', () => {
     expect(() => parseDeviceActionRequest({ action: 'resume' })).toThrow('start_next_planned');
     expect(parseTaskStatus('planned')).toBe('planned');
     expect(() => parseTaskStatus('running')).toThrow('invalid');
+  });
+});
+
+describe('parseDayRecord', () => {
+  test('maps a closed-day row into a typed DayRecord', () => {
+    expect(
+      parseDayRecord({
+        record_date: '2026-07-10',
+        morning_task_ids: [taskId],
+        plan_match: false,
+        went_wrong_tag: 'scope-creep',
+        note: 'ran long',
+        updated_at: '2026-07-10T21:03:00.000Z',
+      }),
+    ).toEqual({
+      recordDate: '2026-07-10',
+      morningTaskIds: [taskId],
+      planMatch: false,
+      wentWrongTag: 'scope-creep',
+      note: 'ran long',
+      updatedAt: '2026-07-10T21:03:00.000Z',
+    });
+  });
+
+  test('treats an un-closed row (null ritual fields) leniently', () => {
+    expect(
+      parseDayRecord({
+        record_date: '2026-07-11',
+        morning_task_ids: [],
+        plan_match: null,
+        went_wrong_tag: null,
+        note: null,
+        updated_at: '2026-07-11T08:31:00.000Z',
+      }),
+    ).toEqual({
+      recordDate: '2026-07-11',
+      morningTaskIds: [],
+      planMatch: null,
+      wentWrongTag: null,
+      note: null,
+      updatedAt: '2026-07-11T08:31:00.000Z',
+    });
+  });
+
+  test('rejects a non-boolean plan_match', () => {
+    expect(() =>
+      parseDayRecord({
+        record_date: '2026-07-10',
+        morning_task_ids: [],
+        plan_match: 'yes',
+        updated_at: '2026-07-10T21:03:00.000Z',
+      }),
+    ).toThrow('plan_match');
   });
 });

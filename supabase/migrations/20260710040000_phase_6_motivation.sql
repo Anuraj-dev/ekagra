@@ -179,7 +179,7 @@ with bounds as (
 )
 select s.owner_id as user_id, p.display_name,
        b.week_start,
-       count(*) filter (where s.earned_block)::integer as earned_blocks
+       count(*) filter (where s.earned_block)::bigint as earned_blocks
 from public.sessions s
 join visible_users v on v.user_id = s.owner_id
 join public.profiles p on p.id = s.owner_id

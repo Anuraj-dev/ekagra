@@ -1,11 +1,10 @@
 export type SessionOutcome = 'completed' | 'abandoned';
 
-export type DistractionTag = 'distraction' | 'interruption' | 'done-early' | 'energy';
+export type DistractionTag = 'distraction' | 'interruption' | 'energy';
 
 export const DISTRACTION_TAGS = [
   'distraction',
   'interruption',
-  'done-early',
   'energy',
 ] as const satisfies readonly DistractionTag[];
 
@@ -54,6 +53,7 @@ export type TimerEvent =
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'complete' }
+  | { type: 'completeEarly' }
   | { type: 'abandon'; tag: DistractionTag };
 
 export type SessionAccounting = {
@@ -327,12 +327,16 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
     };
   }
 
-  if (event.type === 'complete') {
+  if (event.type === 'complete' || event.type === 'completeEarly') {
     const elapsed = elapsedAt(state, now);
     const periodComplete = elapsed >= currentDurationMs(state);
+    // Early completion is a statement about work ("I finished the task"), so
+    // it is only valid during a work period — breaks end via `complete`.
     const canComplete =
       state.phase !== 'idle' &&
-      (state.status === 'running' || (state.status === 'paused' && periodComplete));
+      (event.type !== 'completeEarly' || state.phase === 'work') &&
+      (state.status === 'running' ||
+        (state.status === 'paused' && (periodComplete || event.type === 'completeEarly')));
 
     // A paused period may be completed only after it has reached zero. This
     // makes pause-at-expiry completable without allowing early completion.
@@ -340,7 +344,7 @@ export function transition(state: TimerState, event: TimerEvent, now: number): T
       return invalidTransition(state, event);
     }
 
-    if (remainingMs(state, now) > 0) {
+    if (event.type === 'complete' && remainingMs(state, now) > 0) {
       throw new TimerError(
         'work-not-complete',
         'A timer must reach zero before it can be completed.',

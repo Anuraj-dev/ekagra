@@ -11,7 +11,9 @@ import { timerStateFromSession } from '../lib/timer';
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
 
-const TAG_COPY: Record<DistractionTag, string> = {
+type EndChoice = DistractionTag | 'done-early';
+
+const TAG_COPY: Record<EndChoice, string> = {
   distraction: 'Distraction',
   interruption: 'Interruption',
   'done-early': 'Done early',
@@ -171,12 +173,16 @@ export function Focus() {
     }
   }
 
-  async function endSession(tag: DistractionTag) {
+  async function endSession(choice: EndChoice) {
     if (terminal || terminalRef.current) return;
     terminalRef.current = true;
     setBusy(true);
     try {
-      const ended = await sessionCommand({ action: 'abandon', distractionTag: tag });
+      const ended = await sessionCommand(
+        choice === 'done-early'
+          ? { action: 'completeEarly' }
+          : { action: 'abandon', distractionTag: choice },
+      );
       setEndedSession(ended);
       close();
     } catch {
@@ -477,7 +483,7 @@ function EndSheet({
   onPick,
 }: {
   onCancel: () => void;
-  onPick: (tag: DistractionTag) => void;
+  onPick: (choice: EndChoice) => void;
 }) {
   return (
     <div
@@ -519,6 +525,24 @@ function EndSheet({
         <p style={{ fontSize: 13, fontWeight: 600, color: tokens.t4, marginTop: 6 }}>
           Minutes are kept either way.
         </p>
+        <button
+          type="button"
+          onClick={() => onPick('done-early')}
+          style={{
+            width: '100%',
+            marginTop: 16,
+            background: tokens.surface2,
+            border: `1px solid ${tokens.lineSoft}`,
+            borderRadius: 12,
+            padding: '14px 16px',
+            textAlign: 'left',
+            fontSize: 15,
+            fontWeight: 700,
+            color: tokens.t2,
+          }}
+        >
+          {TAG_COPY['done-early']}
+        </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
           {DISTRACTION_TAGS.map((tag) => (
             <button

@@ -1,6 +1,16 @@
 begin;
 
-select plan(43);
+select plan(62);
+
+select has_view('public', 'daily_activity', 'daily activity view exists');
+select has_column('public', 'daily_activity', 'user_id', 'daily activity exposes user id');
+select has_column('public', 'daily_activity', 'activity_date', 'daily activity exposes activity date');
+select has_column('public', 'daily_activity', 'earned_blocks', 'daily activity exposes earned blocks');
+select has_column('public', 'daily_activity', 'honest_minutes', 'daily activity exposes honest minutes');
+select col_type_is('public', 'daily_activity', 'user_id', 'uuid', 'daily activity user id is uuid');
+select col_type_is('public', 'daily_activity', 'activity_date', 'date', 'daily activity date is date');
+select col_type_is('public', 'daily_activity', 'earned_blocks', 'integer', 'daily activity earned blocks are integer');
+select col_type_is('public', 'daily_activity', 'honest_minutes', 'integer', 'daily activity honest minutes are integer');
 
 select has_view('public', 'identity_role_hours', 'identity role hours view exists');
 select has_column('public', 'identity_role_hours', 'honest_minutes', 'identity role hours exposes honest minutes');
@@ -152,6 +162,56 @@ select is(has_table_privilege('anon', 'public.identity_role_hours', 'select'), f
 select is(has_table_privilege('anon', 'public.distraction_breakdown', 'select'), false, 'anon cannot select distraction breakdown');
 select is(has_table_privilege('anon', 'public.weekly_review', 'select'), false, 'anon cannot select weekly review');
 select is(has_table_privilege('anon', 'public.ritual_correlations', 'select'), false, 'anon cannot select ritual correlations');
+
+-- Daily activity fixtures are added only after the other insight assertions so
+-- their current-week values cannot change the weekly and correlation fixtures.
+insert into public.sessions (
+  id, owner_id, task_id, started_at, ended_at, planned_minutes,
+  outcome, distraction_tag, honest_minutes
+)
+values
+  ('57000000-0000-0000-0000-000000000011'::uuid,
+   '00000000-0000-0000-0000-000000000001'::uuid,
+   '27000000-0000-0000-0000-000000000001'::uuid,
+   (((now() at time zone 'UTC')::date)::timestamp - interval '1 minute') at time zone 'UTC',
+   (((now() at time zone 'UTC')::date)::timestamp) at time zone 'UTC',
+   25, 'completed', null, 99),
+  ('57000000-0000-0000-0000-000000000012'::uuid,
+   '00000000-0000-0000-0000-000000000001'::uuid,
+   '27000000-0000-0000-0000-000000000001'::uuid,
+   (((now() at time zone 'UTC')::date)::timestamp + interval '5 minutes') at time zone 'UTC',
+   (((now() at time zone 'UTC')::date)::timestamp + interval '30 minutes') at time zone 'UTC',
+   25, 'completed', null, 25),
+  ('57000000-0000-0000-0000-000000000013'::uuid,
+   '00000000-0000-0000-0000-000000000001'::uuid,
+   '27000000-0000-0000-0000-000000000001'::uuid,
+   (((now() at time zone 'UTC')::date)::timestamp + interval '12 hours') at time zone 'UTC',
+   (((now() at time zone 'UTC')::date)::timestamp + interval '12 hours 7 minutes') at time zone 'UTC',
+   25, 'abandoned', 'energy', 7),
+  ('57000000-0000-0000-0000-000000000014'::uuid,
+   '00000000-0000-0000-0000-000000000001'::uuid,
+   '27000000-0000-0000-0000-000000000001'::uuid,
+   ((((now() at time zone 'UTC')::date + 1)::timestamp) + interval '1 minute') at time zone 'UTC',
+   ((((now() at time zone 'UTC')::date + 1)::timestamp) + interval '26 minutes') at time zone 'UTC',
+   25, 'completed', null, 99);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+
+select is((select count(*) from public.daily_activity), 1::bigint, 'daily activity returns exactly one current-day row');
+select is((select activity_date from public.daily_activity), (now() at time zone 'UTC')::date, 'daily activity uses the current UTC date');
+select is((select earned_blocks from public.daily_activity), 1, 'daily activity counts only completed sessions as earned blocks');
+select is((select honest_minutes from public.daily_activity), 32, 'daily activity sums completed and abandoned duration inside UTC boundaries');
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
+select is((select count(*) from public.daily_activity), 1::bigint, 'daily activity keeps one row when the user has no sessions today');
+select is((select activity_date from public.daily_activity), (now() at time zone 'UTC')::date, 'empty daily activity still reports the current UTC date');
+select is((select earned_blocks from public.daily_activity), 0, 'empty daily activity has zero earned blocks');
+select is((select honest_minutes from public.daily_activity), 0, 'empty daily activity has zero honest minutes');
+select ok(not exists (select 1 from public.daily_activity where user_id = '00000000-0000-0000-0000-000000000001'::uuid), 'daily activity hides user A from user B');
+
+reset role;
+select is(has_table_privilege('anon', 'public.daily_activity', 'select'), false, 'anon cannot select daily activity');
 
 select * from finish();
 rollback;

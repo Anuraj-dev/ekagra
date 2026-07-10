@@ -36,6 +36,7 @@ function jsonResponse(body: unknown): Response {
 
 /** Fetch stub covering the provider's initial load and the sessions PATCH. */
 function stubFetch(patchResult: Session | null) {
+  let commandHandled = false;
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
@@ -43,22 +44,34 @@ function stubFetch(patchResult: Session | null) {
     if (url.includes('/goals')) return Promise.resolve(jsonResponse({ goals: [] }));
     if (url.includes('/tasks')) return Promise.resolve(jsonResponse({ tasks: [] }));
     if (url.includes('/sessions') && method === 'PATCH') {
+      commandHandled = true;
       return Promise.resolve(jsonResponse({ session: patchResult, serverNow }));
     }
     if (url.includes('/sessions')) {
       return Promise.resolve(jsonResponse({ session: runningSession, serverNow }));
+    }
+    if (url.includes('/daily_activity')) {
+      return Promise.resolve(
+        jsonResponse({
+          user_id: 'user-1',
+          activity_date: '2026-07-10',
+          earned_blocks: commandHandled && patchResult?.earnedBlock ? 1 : 0,
+          honest_minutes: commandHandled && patchResult ? patchResult.honestMinutes : 0,
+        }),
+      );
     }
     return Promise.resolve(jsonResponse({}));
   }) as typeof fetch;
 }
 
 function Probe() {
-  const { session, todayEarnedBlocks, loading, sessionCommand } = useData();
+  const { session, todayEarnedBlocks, todayHonestMinutes, loading, sessionCommand } = useData();
   return (
     <div>
       <span data-testid="loading">{String(loading)}</span>
       <span data-testid="session">{session ? session.status : 'none'}</span>
       <span data-testid="earned">{todayEarnedBlocks}</span>
+      <span data-testid="honest">{todayHonestMinutes}</span>
       <button type="button" onClick={() => void sessionCommand({ action: 'complete' })}>
         complete
       </button>
@@ -76,7 +89,7 @@ describe('DataProvider sessionCommand', () => {
     cleanup();
   });
 
-  it('clears the active session and records the block on a terminal response', async () => {
+  it('clears the active session and refreshes server-derived activity on a terminal response', async () => {
     render(
       <DataProvider>
         <Probe />
@@ -90,7 +103,8 @@ describe('DataProvider sessionCommand', () => {
     });
 
     await waitFor(() => expect(screen.getByTestId('session').textContent).toBe('none'));
-    expect(screen.getByTestId('earned').textContent).toBe('1');
+    await waitFor(() => expect(screen.getByTestId('earned').textContent).toBe('1'));
+    expect(screen.getByTestId('honest').textContent).toBe('25');
   });
 
   it('keeps a non-terminal session active after pause', async () => {

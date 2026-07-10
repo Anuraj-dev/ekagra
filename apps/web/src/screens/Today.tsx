@@ -182,7 +182,7 @@ export function Today() {
                   goalName={goalName(task.goalId, goals)}
                   earnedBlocks={earnedByTask[task.id] ?? 0}
                   selected={task.id === selectedId}
-                  onClick={() => setSelectedId(task.id)}
+                  onClick={() => setSelectedId((current) => (current === task.id ? null : task.id))}
                 />
               ))}
             </div>

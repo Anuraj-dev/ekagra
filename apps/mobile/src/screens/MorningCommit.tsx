@@ -12,7 +12,7 @@ import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 
-/** Morning Commit flow — pick 1–3 tasks. Enforces the hard-block precondition. */
+/** Morning Commit flow — save up to three tasks, or clear today's plan. */
 export function MorningCommit() {
   const nav = useNavigation<RootNav>();
   const insets = useSafeAreaInsets();
@@ -41,7 +41,6 @@ export function MorningCommit() {
   }
 
   async function commit() {
-    if (selected.length < 1) return;
     setBusy(true);
     setError(null);
     try {
@@ -54,13 +53,13 @@ export function MorningCommit() {
     }
   }
 
-  const canCommit = selected.length >= 1 && selected.length <= 3;
+  const canCommit = selected.length <= 3;
 
   return (
     <Screen scroll={false}>
       <ScreenHeader
         title="Morning Commit"
-        sub="Pick 1–3. Small and true beats big and false."
+        sub="Pick up to 3. Small and true beats big and false."
         onBack={() => nav.goBack()}
         topInset={insets.top}
       />
@@ -168,9 +167,9 @@ export function MorningCommit() {
           }}
         >
           <Text style={text(800, { fontSize: 16, color: canCommit ? color.bg : color.t4 })}>
-            {canCommit
-              ? `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`
-              : 'Pick 1–3 tasks'}
+            {selected.length === 0
+              ? "Clear today's plan"
+              : `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`}
           </Text>
         </Pressable>
       </View>

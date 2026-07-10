@@ -18,7 +18,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { goalsApi, ritualsApi, sessionsApi, tasksApi } from '../lib/api';
+import { goalsApi, insightsApi, ritualsApi, sessionsApi, tasksApi } from '../lib/api';
 import { markDayClosed } from '../lib/rituals';
 
 type DataContextValue = {
@@ -29,11 +29,7 @@ type DataContextValue = {
   serverClockOffset: number;
   /** Server time (ms) at the last sync — the anchor for reconstructing timer state. */
   sessionAnchorMs: number;
-  /**
-   * In-memory day tally. No web endpoint exposes per-day/per-task earned-block
-   * aggregates (only the device-poll RPC does), so these accumulate from session
-   * outcomes observed this app session and reset on reload. See report/risks.
-   */
+  /** UTC-day totals loaded from the RLS-scoped daily_activity view. */
   todayEarnedBlocks: number;
   todayHonestMinutes: number;
   earnedByTask: Record<string, number>;
@@ -98,6 +94,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setSession(res.session);
   }, [applyServerNow]);
 
+  // Tickets guard against an older in-flight activity fetch resolving after a
+  // newer one and overwriting fresher totals (e.g. reloadAll racing the
+  // post-session refresh).
+  const activityTicket = useRef(0);
+  const reloadTodayActivity = useCallback(async () => {
+    const ticket = ++activityTicket.current;
+    const activity = await insightsApi.todayActivity();
+    if (ticket !== activityTicket.current) return;
+    setTodayEarnedBlocks(activity.earnedBlocks);
+    setTodayHonestMinutes(activity.honestMinutes);
+  }, []);
+
   const reloadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -106,6 +114,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         goalsApi.list(),
         tasksApi.list(),
         sessionsApi.current(),
+        reloadTodayActivity(),
       ]);
       setGoals(goalList);
       setTasks(taskList);
@@ -116,7 +125,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [applyServerNow]);
+  }, [applyServerNow, reloadTodayActivity]);
 
   useEffect(() => {
     void reloadAll();
@@ -163,7 +172,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const commitMorning = useCallback(
     async (taskIds: string[]) => {
-      await ritualsApi.morningCommit({ taskIds: taskIds as [string, ...string[]] });
+      await ritualsApi.morningCommit({ taskIds });
       await reloadTasks();
     },
     [reloadTasks],
@@ -189,13 +198,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // active slot so Today can start the next block, and refresh tasks.
         recordSessionEnd(ended);
         setSession(null);
-        void reloadTasks().catch(() => {});
+        await Promise.all([reloadTasks(), reloadTodayActivity()]);
       } else {
         setSession(ended);
       }
       return ended;
     },
-    [applyServerNow, recordSessionEnd, reloadTasks],
+    [applyServerNow, recordSessionEnd, reloadTasks, reloadTodayActivity],
   );
 
   const closeEvening = useCallback(async (payload: EveningCloseRequest) => {

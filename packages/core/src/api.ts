@@ -87,7 +87,7 @@ export type SessionStartRequest = {
 };
 
 export type SessionCommandRequest = {
-  action: 'pause' | 'resume' | 'complete';
+  action: 'pause' | 'resume' | 'complete' | 'completeEarly';
 };
 
 export type SessionAbandonRequest = {
@@ -126,7 +126,14 @@ export type GoalCreateRequest = {
 export type GoalUpdateRequest = Partial<GoalCreateRequest>;
 
 export type MorningCommitRequest = {
-  taskIds: [string, ...string[]];
+  taskIds: string[];
+};
+
+export type DailyActivity = {
+  userId: string;
+  activityDate: string;
+  earnedBlocks: number;
+  honestMinutes: number;
 };
 
 export type EveningCloseRequest = {
@@ -342,13 +349,18 @@ export function parseSessionCommand(value: unknown): SessionCommand {
   const input = objectValue(value, 'request');
   if (input.action === 'abandon') {
     const tag = input.distractionTag;
-    if (!['distraction', 'interruption', 'done-early', 'energy'].includes(String(tag))) {
+    if (!['distraction', 'interruption', 'energy'].includes(String(tag))) {
       throw new ContractError('distractionTag must be one supported value.');
     }
     return { action: 'abandon', distractionTag: tag as DistractionTag };
   }
-  if (input.action !== 'pause' && input.action !== 'resume' && input.action !== 'complete') {
-    throw new ContractError('action must be pause, resume, complete, or abandon.');
+  if (
+    input.action !== 'pause' &&
+    input.action !== 'resume' &&
+    input.action !== 'complete' &&
+    input.action !== 'completeEarly'
+  ) {
+    throw new ContractError('action must be pause, resume, complete, completeEarly, or abandon.');
   }
   return { action: input.action };
 }
@@ -418,12 +430,12 @@ export function parseGoalUpdateRequest(value: unknown): GoalUpdateRequest {
 
 export function parseMorningCommitRequest(value: unknown): MorningCommitRequest {
   const input = objectValue(value, 'request');
-  if (!Array.isArray(input.taskIds) || input.taskIds.length < 1 || input.taskIds.length > 3) {
-    throw new ContractError('taskIds must contain between 1 and 3 tasks.');
+  if (!Array.isArray(input.taskIds) || input.taskIds.length > 3) {
+    throw new ContractError('taskIds must contain at most 3 tasks.');
   }
   const taskIds = input.taskIds.map((id) => uuidValue(id, 'taskIds'));
   if (new Set(taskIds).size !== taskIds.length) throw new ContractError('taskIds must be unique.');
-  return { taskIds: taskIds as [string, ...string[]] };
+  return { taskIds };
 }
 
 export function parseEveningCloseRequest(value: unknown): EveningCloseRequest {

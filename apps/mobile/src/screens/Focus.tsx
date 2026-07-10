@@ -23,7 +23,9 @@ import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
 import { overline, text } from '../theme/typography';
 
-const TAG_COPY: Record<DistractionTag, string> = {
+type EndChoice = DistractionTag | 'done-early';
+
+const TAG_COPY: Record<EndChoice, string> = {
   distraction: 'Distraction',
   interruption: 'Interruption',
   'done-early': 'Done early',
@@ -160,10 +162,14 @@ export function Focus() {
     }
   }
 
-  async function endSession(tag: DistractionTag) {
+  async function endSession(choice: EndChoice) {
     setBusy(true);
     try {
-      const ended = await sessionCommand({ action: 'abandon', distractionTag: tag });
+      const ended = await sessionCommand(
+        choice === 'done-early'
+          ? { action: 'completeEarly' }
+          : { action: 'abandon', distractionTag: choice },
+      );
       recordSessionEnd(ended);
       close();
     } finally {
@@ -409,7 +415,7 @@ function EndSheet({
   onPick,
 }: {
   onCancel: () => void;
-  onPick: (tag: DistractionTag) => void;
+  onPick: (choice: EndChoice) => void;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -451,6 +457,20 @@ function EndSheet({
         <Text style={text(600, { fontSize: 13, color: color.t4, marginTop: 6 })}>
           Minutes are kept either way.
         </Text>
+        <Pressable
+          onPress={() => onPick('done-early')}
+          style={{
+            marginTop: 16,
+            backgroundColor: color.surface2,
+            borderWidth: 1,
+            borderColor: color.lineSoft,
+            borderRadius: 12,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+          }}
+        >
+          <Text style={text(700, { fontSize: 15, color: color.t2 })}>{TAG_COPY['done-early']}</Text>
+        </Pressable>
         <View style={{ gap: 8, marginTop: 16 }}>
           {DISTRACTION_TAGS.map((tag) => (
             <Pressable

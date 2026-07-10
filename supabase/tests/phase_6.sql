@@ -65,17 +65,17 @@ insert into public.sessions (
   id, owner_id, task_id, started_at, ended_at, planned_minutes,
   outcome, distraction_tag, honest_minutes
 )
-select '50000000-0000-0000-0000-000000000006',
-       '00000000-0000-0000-0000-000000000001',
-       '20000000-0000-0000-0000-000000000001',
+select '50000000-0000-0000-0000-000000000006'::uuid,
+       '00000000-0000-0000-0000-000000000001'::uuid,
+       '20000000-0000-0000-0000-000000000001'::uuid,
        ((utc_today - 4)::timestamp + interval '12 hours') at time zone 'utc',
        ((utc_today - 4)::timestamp + interval '12 hours 13 minutes') at time zone 'utc',
        25, 'completed', null, 13
 from dates
 union all
-select '50000000-0000-0000-0000-000000000007',
-       '00000000-0000-0000-0000-000000000001',
-       '20000000-0000-0000-0000-000000000001',
+select '50000000-0000-0000-0000-000000000007'::uuid,
+       '00000000-0000-0000-0000-000000000001'::uuid,
+       '20000000-0000-0000-0000-000000000001'::uuid,
        now() - interval '5 minutes', now(), 25, 'abandoned', 'energy', 5
 from dates;
 

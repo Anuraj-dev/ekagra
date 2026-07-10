@@ -37,3 +37,7 @@ grant all on public.app_releases to service_role;
 insert into storage.buckets (id, name, public)
 values ('app-releases', 'app-releases', true)
 on conflict (id) do update set public = true;
+
+-- RLS policies gate rows, but table-level privileges are still required.
+revoke all on public.app_releases from anon;
+grant select on public.app_releases to authenticated;

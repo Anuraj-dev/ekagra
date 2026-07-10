@@ -5,7 +5,7 @@
  * XDG_CONFIG_HOME, and drives real commands end to end: capture → plan →
  * start → pause → resume-context → abandon → today.
  */
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -63,6 +63,7 @@ async function main(): Promise<void> {
 
   const configHome = await mkdtemp(join(tmpdir(), 'ekagra-cli-smoke-'));
   const sessionDir = join(configHome, 'ekagra');
+  await mkdir(sessionDir, { recursive: true });
   await Bun.write(
     join(sessionDir, 'session.json'),
     JSON.stringify({

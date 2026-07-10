@@ -67,4 +67,33 @@ describe('runLiveTimer', () => {
     expect(io.text()).toContain('ended elsewhere');
     expect(client.calls.some((c) => c.method === 'currentSession')).toBe(true);
   });
+
+  it('returns when the session was paused from another surface', async () => {
+    let clock = serverNowMs;
+    const client = fakeClient({
+      current: {
+        session: session({ status: 'paused', elapsedSeconds: 62 }),
+        serverNow: '2026-07-10T06:00:02.000Z',
+      },
+    });
+    const io = fakeIO();
+    const ended = await runLiveTimer(
+      client,
+      io,
+      { session: session({ elapsedSeconds: 60 }), serverNow },
+      {
+        tickMs: 1000,
+        pollMs: 2000,
+        now: () => clock,
+        wait: (ms) => {
+          clock += ms;
+          return Promise.resolve();
+        },
+      },
+    );
+    expect(ended.status).toBe('paused');
+    expect(io.text()).toContain('paused elsewhere');
+    // Exactly one reconcile happened; the loop did not keep polling.
+    expect(client.calls.filter((c) => c.method === 'currentSession')).toHaveLength(1);
+  });
 });

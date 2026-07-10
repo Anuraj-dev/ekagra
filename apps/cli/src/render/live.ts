@@ -79,6 +79,18 @@ export async function runLiveTimer(
         return session;
       }
       session = current.session;
+      if (session.status === 'paused') {
+        // Paused from another surface — report it and hand the terminal back
+        // instead of polling forever. `ekagra resume` picks it up.
+        clearLine();
+        const remainingNow = remainingSecondsAt(session, anchorMs, anchorMs);
+        io.line(
+          `${cyan('⏸')}  ${bold(formatCountdown(remainingNow))} ${dim(
+            'paused elsewhere — `ekagra resume` to continue.',
+          )}`,
+        );
+        return session;
+      }
     }
   }
 }

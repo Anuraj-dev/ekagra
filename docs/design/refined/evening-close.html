@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ekagra — Evening Close</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E0F12; --surface:#16181D; --surface-2:#111318; --surface-3:#1B1E24;
+    --line:#23262E; --line-soft:#1D2028; --line-hi:#3A3F49;
+    --t1:#ECEDEF; --t2:#B9BDC4; --t3:#8A8F98; --t4:#6B7078; --t5:#41454D;
+    --ember:#F08A3E; --ember-hi:#FFB25E; --green:#5BBF8A;
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:#07080A; font-family:'Manrope',system-ui,sans-serif; -webkit-font-smoothing:antialiased;}
+  .frame{width:390px; height:844px; margin:0 auto; position:relative; overflow:hidden; background:var(--bg); color:var(--t1);}
+  .scroll{position:absolute; inset:0; overflow-y:auto; padding-bottom:32px;}
+  .scroll::-webkit-scrollbar{display:none;}
+  .overline{font-size:11px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;}
+
+  .header{padding:58px 20px 0; display:flex; align-items:center; gap:14px;}
+  .chev{width:40px; height:40px; border-radius:999px; background:var(--surface); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--t2); cursor:pointer; flex:none;
+    transition:border-color .18s var(--ease), color .18s var(--ease), background .18s var(--ease);}
+  .chev:hover{border-color:var(--line-hi); color:var(--t1); background:var(--surface-3);}
+  .h-title{font-size:24px; font-weight:800; letter-spacing:-.3px;}
+  .h-sub{font-size:13px; font-weight:600; color:var(--t3); margin-top:3px;}
+
+  .stats{display:flex; gap:10px; padding:24px 16px 0;}
+  .stat{flex:1; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px;}
+  .stat-num{font-size:34px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.5px; line-height:1;}
+  .stat-num .of{font-size:17px; color:var(--t4); font-weight:700;}
+  .stat-lbl{font-size:12px; font-weight:700; color:var(--t3); margin-top:8px;}
+
+  .nudge{margin:12px 16px 0; background:rgba(240,138,62,.08); border:1px solid rgba(240,138,62,.28);
+    border-radius:16px; padding:15px 18px;}
+  .nudge .overline{color:var(--ember); margin-bottom:6px;}
+  .nudge p{font-size:13px; font-weight:600; color:var(--t2); line-height:1.5;}
+
+  .reflect{padding:24px 16px 0;}
+  .reflect .overline{color:var(--t3); margin-bottom:10px;}
+  textarea{width:100%; height:104px; background:var(--surface); border:1.5px solid var(--line); border-radius:12px;
+    padding:16px; color:var(--t1); font-family:'Manrope',sans-serif; font-size:15px; font-weight:500; resize:none; line-height:1.5;}
+  textarea:focus{outline:none; border-color:var(--ember);}
+  textarea::placeholder{color:var(--t4);}
+  .primary{margin-top:14px; border-radius:999px; padding:17px; text-align:center; font-size:16px; font-weight:800;
+    background:var(--ember); color:#0E0F12; cursor:pointer; transition:background .2s;}
+  .primary:hover{background:var(--ember-hi);}
+
+  /* closed confirmation (shown below as the alternate state) */
+  .divider{margin:32px 20px 20px; display:flex; align-items:center; gap:12px; color:var(--t5);}
+  .divider::before,.divider::after{content:''; height:1px; flex:1; background:var(--line-soft);}
+  .divider span{font-size:10px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;}
+  .done{margin:0 16px; background:var(--surface); border:1px solid rgba(91,191,138,.35); border-radius:18px;
+    padding:26px 22px; text-align:center;}
+  .done-check{width:46px; height:46px; border-radius:999px; background:rgba(91,191,138,.14); border:1px solid rgba(91,191,138,.18); margin:0 auto;
+    display:flex; align-items:center; justify-content:center;}
+  .done-title{font-size:18px; font-weight:800; margin-top:16px;}
+  .done-quote{font-size:14px; font-weight:600; color:var(--t2); margin-top:8px; line-height:1.55;}
+  .done-cap{font-size:12px; font-weight:600; color:var(--t4); margin-top:14px;}
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="scroll">
+
+      <div class="header">
+        <div class="chev" aria-label="Back">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 3.5 L5 8 L9.5 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="h-title">Evening Close</div>
+          <div class="h-sub">Close the day.</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num" style="color:var(--ember)">3<span class="of"> / 6</span></div>
+          <div class="stat-lbl">Blocks earned</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" style="color:var(--green)">96</div>
+          <div class="stat-lbl">Honest minutes</div>
+        </div>
+      </div>
+
+      <div class="nudge">
+        <div class="overline">7-day rate · 64%</div>
+        <p>Down from 78% last week. Tomorrow, commit one task fewer and finish it fully.</p>
+      </div>
+
+      <div class="reflect">
+        <div class="overline">One line</div>
+        <textarea placeholder="What did today teach you?">Firmware polling ran long — the LiDAR mount can wait.</textarea>
+        <div class="primary">Close the day</div>
+      </div>
+
+      <div class="divider"><span>Closed state</span></div>
+
+      <div class="done">
+        <div class="done-check">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9.5 L7.5 14 L15 4.5" fill="none" stroke="#5BBF8A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="done-title">Day closed.</div>
+        <div class="done-quote">"Firmware polling ran long — the LiDAR mount can wait."</div>
+        <div class="done-cap">3 blocks banked · 96 honest minutes</div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

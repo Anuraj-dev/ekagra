@@ -14,6 +14,7 @@ export function databaseApiError(
   error: { code?: string; message?: string },
   fallback = 'Database request failed.',
 ): ApiError {
+  console.error('database error', JSON.stringify(error));
   if (error.code === 'PGRST116') return new ApiError('not_found', 'Record not found.');
   if (error.code === '23505') return new ApiError('conflict', 'That record already exists.');
   if (error.code === '23514') {

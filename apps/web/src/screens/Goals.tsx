@@ -1,4 +1,4 @@
-import { type CSSProperties, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useRef, useState } from 'react';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor } from '../lib/goals';
 import { color as tokens } from '../theme/tokens';
@@ -107,11 +107,15 @@ function GoalComposer({
   const [role, setRole] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // React state updates are async — a synchronous lock is needed so
+  // Enter + a fast button click can't double-submit before `busy` re-renders.
+  const submitting = useRef(false);
 
   const canSave = title.trim().length > 0 && role.trim().length > 0 && !busy;
 
   async function save() {
-    if (!canSave) return;
+    if (!canSave || submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -122,6 +126,7 @@ function GoalComposer({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the goal.');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -130,7 +135,12 @@ function GoalComposer({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setTitle('');
+          setRole('');
+          setError(null);
+          setOpen(true);
+        }}
         style={{
           background: 'none',
           border: 'none',
@@ -208,6 +218,7 @@ function GoalComposer({
         </button>
         <button
           type="button"
+          disabled={busy}
           onClick={() => {
             setOpen(false);
             setError(null);
@@ -216,7 +227,8 @@ function GoalComposer({
             background: 'none',
             border: 'none',
             padding: 0,
-            cursor: 'pointer',
+            cursor: busy ? 'default' : 'pointer',
+            opacity: busy ? 0.5 : 1,
             fontSize: 13,
             fontWeight: 700,
             color: tokens.t4,

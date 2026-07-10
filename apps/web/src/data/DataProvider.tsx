@@ -124,7 +124,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const createGoal = useCallback(async (payload: GoalCreateRequest) => {
     const goal = await goalsApi.create(payload);
-    setGoals(await goalsApi.list());
+    // The goal is already created — surface it immediately and treat the
+    // list refresh as best-effort so a refresh hiccup can't read as a
+    // failed create (which would invite a duplicate retry).
+    setGoals((prev) => (prev.some((g) => g.id === goal.id) ? prev : [...prev, goal]));
+    goalsApi
+      .list()
+      .then(setGoals)
+      .catch((err) => console.warn('Goal list refresh failed after create:', err));
     return goal;
   }, []);
 

@@ -399,9 +399,10 @@ function Heatmap({ rows }: { rows: HeatCell[] }) {
     rows.map((row) => [`${row.dayOfWeek}-${row.hourOfDay}`, row.earnedBlocks]),
   );
   // Columns flex to share the full row width so the grid fills the screen
-  // instead of collapsing into a fixed-width strip on the left.
+  // instead of collapsing into a fixed-width strip on the left. maxWidth
+  // caps cell growth on tablets. (Deferred: unifying mobile/web orientation.)
   return (
-    <View style={{ flexDirection: 'row', gap: 3 }}>
+    <View style={{ flexDirection: 'row', gap: 3, width: '100%', maxWidth: 420 }}>
       {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day, index) => (
         <View key={day} style={{ flex: 1, gap: 3, alignItems: 'stretch' }}>
           <Text style={text(700, { fontSize: 9, color: color.t4, textAlign: 'center' })}>

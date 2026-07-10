@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Enter } from '../components/motion';
@@ -117,11 +117,15 @@ function GoalComposer({
   const [role, setRole] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // React state updates are async — a synchronous lock is needed so
+  // Enter + a fast button tap can't double-submit before `busy` re-renders.
+  const submitting = useRef(false);
 
   const canSave = title.trim().length > 0 && role.trim().length > 0 && !busy;
 
   async function save() {
-    if (!canSave) return;
+    if (!canSave || submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -132,6 +136,7 @@ function GoalComposer({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the goal.');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -139,7 +144,12 @@ function GoalComposer({
   if (!open) {
     return (
       <Pressable
-        onPress={() => setOpen(true)}
+        onPress={() => {
+          setTitle('');
+          setRole('');
+          setError(null);
+          setOpen(true);
+        }}
         style={({ pressed }) => ({
           opacity: pressed ? 0.6 : 1,
           paddingVertical: 8,
@@ -187,10 +197,12 @@ function GoalComposer({
           </Text>
         </Pressable>
         <Pressable
+          disabled={busy}
           onPress={() => {
             setOpen(false);
             setError(null);
           }}
+          style={{ opacity: busy ? 0.5 : 1 }}
         >
           <Text style={text(700, { fontSize: 13, color: color.t4 })}>Cancel</Text>
         </Pressable>

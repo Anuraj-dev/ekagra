@@ -477,6 +477,8 @@ function Heatmap({ rows }: { rows: HeatCell[] }) {
           gridTemplateColumns: '34px repeat(24, minmax(13px, 1fr))',
           gap: 3,
           minWidth: 420,
+          // Cap stretch on very wide viewports so cells stay readable.
+          maxWidth: 720,
         }}
       >
         {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day, index) => (

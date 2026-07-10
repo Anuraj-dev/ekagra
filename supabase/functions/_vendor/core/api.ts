@@ -156,6 +156,46 @@ export type MotivationStatus = {
   welcomeBack: boolean;
 };
 
+export type IdentityRoleHours = {
+  userId: string;
+  identityRole: string;
+  weekStart: string;
+  honestMinutes: number;
+  earnedBlocks: number;
+};
+
+export type DistractionBreakdown = {
+  userId: string;
+  weekStart: string;
+  distractionTag: DistractionTag;
+  abandonedSessions: number;
+  honestMinutesLost: number;
+};
+
+export type WeeklyReview = {
+  userId: string;
+  weekStart: string;
+  closedDays: number;
+  metDays: number;
+  earnedBlocks: number;
+  honestMinutes: number;
+  completedSessions: number;
+  abandonedSessions: number;
+  topDistractionTag: DistractionTag | null;
+  estimatedBlocks: number;
+  actualBlocks: number;
+};
+
+export type RitualCorrelation = {
+  userId: string;
+  signal: 'morning_commit' | 'evening_close';
+  daysWith: number;
+  daysWithout: number;
+  avgBlocksWith: number;
+  avgBlocksWithout: number;
+  lift: number;
+};
+
 export type Friend = {
   id: string;
   userId: string;

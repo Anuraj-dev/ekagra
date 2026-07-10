@@ -20,20 +20,33 @@ Notifications.setNotificationHandler({
 const MORNING_ID = 'ekagra-morning-cue';
 const EVENING_ID = 'ekagra-evening-cue';
 
-/** Requests permission; returns true when notifications may be shown. */
+/**
+ * Requests permission; returns true only when notifications may be shown.
+ * Never throws: a denied prompt or an unavailable notification API (e.g. a
+ * restricted Expo Go environment) degrades to `false` and callers skip cues.
+ */
 export async function ensurePermission(): Promise<boolean> {
-  const current = await Notifications.getPermissionsAsync();
-  let status = current.status;
-  if (status !== 'granted') {
-    status = (await Notifications.requestPermissionsAsync()).status;
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    let status = current.status;
+    if (status !== 'granted') {
+      status = (await Notifications.requestPermissionsAsync()).status;
+    }
+    if (status !== 'granted') return false;
+    if (Platform.OS === 'android') {
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Ekagra',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      } catch {
+        // Channel setup failing should not block local scheduling.
+      }
+    }
+    return true;
+  } catch {
+    return false;
   }
-  if (Platform.OS === 'android' && status === 'granted') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Ekagra',
-      importance: Notifications.AndroidImportance.DEFAULT,
-    });
-  }
-  return status === 'granted';
 }
 
 /**
@@ -47,47 +60,55 @@ export async function scheduleDailyCues(
   const granted = await ensurePermission();
   if (!granted) return;
 
-  await Notifications.cancelScheduledNotificationAsync(MORNING_ID).catch(() => {});
-  await Notifications.cancelScheduledNotificationAsync(EVENING_ID).catch(() => {});
+  try {
+    await Notifications.cancelScheduledNotificationAsync(MORNING_ID).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(EVENING_ID).catch(() => {});
 
-  await Notifications.scheduleNotificationAsync({
-    identifier: MORNING_ID,
-    content: {
-      title: 'Morning commit',
-      body: 'Pick 1–3 tasks for today.',
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: morning.hour,
-      minute: morning.minute,
-    },
-  });
+    await Notifications.scheduleNotificationAsync({
+      identifier: MORNING_ID,
+      content: {
+        title: 'Morning commit',
+        body: 'Pick 1–3 tasks for today.',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: morning.hour,
+        minute: morning.minute,
+      },
+    });
 
-  await Notifications.scheduleNotificationAsync({
-    identifier: EVENING_ID,
-    content: {
-      title: 'Evening close',
-      body: 'Close the day and bank your blocks.',
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: evening.hour,
-      minute: evening.minute,
-    },
-  });
+    await Notifications.scheduleNotificationAsync({
+      identifier: EVENING_ID,
+      content: {
+        title: 'Evening close',
+        body: 'Close the day and bank your blocks.',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: evening.hour,
+        minute: evening.minute,
+      },
+    });
+  } catch {
+    // Scheduling is best-effort; the app works without cues.
+  }
 }
 
 /** Immediate nudge fired when a focus block completes. */
 export async function nudgeBlockComplete(): Promise<void> {
   const granted = await ensurePermission();
   if (!granted) return;
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Block earned',
-      body: 'Banked. Take the break or start the next block.',
-    },
-    trigger: null,
-  });
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Block earned',
+        body: 'Banked. Take the break or start the next block.',
+      },
+      trigger: null,
+    });
+  } catch {
+    // The earned toast already communicates the block; the nudge is best-effort.
+  }
 }
 
 /** Clears every scheduled cue (used on sign-out). */

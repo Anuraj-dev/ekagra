@@ -1,12 +1,25 @@
-import { useMemo } from 'react';
+import type { DayRecord } from '@ekagra/core';
+import { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
 import { useData } from '../data/DataProvider';
+import { dayRecordsApi } from '../lib/api';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { color } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
+
+/** "Mon Jul 10" from a `YYYY-MM-DD` record date. */
+function formatRecordDate(recordDate: string): string {
+  const d = new Date(`${recordDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return recordDate;
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function prettyTag(tag: string): string {
+  return tag.replace(/-/g, ' ');
+}
 
 /**
  * Insights — honest numbers. Core-loop counters come from this app session;
@@ -18,6 +31,25 @@ export function Insights() {
   const { tasks, goals, todayEarnedBlocks, todayHonestMinutes, earnedByTask } = useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const planned = useMemo(() => tasks.filter((t) => t.status === 'planned'), [tasks]);
+  const [history, setHistory] = useState<DayRecord[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    dayRecordsApi
+      .recent()
+      .then((rows) => {
+        if (active) setHistory(rows);
+      })
+      .catch(() => {
+        if (active) setHistory([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Only closed days carry a plan-vs-actual verdict.
+  const closedDays = useMemo(() => (history ?? []).filter((r) => r.planMatch !== null), [history]);
 
   return (
     <Screen>
@@ -89,25 +121,55 @@ export function Insights() {
           )}
         </View>
 
-        {/* History placeholder — factual, no fake data */}
+        {/* Plan vs actual — closed-day history from day records */}
         <View style={{ paddingTop: 24, paddingHorizontal: 16 }}>
-          <View
-            style={{
-              backgroundColor: color.surface2,
-              borderWidth: 1,
-              borderColor: color.lineSoft,
-              borderRadius: 16,
-              paddingVertical: 15,
-              paddingHorizontal: 18,
-            }}
-          >
-            <Text style={[overline, { color: color.t3 }]}>Earned blocks · 10 weeks</Text>
-            <Text
-              style={text(600, { fontSize: 13, color: color.t4, marginTop: 6, lineHeight: 20 })}
-            >
-              History arrives with the reporting endpoint. Counters above are live for this session.
+          <Text style={[overline, { color: color.t3, marginBottom: 12 }]}>Plan vs actual</Text>
+          {history === null ? (
+            <Text style={text(600, { fontSize: 13, color: color.t4 })}>Loading recent days…</Text>
+          ) : closedDays.length === 0 ? (
+            <Text style={text(600, { fontSize: 13, color: color.t4 })}>
+              Close a day to start building your plan-vs-actual history.
             </Text>
-          </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              {closedDays.map((day) => (
+                <View
+                  key={day.recordDate}
+                  style={{
+                    backgroundColor: color.surface2,
+                    borderWidth: 1,
+                    borderColor: color.lineSoft,
+                    borderRadius: 16,
+                    paddingVertical: 13,
+                    paddingHorizontal: 18,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={text(700, { fontSize: 14, color: color.t2 })}>
+                      {formatRecordDate(day.recordDate)}
+                    </Text>
+                    {day.wentWrongTag && day.wentWrongTag !== 'on-plan' && (
+                      <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 2 })}>
+                        {prettyTag(day.wentWrongTag)}
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    style={text(700, {
+                      fontSize: 12,
+                      color: day.planMatch ? color.green : color.ember,
+                    })}
+                  >
+                    {day.planMatch ? 'On plan' : 'Off plan'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </Enter>
     </Screen>

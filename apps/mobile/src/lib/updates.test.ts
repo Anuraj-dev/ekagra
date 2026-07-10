@@ -11,7 +11,6 @@ mock.module('expo-crypto', () => ({
 }));
 mock.module('expo-file-system', () => ({
   File: class {
-    constructor(_uri: string) {}
     bytes(): Uint8Array {
       throw new Error('native File API not available in tests');
     }
@@ -31,7 +30,14 @@ mock.module('react-native', () => ({
   Platform: { OS: 'android' },
   Linking: { openURL: async () => {} },
 }));
-mock.module('./supabase', () => ({ supabase: {} }));
+// mock.module leaks process-wide in bun test, so mirror every named export
+// other test files may pull from the real module.
+mock.module('./supabase', () => ({
+  supabase: {},
+  isSupabaseConfigured: true,
+  SUPABASE_ANON_KEY: 'test-anon-key',
+  FUNCTIONS_BASE: 'http://localhost/functions/v1',
+}));
 
 const { base64ToBytes, exactBuffer, isNewer, parseVersion } = await import('./updates');
 

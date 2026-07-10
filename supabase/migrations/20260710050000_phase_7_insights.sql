@@ -117,12 +117,15 @@ select
   coalesce(estimate_aggregates.estimated_blocks, 0)::integer as estimated_blocks,
   coalesce(estimate_aggregates.actual_blocks, 0)::integer as actual_blocks
 from owned_weeks
-left join day_aggregates using (week_start)
-left join session_aggregates using (week_start)
+left join day_aggregates
+  on day_aggregates.week_start = owned_weeks.week_start
+left join session_aggregates
+  on session_aggregates.week_start = owned_weeks.week_start
 left join ranked_distractions
   on ranked_distractions.week_start = owned_weeks.week_start
  and ranked_distractions.rank = 1
-left join estimate_aggregates using (week_start)
+left join estimate_aggregates
+  on estimate_aggregates.week_start = owned_weeks.week_start
 where auth.uid() is not null;
 
 create view public.ritual_correlations as

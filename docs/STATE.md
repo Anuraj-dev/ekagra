@@ -1,13 +1,15 @@
 # ekagra — State
-> Focus-first life-management app: goal-bound Pomodoro synced across Expo, web, CLI, and an ESP8266 desk companion. · Last checkpoint: 2026-07-10 (18:22)
+> Focus-first life-management app: goal-bound Pomodoro synced across Expo, web, CLI, and an ESP8266 desk companion. · Last checkpoint: 2026-07-10 (23:45)
 
 ## 🚧 In progress / next
+- **State-refresh batch** — `daily_activity` migration + pgTAP coverage added locally; next verify the pgTAP suite in CI, then commit through the owning branch (checkout currently reports `main` despite the staged batch).
 - **App icon/logo** — generate ekagra logo (codex Luna designs SVG → render PNG), wire into Expo app config (apps/mobile/app.json icon/adaptive-icon/splash).
 - **Then: build APK + install on Raja's phone via adb** (device already connected). Expo: likely `eas build` local or `npx expo run:android` / gradle assembleRelease; verify which works offline.
 - **Then: live device testing over adb** — Raja logs in manually; agent drives the app, seeds test data (tasks/sessions/friends), verifies Phase 3–7 flows on-device (Crew, Insights, nudges), fixes bugs found, then deletes all seeded data.
 - Manual (Raja): NodeMCU push button; flash firmware/ per firmware/MANUAL-CHECKLIST.md.
 
 ## Status
+- `daily_activity` now supplies one auth-scoped current-UTC-day row for both DataProviders, with ended-session honest minutes kept separate from earned blocks; local `bun test` is 124 pass.
 - **All phases 0–8 merged to main.** Issues #5–#9 closed; only #10 (PRD tracking) open.
 - This session: PR #21 (phase 6 backend) fixed (pgTAP uuid casts) + merged; PR #23 (phase 6 UI: rate rings, streak, nudges, Crew friends+leaderboard, web+mobile) merged; PR #24 (phase 7 backend: identity_role_hours, distraction_breakdown, weekly_review, ritual_correlations views + pgTAP) merged; PR #25 (phase 7 UI: weekly review, role hours, distraction breakdown, 7x24 focus heatmap, ritual-correlation cards) merged.
 - CI green on main (bun test 122; heavy job: migrations + pgTAP phases 0/2/6/7 + smokes).
@@ -18,7 +20,7 @@
 - CLI -> apps/cli/src · Timer engine + API types -> packages/core/src/{index,api}.ts (vendored to supabase/functions/_vendor/core; scripts/sync-core-vendor.sh, CI-enforced)
 - Edge fns -> supabase/functions/* · Migrations -> supabase/migrations/ (latest 20260710050000_phase_7_insights.sql) · pgTAP -> supabase/tests/
 - Firmware -> firmware/ (portable logic host-tested via bun test)
-- Insights data = direct RLS-scoped view selects (no edge fn): rolling_rates, focus_hours_heatmap, estimate_vs_actual, identity_role_hours, distraction_breakdown, weekly_review, ritual_correlations, weekly_leaderboard.
+- Insights data = direct auth-scoped view selects (no edge fn): daily_activity, rolling_rates, focus_hours_heatmap, estimate_vs_actual, identity_role_hours, distraction_breakdown, weekly_review, ritual_correlations, weekly_leaderboard.
 
 ## Stack & run
 - Bun monorepo · Expo + Vite/React + bun CLI · Supabase · ESP8266 (PlatformIO).

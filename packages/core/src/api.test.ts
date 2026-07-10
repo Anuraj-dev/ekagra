@@ -97,4 +97,16 @@ describe('parseDayRecord', () => {
       }),
     ).toThrow('plan_match');
   });
+
+  test('rejects non-string note and went_wrong_tag instead of coercing', () => {
+    const base = {
+      record_date: '2026-07-10',
+      morning_task_ids: [],
+      plan_match: true,
+      updated_at: '2026-07-10T21:03:00.000Z',
+    };
+    expect(() => parseDayRecord({ ...base, went_wrong_tag: 42 })).toThrow('went_wrong_tag');
+    expect(() => parseDayRecord({ ...base, note: { text: 'x' } })).toThrow('note');
+    expect(() => parseDayRecord({ ...base, note: 'x'.repeat(1001) })).toThrow('note');
+  });
 });

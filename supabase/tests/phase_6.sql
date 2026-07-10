@@ -30,19 +30,19 @@ with dates as (
   from dates
 )
 insert into public.day_records (owner_id, record_date, morning_task_ids, plan_match)
-select '00000000-0000-0000-0000-000000000001', day::date, '{}', day::date <> t.missed_date
+select '00000000-0000-0000-0000-000000000001'::uuid, day::date, '{}'::uuid[], day::date <> t.missed_date
 from target t
 cross join lateral generate_series(
   t.missed_date::timestamp, t.utc_today::timestamp, interval '1 day'
 ) day
 union all
-select '00000000-0000-0000-0000-000000000001', utc_today - 6, '{}', true
+select '00000000-0000-0000-0000-000000000001'::uuid, utc_today - 6, '{}'::uuid[], true
 from dates
 union all
-select '00000000-0000-0000-0000-000000000001', utc_today - 8, '{}', true
+select '00000000-0000-0000-0000-000000000001'::uuid, utc_today - 8, '{}'::uuid[], true
 from dates
 union all
-select '00000000-0000-0000-0000-000000000001', utc_today - 31, '{}', true
+select '00000000-0000-0000-0000-000000000001'::uuid, utc_today - 31, '{}'::uuid[], true
 from dates;
 
 -- User 2 has two consecutive closed successes but no row for today. This is
@@ -51,7 +51,7 @@ with dates as (
   select (now() at time zone 'utc')::date as utc_today
 )
 insert into public.day_records (owner_id, record_date, morning_task_ids, plan_match)
-select '00000000-0000-0000-0000-000000000002', utc_today - offset_days,
+select '00000000-0000-0000-0000-000000000002'::uuid, utc_today - offset_days,
        array['90000000-0000-0000-0000-000000000001']::uuid[], true
 from dates
 cross join (values (1), (2)) offsets(offset_days);

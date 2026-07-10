@@ -1,13 +1,19 @@
 {
   "name": "@ekagra/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Ekagra from the terminal: capture, plan, focus blocks, weekly review.",
   "type": "module",
   "scripts": {
     "start": "bun src/index.ts"
   },
   "bin": {
     "ekagra": "src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "bun": ">=1.3.0"
   },
   "dependencies": {
     "@ekagra/core": "workspace:*"

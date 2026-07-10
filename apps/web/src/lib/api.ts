@@ -3,14 +3,17 @@ import type {
   CurrentSessionResponse,
   DayRecord,
   DeviceRegistrationResponse,
+  DistractionBreakdown,
   EveningCloseRequest,
   Friend,
   FriendActionRequest,
   FriendInviteRequest,
   Goal,
   GoalCreateRequest,
+  IdentityRoleHours,
   MorningCommitRequest,
   MotivationStatus,
+  RitualCorrelation,
   Session,
   SessionCommand,
   SessionResponse,
@@ -19,6 +22,7 @@ import type {
   TaskCreateRequest,
   TaskStatus,
   TaskUpdateRequest,
+  WeeklyReview,
 } from '@ekagra/core';
 import { parseDayRecord } from '@ekagra/core';
 import { FUNCTIONS_BASE, supabase } from './supabase';
@@ -153,6 +157,113 @@ export const dayRecordsApi = {
       .limit(limit);
     if (error) throw new ApiError(500, 'internal_error', error.message);
     return (data ?? []).map(parseDayRecord);
+  },
+};
+
+// --- Insights ---------------------------------------------------------------
+
+function utcMonday(date = new Date()): string {
+  const day = new Date(date);
+  day.setUTCHours(0, 0, 0, 0);
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+  return day.toISOString().slice(0, 10);
+}
+
+function previousWeek(weekStart: string): string {
+  const date = new Date(`${weekStart}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - 7);
+  return date.toISOString().slice(0, 10);
+}
+
+export const insightsApi = {
+  weekStart: utcMonday,
+  previousWeek,
+  weeklyReview: async (weekStart = utcMonday()): Promise<WeeklyReview[]> => {
+    const { data, error } = await supabase
+      .from('weekly_review')
+      .select(
+        'user_id,week_start,closed_days,met_days,earned_blocks,honest_minutes,completed_sessions,abandoned_sessions,top_distraction_tag,estimated_blocks,actual_blocks',
+      )
+      .in('week_start', [weekStart, previousWeek(weekStart)]);
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      userId: String(row.user_id),
+      weekStart: String(row.week_start),
+      closedDays: Number(row.closed_days),
+      metDays: Number(row.met_days),
+      earnedBlocks: Number(row.earned_blocks),
+      honestMinutes: Number(row.honest_minutes),
+      completedSessions: Number(row.completed_sessions),
+      abandonedSessions: Number(row.abandoned_sessions),
+      topDistractionTag: row.top_distraction_tag,
+      estimatedBlocks: Number(row.estimated_blocks),
+      actualBlocks: Number(row.actual_blocks),
+    }));
+  },
+  identityRoleHours: async (weekStart = utcMonday()): Promise<IdentityRoleHours[]> => {
+    const { data, error } = await supabase
+      .from('identity_role_hours')
+      .select('user_id,identity_role,week_start,honest_minutes,earned_blocks')
+      .eq('week_start', weekStart);
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      userId: String(row.user_id),
+      identityRole: String(row.identity_role),
+      weekStart: String(row.week_start),
+      honestMinutes: Number(row.honest_minutes),
+      earnedBlocks: Number(row.earned_blocks),
+    }));
+  },
+  distractionBreakdown: async (weekStart = utcMonday()): Promise<DistractionBreakdown[]> => {
+    const { data, error } = await supabase
+      .from('distraction_breakdown')
+      .select('user_id,week_start,distraction_tag,abandoned_sessions,honest_minutes_lost')
+      .eq('week_start', weekStart)
+      .order('honest_minutes_lost', { ascending: false });
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      userId: String(row.user_id),
+      weekStart: String(row.week_start),
+      distractionTag: row.distraction_tag,
+      abandonedSessions: Number(row.abandoned_sessions),
+      honestMinutesLost: Number(row.honest_minutes_lost),
+    }));
+  },
+  focusHoursHeatmap: async (): Promise<
+    Array<{
+      dayOfWeek: number;
+      hourOfDay: number;
+      sessionCount: number;
+      honestMinutes: number;
+      earnedBlocks: number;
+    }>
+  > => {
+    const { data, error } = await supabase
+      .from('focus_hours_heatmap')
+      .select('day_of_week,hour_of_day,session_count,honest_minutes,earned_blocks');
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      dayOfWeek: Number(row.day_of_week),
+      hourOfDay: Number(row.hour_of_day),
+      sessionCount: Number(row.session_count),
+      honestMinutes: Number(row.honest_minutes),
+      earnedBlocks: Number(row.earned_blocks),
+    }));
+  },
+  ritualCorrelations: async (): Promise<RitualCorrelation[]> => {
+    const { data, error } = await supabase
+      .from('ritual_correlations')
+      .select('user_id,signal,days_with,days_without,avg_blocks_with,avg_blocks_without,lift');
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      userId: String(row.user_id),
+      signal: row.signal,
+      daysWith: Number(row.days_with),
+      daysWithout: Number(row.days_without),
+      avgBlocksWith: Number(row.avg_blocks_with),
+      avgBlocksWithout: Number(row.avg_blocks_without),
+      lift: Number(row.lift),
+    }));
   },
 };
 

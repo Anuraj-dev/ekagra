@@ -64,6 +64,7 @@ jobs:
           cat /tmp/ekagra-functions.log
           exit 1
       - run: bun scripts/phase-2-smoke.ts
+      - run: bun scripts/phase-8-cli-smoke.ts
       - name: Dump edge function logs
         if: failure()
         run: |

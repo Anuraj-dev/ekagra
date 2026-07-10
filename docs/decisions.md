@@ -37,3 +37,12 @@
 
 ## 2026-07-10 — Phase 0 heavy verification is CI-only
 **Why:** A fresh Supabase/Docker reset and database tests prove migrations and fixture views without violating the save-RAM rule. Local `bun test` stays limited to the pure TypeScript seam; browser E2E waits for the design-gated UI and will be added to the CI-only suite then. See issue #1 and PRD #10 testing decisions.
+
+## 2026-07-10 — Vendor @ekagra/core inside supabase/functions
+**Why:** Supabase edge runtime cannot import outside supabase/functions; monorepo path imports 502'd at boot. Rejected import maps/symlinks (CLI bundling ignores them). scripts/sync-core-vendor.sh copies + fixes .ts extensions; CI fails if the copy drifts.
+
+## 2026-07-10 — Explicit service_role grants migration
+**Why:** A fresh `supabase db reset` database left service_role without table grants (42501 in edge functions). Explicit `grant all ... to service_role` + default privileges beats relying on platform defaults.
+
+## 2026-07-10 — Sub-agent model routing updated (Raja)
+**Why:** GPT Sol (medium) for heavy/architectural backend, Sol (low) for reviews, GPT-5.6 Luna for heavy frontend with Opus fallback. Codex ChatGPT account 400-rejects explicit -m ids → use account default at the same effort levels.

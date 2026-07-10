@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { type DeviceSummary, devicesApi } from '../lib/api';
+import {
+  type CuePrefs,
+  formatCueTime,
+  loadCuePrefs,
+  parseTimeInput,
+  saveCuePrefs,
+} from '../lib/rituals';
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
 
@@ -12,6 +19,15 @@ export function Settings() {
   const [devices, setDevices] = useState<DeviceSummary[]>([]);
   const [newToken, setNewToken] = useState<{ deviceId: string; deviceToken: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cuePrefs, setCuePrefs] = useState<CuePrefs>(() => loadCuePrefs());
+
+  function updateCue(which: 'morning' | 'evening', value: string) {
+    const time = parseTimeInput(value);
+    if (!time) return;
+    const next: CuePrefs = { ...cuePrefs, [which]: time };
+    setCuePrefs(next);
+    saveCuePrefs(next);
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -96,6 +112,25 @@ export function Settings() {
 
           <div style={{ padding: '24px 16px 0' }}>
             <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
+              Ritual cues
+            </div>
+            <CueRow
+              label="Morning commit"
+              value={formatCueTime(cuePrefs.morning)}
+              onChange={(v) => updateCue('morning', v)}
+            />
+            <CueRow
+              label="Evening close"
+              value={formatCueTime(cuePrefs.evening)}
+              onChange={(v) => updateCue('evening', v)}
+            />
+            <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t5, marginTop: 8 }}>
+              Today shows a gentle in-app prompt when a cue is due.
+            </div>
+          </div>
+
+          <div style={{ padding: '24px 16px 0' }}>
+            <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
               Ekagra Desk
             </div>
             {devices
@@ -174,6 +209,50 @@ export function Settings() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** One ritual-cue row: label + native time picker. */
+function CueRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        background: tokens.surface2,
+        border: `1px solid ${tokens.lineSoft}`,
+        borderRadius: 16,
+        padding: '13px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+      }}
+    >
+      <span style={{ fontSize: 14, fontWeight: 700, color: tokens.t2 }}>{label}</span>
+      <input
+        type="time"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="tabular"
+        style={{
+          background: tokens.surface3,
+          border: `1px solid ${tokens.line}`,
+          borderRadius: 10,
+          padding: '7px 10px',
+          fontSize: 15,
+          fontWeight: 700,
+          color: tokens.t1,
+          colorScheme: 'dark',
+        }}
+      />
     </div>
   );
 }

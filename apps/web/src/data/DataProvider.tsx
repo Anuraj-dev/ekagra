@@ -18,6 +18,7 @@ import {
   useState,
 } from 'react';
 import { goalsApi, ritualsApi, sessionsApi, tasksApi } from '../lib/api';
+import { markDayClosed } from '../lib/rituals';
 
 type DataContextValue = {
   goals: Goal[];
@@ -184,6 +185,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const closeEvening = useCallback(async (payload: EveningCloseRequest) => {
     await ritualsApi.eveningClose(payload);
+    // Silence the in-app evening cue for the rest of the day once closed.
+    markDayClosed();
   }, []);
 
   const value = useMemo<DataContextValue>(

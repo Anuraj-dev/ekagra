@@ -1,15 +1,17 @@
 import { useNavigation } from '@react-navigation/native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
 import { PlayIcon, SettingsIcon } from '../components/icons';
+import { MotivationPanel, RateRings } from '../components/Motivation';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
 import { TaskCard } from '../components/TaskCard';
 import { CircleButton, GhostButton, SectionRow } from '../components/ui';
 import { useData } from '../data/DataProvider';
+import { motivationApi } from '../lib/api';
 import { formatClock, formatLongDate, greeting } from '../lib/format';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import type { RootNav } from '../nav/types';
@@ -35,11 +37,24 @@ export function Today() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [motivation, setMotivation] = useState<Awaited<
+    ReturnType<typeof motivationApi.status>
+  > | null>(null);
 
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
   const name = (session?.user.user_metadata?.name as string | undefined) ?? '';
   const now = new Date();
+  useEffect(() => {
+    let active = true;
+    motivationApi
+      .status()
+      .then((value) => active && setMotivation(value))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function start() {
     // Client-side hard-block: no owned planned task selected → cannot start.
@@ -78,6 +93,25 @@ export function Today() {
       </Enter>
 
       <Enter delay={60}>
+        {motivation && (
+          <MotivationPanel status={motivation} onPlan={() => nav.navigate('MorningCommit')} />
+        )}
+        {motivation && (
+          <View
+            style={{
+              marginTop: 18,
+              marginHorizontal: 16,
+              padding: 14,
+              borderRadius: 16,
+              backgroundColor: color.surface2,
+              borderWidth: 1,
+              borderColor: color.lineSoft,
+            }}
+          >
+            <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>Your rhythm</Text>
+            <RateRings rates={motivation.rates} />
+          </View>
+        )}
         <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />
 
         {committed.length === 0 ? (

@@ -4,9 +4,13 @@ import type {
   DayRecord,
   DeviceRegistrationResponse,
   EveningCloseRequest,
+  Friend,
+  FriendActionRequest,
+  FriendInviteRequest,
   Goal,
   GoalCreateRequest,
   MorningCommitRequest,
+  MotivationStatus,
   Session,
   SessionCommand,
   SessionResponse,
@@ -160,6 +164,57 @@ export const forgivenessApi = {
       method: 'POST',
       body: { reason: reason ?? null },
     }),
+};
+
+// --- Motivation + Crew -----------------------------------------------------
+
+export type WeeklyLeaderboardRow = {
+  userId: string;
+  displayName: string | null;
+  weekStart: string;
+  earnedBlocks: number;
+};
+
+export const motivationApi = {
+  status: () => request<MotivationStatus>('/motivation'),
+};
+
+export const friendsApi = {
+  list: () => request<{ friends: Friend[] }>('/friends').then((r) => r.friends),
+  invite: (payload: FriendInviteRequest) =>
+    request<{ friendship: Friend }>('/friends', {
+      method: 'POST',
+      query: { action: 'invite' },
+      body: payload,
+    }).then((r) => r.friendship),
+  accept: (friendshipId: string) =>
+    request<{ friendship: Friend }>('/friends', {
+      method: 'POST',
+      query: { action: 'accept' },
+      body: { action: 'accept', friendshipId } satisfies FriendActionRequest,
+    }).then((r) => r.friendship),
+  remove: (friendshipId: string) =>
+    request<{ removed: true }>('/friends', {
+      method: 'POST',
+      query: { action: 'remove' },
+      body: { action: 'remove', friendshipId } satisfies FriendActionRequest,
+    }),
+};
+
+export const leaderboardApi = {
+  weekly: async (): Promise<WeeklyLeaderboardRow[]> => {
+    const { data, error } = await supabase
+      .from('weekly_leaderboard')
+      .select('user_id,display_name,week_start,earned_blocks')
+      .order('earned_blocks', { ascending: false });
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      userId: String(row.user_id),
+      displayName: row.display_name,
+      weekStart: String(row.week_start),
+      earnedBlocks: Number(row.earned_blocks),
+    }));
+  },
 };
 
 // --- Devices ----------------------------------------------------------------

@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
 import { PlayIcon, SettingsIcon } from '../components/icons';
+import { MotivationPanel, RateRings } from '../components/Motivation';
 import { TaskCard } from '../components/TaskCard';
 import { CircleButton, GhostButton, SectionRow } from '../components/ui';
 import { useData } from '../data/DataProvider';
+import { motivationApi } from '../lib/api';
 import { formatClock, formatLongDate, greeting } from '../lib/format';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { isDayClosedToday, loadCuePrefs, type RitualCue, ritualCueState } from '../lib/rituals';
@@ -30,6 +32,9 @@ export function Today() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dismissedCue, setDismissedCue] = useState<RitualCue>(null);
+  const [motivation, setMotivation] = useState<Awaited<
+    ReturnType<typeof motivationApi.status>
+  > | null>(null);
 
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
@@ -58,6 +63,17 @@ export function Today() {
     dayClosed: isDayClosedToday(now),
   });
   const showCue = cue !== null && cue !== dismissedCue;
+
+  useEffect(() => {
+    let active = true;
+    motivationApi
+      .status()
+      .then((value) => active && setMotivation(value))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function start() {
     // Client-side hard-block: no owned planned task selected → cannot start.
@@ -126,6 +142,25 @@ export function Today() {
             onAct={() => open(cue === 'morning' ? 'morning-commit' : 'evening-close')}
             onDismiss={() => setDismissedCue(cue)}
           />
+        )}
+        {motivation && (
+          <MotivationPanel status={motivation} onPlan={() => open('morning-commit')} />
+        )}
+        {motivation && (
+          <div
+            style={{
+              margin: '18px 16px 0',
+              padding: '14px 16px',
+              borderRadius: 16,
+              background: tokens.surface2,
+              border: `1px solid ${tokens.lineSoft}`,
+            }}
+          >
+            <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
+              Your rhythm
+            </div>
+            <RateRings rates={motivation.rates} />
+          </div>
         )}
         <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />
 

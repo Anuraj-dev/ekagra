@@ -1,142 +1,356 @@
-import { useState } from 'react';
-import { useData } from '../data/DataProvider';
-import { forgivenessApi } from '../lib/api';
+import type { Friend } from '@ekagra/core';
+import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
+import { MotivationPanel, RateRings } from '../components/Motivation';
+import {
+  ApiError,
+  forgivenessApi,
+  friendsApi,
+  leaderboardApi,
+  motivationApi,
+  type WeeklyLeaderboardRow,
+} from '../lib/api';
 import { color as tokens } from '../theme/tokens';
 
-/**
- * Crew — weekly earned blocks, totals only. Phase 2 exposes no friends-leaderboard
- * endpoint to the web client, so this shows your own weekly totals and the
- * forgiveness token; the ranked list lands with the leaderboard endpoint.
- */
 export function Crew() {
-  const { todayEarnedBlocks, todayHonestMinutes } = useData();
-  const [applied, setApplied] = useState<string | null>(null);
+  const { session } = useAuth();
+  const [motivation, setMotivation] = useState<Awaited<
+    ReturnType<typeof motivationApi.status>
+  > | null>(null);
+  const [friends, setFriends] = useState<Friend[] | null>(null);
+  const [leaderboard, setLeaderboard] = useState<WeeklyLeaderboardRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [invite, setInvite] = useState('');
   const [busy, setBusy] = useState(false);
+  const [applied, setApplied] = useState(false);
 
-  async function applyForgiveness() {
+  useEffect(() => {
+    let active = true;
+    Promise.all([motivationApi.status(), friendsApi.list(), leaderboardApi.weekly()])
+      .then(([m, f, l]) => {
+        if (active) {
+          setMotivation(m);
+          setFriends(f);
+          setLeaderboard(l);
+        }
+      })
+      .catch(
+        (e) =>
+          active && setError(e instanceof Error ? e.message : 'Crew could not load right now.'),
+      );
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function run(action: () => Promise<unknown>, success?: () => void) {
     setBusy(true);
     setError(null);
     try {
-      const res = await forgivenessApi.apply();
-      setApplied(res.usedAt);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not apply the token.');
+      await action();
+      success?.();
+    } catch (e) {
+      setError(
+        e instanceof ApiError && e.status === 409
+          ? 'That change could not be made. Check your Crew limit or the current invite.'
+          : e instanceof Error
+            ? e.message
+            : 'Could not update your Crew.',
+      );
     } finally {
       setBusy(false);
     }
   }
+  function inviteFriend() {
+    const email = invite.trim();
+    if (!email) return;
+    run(
+      () => friendsApi.invite({ email }),
+      () => {
+        setInvite('');
+        friendsApi
+          .list()
+          .then(setFriends)
+          .catch(() => undefined);
+      },
+    );
+  }
+  const accepted = (friends ?? []).filter(
+    (f) => f.status === 'accepted' || f.direction === 'friend',
+  );
 
   return (
-    <div className="scroll" style={{ paddingBottom: 24 }}>
+    <div className="scroll" style={{ paddingBottom: 32 }}>
       <div className="enter" style={{ padding: '58px 20px 0' }}>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.4px' }}>Crew</div>
         <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 6 }}>
-          Weekly earned blocks. Totals only — tasks stay private.
+          A little visible momentum. Nothing personal is shared.
         </div>
       </div>
-
       <div className="enter-delay">
-        {/* Forgiveness token — plain recessed row */}
-        <div
-          style={{
-            margin: '24px 16px 0',
-            background: tokens.surface2,
-            border: `1px solid ${tokens.lineSoft}`,
-            borderRadius: 16,
-            padding: '15px 18px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 3,
-                background: tokens.green,
-                flex: 'none',
-              }}
-            />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: tokens.t2 }}>
-                Forgiveness token
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 2 }}>
-                {applied ? 'Used this week.' : 'One per week. Wipes one missed day from the rate.'}
-              </div>
+        {motivation && (
+          <div
+            style={{
+              margin: '24px 16px 0',
+              padding: 16,
+              background: tokens.surface2,
+              border: `1px solid ${tokens.lineSoft}`,
+              borderRadius: 16,
+            }}
+          >
+            <div className="overline" style={{ color: tokens.t3, marginBottom: 12 }}>
+              Your rhythm
             </div>
-            {!applied && (
-              <button
-                type="button"
-                onClick={applyForgiveness}
-                disabled={busy}
-                style={{ fontSize: 13, fontWeight: 700, color: tokens.green }}
+            <RateRings rates={motivation.rates} />
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{ fontSize: 26, fontWeight: 800, color: tokens.ember }}
+                className="tabular"
               >
-                Use
-              </button>
-            )}
+                {motivation.streakDays}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: tokens.t3 }}>
+                day streak · misses dent rates, they do not erase them
+              </span>
+            </div>
           </div>
+        )}
+        {motivation && <MotivationPanel status={motivation} onPlan={() => undefined} />}
+        <Forgiveness
+          applied={applied}
+          busy={busy}
+          onApply={() =>
+            run(
+              () => forgivenessApi.apply(),
+              () => setApplied(true),
+            )
+          }
+          error={error}
+        />
+        <Section title="Weekly Crew">
+          {leaderboard === null ? (
+            <Muted>Loading the leaderboard…</Muted>
+          ) : leaderboard.length === 0 ? (
+            <Muted>Complete a block to start this week’s board.</Muted>
+          ) : (
+            <div>
+              {leaderboard.map((row, index) => (
+                <div
+                  key={row.userId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '13px 0',
+                    borderBottom: `1px solid ${tokens.lineSoft}`,
+                    color: row.userId === session?.user.id ? tokens.t1 : tokens.t2,
+                  }}
+                >
+                  <span
+                    className="tabular"
+                    style={{
+                      width: 22,
+                      color: row.userId === session?.user.id ? tokens.ember : tokens.t4,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {index + 1}
+                  </span>
+                  <span style={{ flex: 1, fontWeight: 700 }}>
+                    {row.userId === session?.user.id ? 'You' : row.displayName || 'Crew member'}
+                  </span>
+                  <span className="tabular" style={{ fontSize: 20, fontWeight: 800 }}>
+                    {row.earnedBlocks}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+        <Section title={`Friends · ${accepted.length}/12`}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              value={invite}
+              onChange={(e) => setInvite(e.target.value)}
+              placeholder="Invite by email"
+              aria-label="Friend email"
+              style={inputStyle}
+            />
+            <button
+              type="button"
+              disabled={busy || !invite.trim()}
+              onClick={inviteFriend}
+              style={buttonStyle}
+            >
+              Invite
+            </button>
+          </div>
+          {friends === null ? (
+            <Muted>Loading friends…</Muted>
+          ) : friends.length === 0 ? (
+            <Muted>Your Crew is empty. Invite someone to make progress visible together.</Muted>
+          ) : (
+            friends.map((friend) => (
+              <div
+                key={friend.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '11px 0',
+                  borderBottom: `1px solid ${tokens.lineSoft}`,
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{friend.displayName}</div>
+                  <div style={{ fontSize: 11, color: tokens.t4, marginTop: 3 }}>
+                    {friend.direction === 'incoming' ? 'Wants to join' : friend.status}
+                  </div>
+                </div>
+                {friend.direction === 'incoming' && friend.status === 'pending' && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      run(
+                        () => friendsApi.accept(friend.id),
+                        () =>
+                          setFriends((old) =>
+                            old?.map((f) =>
+                              f.id === friend.id
+                                ? { ...f, status: 'accepted', direction: 'friend' }
+                                : f,
+                            ) ?? null,
+                          ),
+                      )
+                    }
+                    style={buttonStyle}
+                  >
+                    Accept
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    run(
+                      () => friendsApi.remove(friend.id),
+                      () => setFriends((old) => old?.filter((f) => f.id !== friend.id) ?? null),
+                    )
+                  }
+                  style={{ ...buttonStyle, color: tokens.t4, background: 'transparent' }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))
+          )}
           {error && (
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#E4796B', marginTop: 8 }}>
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: '#E4796B' }}>
               {error}
             </div>
           )}
-        </div>
-
-        {/* You row — the only highlighted row */}
-        <div
-          style={{
-            margin: '12px 16px 0',
-            background: 'rgba(240,138,62,.10)',
-            border: '1px solid rgba(240,138,62,.45)',
-            borderRadius: 16,
-            padding: '15px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-          }}
-        >
-          <span
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 999,
-              background: tokens.surface3,
-              color: tokens.ember,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 13,
-              fontWeight: 800,
-              flex: 'none',
-            }}
-          >
-            You
-          </span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>This session</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t3, marginTop: 2 }}>
-              {todayHonestMinutes} honest minutes
-            </div>
-          </div>
-          <span className="tabular" style={{ fontSize: 20, fontWeight: 800, color: tokens.ember }}>
-            {todayEarnedBlocks}
-          </span>
-        </div>
-
-        <p
-          style={{
-            padding: '20px 20px 0',
-            fontSize: 12,
-            fontWeight: 600,
-            color: tokens.t5,
-            lineHeight: 1.5,
-          }}
-        >
-          The ranked Crew list lands with the leaderboard endpoint. Aggregates only — task titles
-          and reflections are never shared.
-        </p>
+        </Section>
       </div>
     </div>
   );
 }
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ margin: '24px 16px 0' }}>
+      <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
+        {title}
+      </div>
+      <div
+        style={{
+          padding: '5px 16px 8px',
+          background: tokens.surface2,
+          border: `1px solid ${tokens.lineSoft}`,
+          borderRadius: 16,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+function Muted({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        padding: '12px 0',
+        fontSize: 13,
+        lineHeight: 1.5,
+        fontWeight: 600,
+        color: tokens.t4,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+function Forgiveness({
+  applied,
+  busy,
+  onApply,
+  error,
+}: {
+  applied: boolean;
+  busy: boolean;
+  onApply: () => void;
+  error: string | null;
+}) {
+  return (
+    <div
+      style={{
+        margin: '16px 16px 0',
+        padding: '15px 18px',
+        background: tokens.surface2,
+        border: `1px solid ${tokens.lineSoft}`,
+        borderRadius: 16,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 3, background: tokens.green }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Forgiveness token</div>
+          <div style={{ fontSize: 12, color: tokens.t4, marginTop: 2 }}>
+            {applied ? 'Used this week.' : 'One per week. Protects one missed day.'}
+          </div>
+        </div>
+        {!applied && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onApply}
+            style={{ ...buttonStyle, color: tokens.green, background: 'transparent' }}
+          >
+            Use
+          </button>
+        )}
+      </div>
+      {error && <div style={{ fontSize: 12, color: '#E4796B', marginTop: 8 }}>{error}</div>}
+    </div>
+  );
+}
+const inputStyle = {
+  flex: 1,
+  minWidth: 0,
+  background: tokens.bg,
+  border: `1px solid ${tokens.line}`,
+  borderRadius: 10,
+  padding: '10px 12px',
+  color: tokens.t1,
+  font: '600 13px Manrope, sans-serif',
+};
+const buttonStyle = {
+  border: 0,
+  borderRadius: 10,
+  padding: '9px 12px',
+  background: 'rgba(240,138,62,.14)',
+  color: tokens.ember,
+  font: '800 12px Manrope, sans-serif',
+  whiteSpace: 'nowrap' as const,
+};

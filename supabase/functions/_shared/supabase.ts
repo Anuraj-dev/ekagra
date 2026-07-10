@@ -154,15 +154,17 @@ export async function requireUser(request: Request): Promise<{
 }
 
 export function adminClient(): SupabaseClient {
-  console.error(
-    'admin env',
-    JSON.stringify({
-      url: Deno.env.get('SUPABASE_URL'),
-      key: (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').slice(0, 20),
-      keys: [...Deno.env.keys()].filter((k) => k.includes('SUPABASE')),
-    }),
-  );
-  return createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
+  const key = env('SUPABASE_SERVICE_ROLE_KEY');
+  try {
+    const payload = JSON.parse(atob(key.split('.')[1] ?? ''));
+    console.error(
+      'admin key role',
+      JSON.stringify({ role: payload.role, url: env('SUPABASE_URL') }),
+    );
+  } catch {
+    console.error('admin key not a JWT', key.slice(0, 12));
+  }
+  return createClient(env('SUPABASE_URL'), key);
 }
 
 export function repositoryForClient(client: SupabaseClient): SessionRepository {

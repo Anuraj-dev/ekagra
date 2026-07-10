@@ -1,31 +1,60 @@
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
 /**
- * Local notifications only (morning cue, evening cue, block-complete nudge). Expo Go
- * on SDK 53+ removed *remote* push support, but locally scheduled notifications still
- * fire in Expo Go, which is all these cues need. Copy stays factual per DESIGN-SPEC §10.
+ * Local notifications only (morning cue, evening cue, block-complete nudge).
+ *
+ * Expo Go on Android (SDK 53+) removed expo-notifications support and logs a
+ * loud error the moment the module is imported — so the module is loaded
+ * lazily and ONLY outside that environment. In Expo Go on Android the app
+ * degrades gracefully to no cues; iOS Expo Go and dev/production builds get
+ * the full local-notification behavior. Copy stays factual per DESIGN-SPEC §10.
  */
 
-// Foreground presentation: show the banner even while the app is open.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+const isExpoGoAndroid =
+  Platform.OS === 'android' &&
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+type NotificationsModule = typeof import('expo-notifications');
+
+let cached: NotificationsModule | null | undefined;
+
+/** Loads expo-notifications unless unsupported; null means "skip all cues". */
+async function loadNotifications(): Promise<NotificationsModule | null> {
+  if (cached !== undefined) return cached;
+  if (isExpoGoAndroid) {
+    cached = null;
+    return cached;
+  }
+  try {
+    const mod = await import('expo-notifications');
+    // Foreground presentation: show the banner even while the app is open.
+    mod.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
+    });
+    cached = mod;
+  } catch {
+    cached = null;
+  }
+  return cached;
+}
 
 const MORNING_ID = 'ekagra-morning-cue';
 const EVENING_ID = 'ekagra-evening-cue';
 
 /**
  * Requests permission; returns true only when notifications may be shown.
- * Never throws: a denied prompt or an unavailable notification API (e.g. a
- * restricted Expo Go environment) degrades to `false` and callers skip cues.
+ * Never throws: a denied prompt or an unavailable notification API degrades
+ * to `false` and callers skip cues.
  */
 export async function ensurePermission(): Promise<boolean> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return false;
   try {
     const current = await Notifications.getPermissionsAsync();
     let status = current.status;
@@ -57,6 +86,8 @@ export async function scheduleDailyCues(
   morning: { hour: number; minute: number } = { hour: 8, minute: 30 },
   evening: { hour: number; minute: number } = { hour: 21, minute: 0 },
 ): Promise<void> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
   const granted = await ensurePermission();
   if (!granted) return;
 
@@ -96,6 +127,8 @@ export async function scheduleDailyCues(
 
 /** Immediate nudge fired when a focus block completes. */
 export async function nudgeBlockComplete(): Promise<void> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
   const granted = await ensurePermission();
   if (!granted) return;
   try {
@@ -113,5 +146,7 @@ export async function nudgeBlockComplete(): Promise<void> {
 
 /** Clears every scheduled cue (used on sign-out). */
 export async function cancelAllCues(): Promise<void> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
   await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
 }

@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "biome check .",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/mobile/tsconfig.json"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",

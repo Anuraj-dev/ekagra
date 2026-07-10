@@ -13,7 +13,9 @@ const config: ExpoConfig = {
   scheme: 'ekagra',
   userInterfaceStyle: 'dark',
   backgroundColor: '#0E0F12',
+  icon: './assets/icon.png',
   splash: {
+    image: './assets/splash.png',
     backgroundColor: '#0A0B0E',
     resizeMode: 'contain',
   },
@@ -27,7 +29,9 @@ const config: ExpoConfig = {
     // Lets the in-app updater hand a downloaded APK to the system installer.
     permissions: ['REQUEST_INSTALL_PACKAGES'],
     backgroundColor: '#0E0F12',
+    package: 'dev.anuraj.ekagra',
     adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#0A0B0E',
     },
   },

@@ -57,3 +57,5 @@
 ## 2026-07-10 — Subagent fix-cycle cap (Raja)
 **Why:** Resumed agents replay ever-growing transcripts — cost rises, quality plateaus. Max ~2 cycles (build + one fix round) per agent; repeat mistakes → fresh spawn with distilled findings, or higher effort. Same-agent continuation only when its in-context knowledge is genuinely load-bearing.
 >>>>>>> origin/main
+## 2026-07-10 — Insights analytics are auth.uid()-scoped SQL views, read directly by clients
+**Why:** Issue #8 hard rule "all analytics are SQL views"; avoids new edge fns, RLS stays in the view predicate. Rejected: insights edge function aggregating in TS.

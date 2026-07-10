@@ -28,6 +28,10 @@ const USAGE = `${bold('ekagra')} — focus, from the terminal.
   ${bold('login')} [email]     sign in (session saved under ~/.config/ekagra/)
   ${bold('logout')}            sign out
   ${bold('whoami')}            show the signed-in account
+
+When stdout is not a terminal (piped/scripted), ${bold('start')} and ${bold('resume')} print one
+status line and exit instead of running the live countdown; the session keeps
+running on the server.
 `;
 
 function printError(io: IO, error: unknown): void {
@@ -56,11 +60,14 @@ export async function run(argv: string[], io: IO): Promise<number> {
   }
 
   try {
+    // logout/whoami only touch the local session file — keep them working even
+    // when Supabase env/config is absent.
+    if (command === 'logout') return await logout(io);
+    if (command === 'whoami') return await whoami(io);
+
     const config = await loadConfig();
 
     if (command === 'login') return await login(config, io, args);
-    if (command === 'logout') return await logout(io);
-    if (command === 'whoami') return await whoami(io);
 
     const client = createHttpClient(config, createTokenProvider(config));
     const deps: CommandDeps = { client, io };

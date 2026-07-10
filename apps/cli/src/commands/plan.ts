@@ -7,9 +7,9 @@ export function parseSelection(input: string): number[] {
   const seen = new Set<number>();
   const result: number[] = [];
   for (const token of input.split(/[\s,]+/)) {
-    if (!token) continue;
+    if (!/^\d+$/.test(token)) continue; // reject "1foo", "1.5", "-1"
     const n = Number.parseInt(token, 10);
-    if (Number.isInteger(n) && n > 0 && !seen.has(n)) {
+    if (n > 0 && !seen.has(n)) {
       seen.add(n);
       result.push(n);
     }

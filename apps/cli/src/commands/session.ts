@@ -7,6 +7,13 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
+/** Strict 1-based index: whole digits only, rejecting "1foo" / "1.5" / "-1". */
+function parseIndex(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const n = Number.parseInt(value, 10);
+  return n > 0 ? n : null;
+}
+
 async function resolveTask(deps: CommandDeps, planned: Task[], arg?: string): Promise<Task | null> {
   const { io } = deps;
   if (planned.length === 0) {
@@ -15,8 +22,8 @@ async function resolveTask(deps: CommandDeps, planned: Task[], arg?: string): Pr
   }
   if (arg) {
     if (isUuid(arg)) return planned.find((t) => t.id === arg) ?? null;
-    const index = Number.parseInt(arg, 10);
-    if (Number.isInteger(index) && index >= 1 && index <= planned.length) return planned[index - 1];
+    const index = parseIndex(arg);
+    if (index !== null && index <= planned.length) return planned[index - 1];
     io.error(yellow(`No planned task matching "${arg}".`));
     return null;
   }
@@ -27,10 +34,8 @@ async function resolveTask(deps: CommandDeps, planned: Task[], arg?: string): Pr
     io.line(`  ${cyan(String(index + 1).padStart(2))}. ${task.title}`);
   });
   const answer = await io.ask(`${bold('> ')}`);
-  const index = Number.parseInt(answer, 10);
-  return Number.isInteger(index) && index >= 1 && index <= planned.length
-    ? planned[index - 1]
-    : null;
+  const index = parseIndex(answer);
+  return index !== null && index <= planned.length ? planned[index - 1] : null;
 }
 
 /** `ekagra start [n|taskId]` — starts a focus block on a planned task, then counts down. */
@@ -52,6 +57,15 @@ export async function start(deps: CommandDeps, args: string[]): Promise<number> 
   if (!task) return 1;
 
   const started = await client.startSession({ taskId: task.id });
+  if (!io.isTty) {
+    // Non-interactive (piped/scripted): don't block for the whole work block.
+    io.line(
+      `started ${started.session.taskTitle ?? task.title} — ${fmt(
+        started.session.remainingSeconds,
+      )} remaining. \`ekagra today\` to check in.`,
+    );
+    return 0;
+  }
   const ended = await runLiveTimer(client, io, started);
   io.line();
   if (ended.status === 'completed') {
@@ -73,6 +87,14 @@ export async function pause(deps: CommandDeps): Promise<number> {
 /** `ekagra resume` — resumes a paused session and returns to the live countdown. */
 export async function resume(deps: CommandDeps): Promise<number> {
   const res = await deps.client.sessionCommand({ action: 'resume' });
+  if (!deps.io.isTty) {
+    deps.io.line(
+      `resumed ${res.session.taskTitle ?? 'focus block'} — ${fmt(
+        res.session.remainingSeconds,
+      )} remaining. \`ekagra today\` to check in.`,
+    );
+    return 0;
+  }
   const ended = await runLiveTimer(deps.client, deps.io, res);
   deps.io.line();
   if (ended.status === 'completed') {

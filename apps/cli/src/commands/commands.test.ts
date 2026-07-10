@@ -32,6 +32,9 @@ describe('parseSelection', () => {
   it('ignores junk and non-positive numbers', () => {
     expect(parseSelection('a 0 -1 2')).toEqual([2]);
   });
+  it('rejects tokens that merely start with digits', () => {
+    expect(parseSelection('1foo 1.5 2')).toEqual([2]);
+  });
 });
 
 describe('plan', () => {
@@ -112,11 +115,34 @@ describe('start', () => {
         },
       ],
     });
-    const io = fakeIO();
+    const io = fakeIO([], { isTty: true });
     expect(await start({ client, io }, [])).toBe(0);
     const started = client.calls.find((c) => c.method === 'startSession');
     expect(started?.args[0]).toEqual({ taskId: planned.id });
     expect(io.text()).toContain('block earned');
+  });
+
+  it('rejects malformed index arguments like "1foo"', async () => {
+    const client = fakeClient({ tasks: [planned] });
+    const io = fakeIO();
+    expect(await start({ client, io }, ['1foo'])).toBe(1);
+    expect(client.calls.some((c) => c.method === 'startSession')).toBe(false);
+  });
+
+  it('prints one status line and skips the live loop on non-TTY stdout', async () => {
+    const client = fakeClient({
+      tasks: [planned],
+      startResult: {
+        session: session({ remainingSeconds: 1500 }),
+        serverNow: '2026-07-10T06:00:00.000Z',
+      },
+    });
+    const io = fakeIO([], { isTty: false });
+    expect(await start({ client, io }, [])).toBe(0);
+    expect(io.text()).toContain('started');
+    expect(io.text()).toContain('ekagra today');
+    // No countdown loop and no auto-complete were run.
+    expect(client.calls.some((c) => c.method === 'sessionCommand')).toBe(false);
   });
 });
 

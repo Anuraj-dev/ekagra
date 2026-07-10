@@ -11,7 +11,7 @@ export type FakeIO = IO & {
   text(): string;
 };
 
-export function fakeIO(answers: string[] = []): FakeIO {
+export function fakeIO(answers: string[] = [], options: { isTty?: boolean } = {}): FakeIO {
   const output: string[] = [];
   const errors: string[] = [];
   const queue = [...answers];
@@ -19,7 +19,7 @@ export function fakeIO(answers: string[] = []): FakeIO {
     output,
     errors,
     answers: queue,
-    isTty: false,
+    isTty: options.isTty ?? false,
     write: (text) => {
       output.push(text);
     },
@@ -30,6 +30,10 @@ export function fakeIO(answers: string[] = []): FakeIO {
       errors.push(text);
     },
     ask: (question) => {
+      output.push(question);
+      return Promise.resolve(queue.shift() ?? '');
+    },
+    askSecret: (question) => {
       output.push(question);
       return Promise.resolve(queue.shift() ?? '');
     },

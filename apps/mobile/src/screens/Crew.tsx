@@ -192,12 +192,13 @@ export function Crew() {
                       run(
                         () => friendsApi.accept(friend.id),
                         () =>
-                          setFriends((old) =>
-                            old?.map((f) =>
-                              f.id === friend.id
-                                ? { ...f, status: 'accepted', direction: 'friend' }
-                                : f,
-                            ) ?? null,
+                          setFriends(
+                            (old) =>
+                              old?.map((f) =>
+                                f.id === friend.id
+                                  ? { ...f, status: 'accepted', direction: 'friend' }
+                                  : f,
+                              ) ?? null,
                           ),
                       )
                     }

@@ -1,6 +1,7 @@
 import type { AppRelease } from '@ekagra/core';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
+import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Linking, Platform } from 'react-native';
@@ -37,6 +38,7 @@ export type UpdateErrorReason =
   | 'offline'
   | 'missing-asset'
   | 'hash-mismatch'
+  | 'verify-failed'
   | 'install-not-permitted';
 
 /**
@@ -122,16 +124,26 @@ export async function checkForUpdate(): Promise<AvailableUpdate | null> {
   }
 }
 
+// Base64 sextet values indexed by char code; -1 marks chars to skip (padding,
+// whitespace). A lookup table because release APKs are ~30 MB (~42 M chars):
+// a per-char indexOf scan over that string can stall the JS thread for minutes.
+const B64_LOOKUP = (() => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const table = new Int8Array(128).fill(-1);
+  for (let i = 0; i < alphabet.length; i++) table[alphabet.charCodeAt(i)] = i;
+  return table;
+})();
+
 /** Decodes base64 to bytes without atob (not guaranteed on every RN runtime). */
 export function base64ToBytes(base64: string): Uint8Array {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  const clean = base64.replace(/[^A-Za-z0-9+/]/g, '');
-  const out = new Uint8Array(Math.floor((clean.length * 3) / 4));
+  const out = new Uint8Array(Math.floor((base64.length * 3) / 4));
   let buffer = 0;
   let bits = 0;
   let index = 0;
-  for (const char of clean) {
-    buffer = (buffer << 6) | alphabet.indexOf(char);
+  for (let i = 0; i < base64.length; i++) {
+    const value = B64_LOOKUP[base64.charCodeAt(i) & 0x7f] ?? -1;
+    if (value < 0) continue;
+    buffer = (buffer << 6) | value;
     bits += 6;
     if (bits >= 8) {
       bits -= 8;
@@ -147,15 +159,36 @@ function bytesToHex(bytes: Uint8Array): string {
   return hex;
 }
 
-async function sha256HexOfFile(fileUri: string): Promise<string> {
+/**
+ * Reads the file as raw bytes. Prefers the SDK 54 native `File.bytes()` path —
+ * the legacy route (base64 string over the bridge, decoded in JS) allocates a
+ * ~42 MB string plus two 31 MB buffers for a release APK and can abort
+ * mid-verify on low-memory devices. Legacy read is kept as a fallback.
+ */
+async function readFileBytes(fileUri: string): Promise<Uint8Array> {
+  try {
+    const bytes = new File(fileUri).bytes();
+    if (bytes instanceof Uint8Array && bytes.byteLength > 0) return bytes;
+  } catch {
+    // fall through to the legacy base64 route
+  }
   const base64 = await FileSystem.readAsStringAsync(fileUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  const bytes = base64ToBytes(base64);
-  const digest = await Crypto.digest(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    bytes.buffer as ArrayBuffer,
-  );
+  return base64ToBytes(base64);
+}
+
+/** Returns an ArrayBuffer covering exactly the view's bytes (digest input). */
+export function exactBuffer(bytes: Uint8Array): ArrayBuffer {
+  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) {
+    return bytes.buffer as ArrayBuffer;
+  }
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+async function sha256HexOfFile(fileUri: string): Promise<string> {
+  const bytes = await readFileBytes(fileUri);
+  const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, exactBuffer(bytes));
   return bytesToHex(new Uint8Array(digest));
 }
 
@@ -218,7 +251,9 @@ export async function downloadAndInstall(
         return fail('hash-mismatch');
       }
     } catch {
-      return fail('hash-mismatch');
+      // Could not compute the hash at all (read/digest failure) — distinct
+      // from a real mismatch so the UI doesn't claim the download is corrupt.
+      return fail('verify-failed');
     }
   }
 

@@ -11,6 +11,7 @@ const ERROR_COPY: Record<UpdateErrorReason, string> = {
   offline: 'Download failed — check your connection and retry.',
   'missing-asset': 'The APK is missing from the release. Retry later.',
   'hash-mismatch': 'Download was corrupted. Tap to retry.',
+  'verify-failed': 'Could not verify the download. Tap to retry.',
   'install-not-permitted': 'Could not launch the installer on this device.',
 };
 

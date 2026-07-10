@@ -20,6 +20,7 @@ export function DayLedger({ planned, earned }: { planned: number; earned: number
         {Array.from({ length: total }, (_, i) => {
           const on = i < earned;
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length decorative ticks, index is the identity
             <span
               key={`tick-${total}-${i}`}
               style={{

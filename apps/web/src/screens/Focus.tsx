@@ -339,6 +339,7 @@ export function Focus() {
             </div>
             <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 14 }}>
               {Array.from({ length: total }, (_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length decorative segments, index is the identity
                 <span
                   key={`fseg-${total}-${i}`}
                   style={{

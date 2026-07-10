@@ -401,4 +401,4 @@ export function accountSession(outcome: SessionOutcome, elapsedMinutes: number):
   };
 }
 
-export * from './api';
+export * from './api.ts';

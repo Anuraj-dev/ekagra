@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider';
 import { Enter } from '../components/motion';
@@ -32,11 +32,31 @@ export function Settings() {
     void loadCuePrefs().then(setCuePrefs);
   }, []);
 
-  async function adjustCue(which: 'morning' | 'evening', deltaMinutes: number) {
+  // Rapid stepper taps must not interleave save/reschedule calls: each tap
+  // updates state immediately, but persisting + rescheduling is debounced and
+  // latest-wins (a stale async reschedule is dropped via the token check).
+  const cueCommitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cueCommitToken = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (cueCommitTimer.current) clearTimeout(cueCommitTimer.current);
+    };
+  }, []);
+
+  function adjustCue(which: 'morning' | 'evening', deltaMinutes: number) {
     const next: CuePrefs = { ...cuePrefs, [which]: stepTime(cuePrefs[which], deltaMinutes) };
     setCuePrefs(next);
-    await saveCuePrefs(next);
-    await scheduleDailyCues(next.morning, next.evening);
+    if (cueCommitTimer.current) clearTimeout(cueCommitTimer.current);
+    const token = ++cueCommitToken.current;
+    cueCommitTimer.current = setTimeout(() => {
+      void (async () => {
+        await saveCuePrefs(next);
+        // A newer tap superseded this commit while saving — skip the reschedule.
+        if (token !== cueCommitToken.current) return;
+        await scheduleDailyCues(next.morning, next.evening);
+      })();
+    }, 400);
   }
 
   const refresh = useCallback(async () => {

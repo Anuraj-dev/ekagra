@@ -11,6 +11,8 @@ export const API_ENDPOINTS = {
   devices: '/functions/v1/devices',
   devicePoll: '/functions/v1/device-poll',
   deviceAction: '/functions/v1/device-action',
+  friends: '/functions/v1/friends',
+  motivation: '/functions/v1/motivation',
 } as const;
 
 export type ApiErrorCode =
@@ -136,6 +138,34 @@ export type EveningCloseRequest = {
 export type ForgivenessApplyRequest = {
   reason?: string | null;
 };
+
+export type MotivationRates = {
+  windowDays: 7 | 30;
+  windowStart: string;
+  closedDays: number;
+  metDays: number;
+  earnedBlocks: number;
+  completionRate: number;
+};
+
+export type MotivationStatus = {
+  rates: MotivationRates[];
+  streakDays: number;
+  neverMissTwice: boolean;
+  daysSilent: number | null;
+  welcomeBack: boolean;
+};
+
+export type Friend = {
+  id: string;
+  userId: string;
+  displayName: string;
+  status: 'pending' | 'accepted' | 'declined' | 'blocked';
+  direction: 'incoming' | 'outgoing' | 'friend';
+};
+
+export type FriendInviteRequest = { email?: string; userId?: string };
+export type FriendActionRequest = { action: 'accept' | 'remove'; friendshipId: string };
 
 /**
  * A persisted day record — the plan-vs-actual row written by the morning-commit
@@ -407,6 +437,33 @@ export function parseForgivenessApplyRequest(value: unknown): ForgivenessApplyRe
     throw new ContractError('reason must be at most 200 characters.');
   }
   return { reason: input.reason as string | null | undefined };
+}
+
+export function parseFriendInviteRequest(value: unknown): FriendInviteRequest {
+  const input = objectValue(value, 'request');
+  const email = input.email;
+  const userId = input.userId;
+  if (email !== undefined && userId !== undefined) {
+    throw new ContractError('Provide email or userId, not both.');
+  }
+  if (email === undefined && userId === undefined) {
+    throw new ContractError('email or userId is required.');
+  }
+  if (email !== undefined) {
+    if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      throw new ContractError('email must be valid.');
+    }
+    return { email: email.trim().toLowerCase() };
+  }
+  return { userId: uuidValue(userId, 'userId') };
+}
+
+export function parseFriendActionRequest(value: unknown): FriendActionRequest {
+  const input = objectValue(value, 'request');
+  if (input.action !== 'accept' && input.action !== 'remove') {
+    throw new ContractError('action must be accept or remove.');
+  }
+  return { action: input.action, friendshipId: uuidValue(input.friendshipId, 'friendshipId') };
 }
 
 export function parseDeviceRegistrationRequest(value: unknown): DeviceRegistrationRequest {

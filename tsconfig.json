@@ -7,10 +7,23 @@
     "noEmit": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "types": ["bun"],
+    "types": [
+      "bun"
+    ],
     "jsx": "react-jsx",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ]
   },
-  "include": ["packages", "apps"],
-  "exclude": ["node_modules", "apps/mobile"]
+  "include": [
+    "packages",
+    "apps"
+  ],
+  "exclude": [
+    "node_modules",
+    "apps/mobile"
+  ],
+  "extends": "expo/tsconfig.base"
 }

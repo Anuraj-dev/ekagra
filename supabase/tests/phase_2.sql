@@ -76,6 +76,19 @@ select is(
   'completed session is no longer active'
 );
 
+-- Phase 6 makes forgiveness targeted: prepare an explicit miss as postgres so
+-- this earlier API regression test remains valid under the latest migration.
+delete from public.forgiveness_tokens
+where owner_id = '00000000-0000-0000-0000-000000000001';
+insert into public.day_records (owner_id, record_date, morning_task_ids, plan_match)
+values (
+  '00000000-0000-0000-0000-000000000001',
+  (now() at time zone 'utc')::date,
+  array['20000000-0000-0000-0000-000000000001']::uuid[],
+  false
+)
+on conflict (owner_id, record_date) do update set plan_match = excluded.plan_match;
+
 select lives_ok(
   $$select public.apply_forgiveness_token('phase 2 test')$$,
   'owner can apply the weekly forgiveness token'
@@ -83,7 +96,7 @@ select lives_ok(
 select is(
   (select used_at is not null from public.forgiveness_tokens
    where owner_id = '00000000-0000-0000-0000-000000000001'
-     and week_start = date_trunc('week', current_date)::date),
+     and week_start = date_trunc('week', now() at time zone 'utc')::date),
   true,
   'forgiveness application is recorded'
 );

@@ -15,6 +15,12 @@ const REFRESH_MARGIN_SECONDS = 60;
 export function createTokenProvider(config: CliConfig): TokenProvider {
   let current: StoredSession | null = null;
   let loaded = false;
+  /**
+   * Concurrent callers (e.g. `today` fires four API calls in parallel) must share
+   * one refresh: refresh tokens rotate, so parallel grants can invalidate each
+   * other and race the session-file write. Memoize the in-flight promise.
+   */
+  let refreshing: Promise<StoredSession> | null = null;
 
   return async () => {
     if (!loaded) {
@@ -26,7 +32,10 @@ export function createTokenProvider(config: CliConfig): TokenProvider {
     }
     const now = Math.floor(Date.now() / 1000);
     if (current.expiresAt - REFRESH_MARGIN_SECONDS <= now) {
-      current = await refreshSession(config, current.refreshToken);
+      refreshing ??= refreshSession(config, current.refreshToken).finally(() => {
+        refreshing = null;
+      });
+      current = await refreshing;
     }
     return current.accessToken;
   };

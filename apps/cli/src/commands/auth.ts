@@ -11,7 +11,7 @@ export async function login(config: CliConfig, io: IO, args: string[]): Promise<
     io.error('An email address is required.');
     return 1;
   }
-  const password = await io.ask('password: ');
+  const password = await io.askSecret('password: ');
   if (!password) {
     io.error('A password is required.');
     return 1;

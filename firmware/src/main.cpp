@@ -20,11 +20,20 @@ constexpr uint32_t kPollIntervalMs = 3000;
 constexpr uint8_t kButtonPin = D6;
 constexpr uint8_t kBuzzerPin = D5;
 
+uint32_t secondToneAt = 0;
+
 void buzz(BuzzerEvent event) {
   if (event == BuzzerEvent::None) return;
   const uint16_t duration = event == BuzzerEvent::WorkCompleted ? 180 : 80;
   tone(kBuzzerPin, event == BuzzerEvent::WorkCompleted ? 1800 : 1000, duration);
-  if (event == BuzzerEvent::WorkCompleted) { delay(230); tone(kBuzzerPin, 2400, 180); }
+  if (event == BuzzerEvent::WorkCompleted) secondToneAt = millis() + 230;
+}
+
+void serviceBuzzer() {
+  if (secondToneAt != 0 && static_cast<int32_t>(millis() - secondToneAt) >= 0) {
+    tone(kBuzzerPin, 2400, 180);
+    secondToneAt = 0;
+  }
 }
 
 void render() {
@@ -60,8 +69,8 @@ void setup() {
 }
 
 void loop() {
-  static bool lastButton = HIGH; static uint32_t changedAt = 0; const bool button = digitalRead(kButtonPin);
-  if (button != lastButton) { lastButton = button; changedAt = millis(); }
-  if (button == LOW && millis() - changedAt > 35) { sendAction(snapshot.phase == Phase::Idle ? "start_next_planned" : "pause"); while (digitalRead(kButtonPin) == LOW) delay(5); }
-  if (millis() - lastPoll >= kPollIntervalMs) { lastPoll = millis(); pollServer(); } render(); delay(30);
+  static bool lastButton = HIGH; static uint32_t changedAt = 0; static bool pressHandled = false; const bool button = digitalRead(kButtonPin);
+  if (button != lastButton) { lastButton = button; changedAt = millis(); if (button == HIGH) pressHandled = false; }
+  if (button == LOW && !pressHandled && millis() - changedAt > 35) { pressHandled = true; sendAction(snapshot.phase == Phase::Idle ? "start_next_planned" : "pause"); }
+  if (millis() - lastPoll >= kPollIntervalMs) { lastPoll = millis(); pollServer(); } serviceBuzzer(); render(); delay(30);
 }

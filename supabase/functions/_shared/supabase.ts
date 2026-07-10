@@ -154,7 +154,14 @@ export async function requireUser(request: Request): Promise<{
 }
 
 export function adminClient(): SupabaseClient {
-  console.error('admin env', JSON.stringify({ url: Deno.env.get('SUPABASE_URL'), key: (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').slice(0, 20), keys: [...Deno.env.keys()].filter((k) => k.includes('SUPABASE')) }));
+  console.error(
+    'admin env',
+    JSON.stringify({
+      url: Deno.env.get('SUPABASE_URL'),
+      key: (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').slice(0, 20),
+      keys: [...Deno.env.keys()].filter((k) => k.includes('SUPABASE')),
+    }),
+  );
   return createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
 }
 

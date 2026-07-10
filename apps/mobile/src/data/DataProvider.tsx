@@ -1,6 +1,7 @@
 import type {
   EveningCloseRequest,
   Goal,
+  GoalCreateRequest,
   Session,
   SessionCommand,
   Task,
@@ -42,6 +43,7 @@ type DataContextValue = {
   reloadSession: () => Promise<void>;
   reloadAll: () => Promise<void>;
   createTask: (payload: TaskCreateRequest) => Promise<Task>;
+  createGoal: (payload: GoalCreateRequest) => Promise<Goal>;
   updateTask: (id: string, payload: TaskUpdateRequest) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
   commitMorning: (taskIds: string[]) => Promise<void>;
@@ -118,6 +120,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reloadAll();
   }, [reloadAll]);
+
+  const createGoal = useCallback(async (payload: GoalCreateRequest) => {
+    const goal = await goalsApi.create(payload);
+    // The goal is already created — surface it immediately and treat the
+    // list refresh as best-effort so a refresh hiccup can't read as a
+    // failed create (which would invite a duplicate retry).
+    setGoals((prev) => (prev.some((g) => g.id === goal.id) ? prev : [...prev, goal]));
+    goalsApi
+      .list()
+      .then(setGoals)
+      .catch((err) => console.warn('Goal list refresh failed after create:', err));
+    return goal;
+  }, []);
 
   const createTask = useCallback(
     async (payload: TaskCreateRequest) => {
@@ -203,6 +218,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       reloadSession,
       reloadAll,
       createTask,
+      createGoal,
       updateTask,
       deleteTask,
       commitMorning,
@@ -226,6 +242,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       reloadSession,
       reloadAll,
       createTask,
+      createGoal,
       updateTask,
       deleteTask,
       commitMorning,

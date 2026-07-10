@@ -474,9 +474,11 @@ function Heatmap({ rows }: { rows: HeatCell[] }) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '34px repeat(24, 13px)',
+          gridTemplateColumns: '34px repeat(24, minmax(13px, 1fr))',
           gap: 3,
           minWidth: 420,
+          // Cap stretch on very wide viewports so cells stay readable.
+          maxWidth: 720,
         }}
       >
         {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day, index) => (
@@ -491,7 +493,8 @@ function Heatmap({ rows }: { rows: HeatCell[] }) {
                   key={hour}
                   title={`${day} ${hour}:00 · ${value} blocks`}
                   style={{
-                    width: 13,
+                    width: '100%',
+                    minWidth: 13,
                     height: 13,
                     borderRadius: 3,
                     background: value

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
@@ -11,7 +11,7 @@ import { overline, tabular, text } from '../theme/typography';
 /** Goals — goal cards with role overline and weekly-rate meters (session-local data for now). */
 export function Goals() {
   const insets = useSafeAreaInsets();
-  const { goals, tasks, earnedByTask } = useData();
+  const { goals, tasks, earnedByTask, createGoal } = useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
 
   return (
@@ -36,6 +36,7 @@ export function Goals() {
             No goals yet. Goals give tasks a color and a reason.
           </Text>
         )}
+        <GoalComposer onCreate={createGoal} />
         {goals.map((goal) => {
           const gColor = goalColor(goal.id, colorMap);
           const goalTasks = tasks.filter((t) => t.goalId === goal.id);
@@ -101,6 +102,124 @@ export function Goals() {
     </Screen>
   );
 }
+
+/**
+ * Inline create-goal flow: a "+ New goal" affordance that expands into a small
+ * form (title + identity role), mirroring the quick-capture pattern on Tasks.
+ */
+function GoalComposer({
+  onCreate,
+}: {
+  onCreate: (payload: { title: string; identityRole: string }) => Promise<unknown>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [role, setRole] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // React state updates are async — a synchronous lock is needed so
+  // Enter + a fast button tap can't double-submit before `busy` re-renders.
+  const submitting = useRef(false);
+
+  const canSave = title.trim().length > 0 && role.trim().length > 0 && !busy;
+
+  async function save() {
+    if (!canSave || submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await onCreate({ title: title.trim(), identityRole: role.trim() });
+      setTitle('');
+      setRole('');
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the goal.');
+    } finally {
+      submitting.current = false;
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <Pressable
+        onPress={() => {
+          setTitle('');
+          setRole('');
+          setError(null);
+          setOpen(true);
+        }}
+        style={({ pressed }) => ({
+          opacity: pressed ? 0.6 : 1,
+          paddingVertical: 8,
+          paddingHorizontal: 4,
+        })}
+      >
+        <Text style={text(700, { fontSize: 13, color: color.ember })}>+ New goal</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        backgroundColor: color.surface,
+        borderWidth: 1,
+        borderColor: color.line,
+        borderRadius: 16,
+        padding: 16,
+        gap: 10,
+      }}
+    >
+      <TextInput
+        value={title}
+        onChangeText={setTitle}
+        placeholder="Goal — what are you building?"
+        placeholderTextColor={color.t4}
+        autoFocus
+        style={composerInput}
+      />
+      <TextInput
+        value={role}
+        onChangeText={setRole}
+        onSubmitEditing={() => void save()}
+        returnKeyType="done"
+        placeholder="Identity role — e.g. Engineer, Writer"
+        placeholderTextColor={color.t4}
+        style={composerInput}
+      />
+      {error && <Text style={text(600, { fontSize: 13, color: '#E4796B' })}>{error}</Text>}
+      <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+        <Pressable disabled={!canSave} onPress={() => void save()}>
+          <Text style={text(700, { fontSize: 13, color: canSave ? color.ember : color.t4 })}>
+            {busy ? 'Saving…' : 'Create goal'}
+          </Text>
+        </Pressable>
+        <Pressable
+          disabled={busy}
+          onPress={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          style={{ opacity: busy ? 0.5 : 1 }}
+        >
+          <Text style={text(700, { fontSize: 13, color: color.t4 })}>Cancel</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const composerInput = text(500, {
+  backgroundColor: color.surface2,
+  borderWidth: 1.5,
+  borderColor: color.line,
+  borderRadius: 12,
+  padding: 14,
+  color: color.t1,
+  fontSize: 15,
+});
 
 function RateMeter({
   color: fill,

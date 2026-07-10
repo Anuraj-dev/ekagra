@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ekagra — Focus (Running)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-focus:#0A0B0E; --surface:#16181D; --surface-2:#111318; --surface-3:#1B1E24;
+    --line:#23262E; --line-soft:#1D2028; --line-hi:#3A3F49;
+    --t1:#ECEDEF; --t2:#B9BDC4; --t3:#8A8F98; --t4:#6B7078; --t5:#41454D;
+    --ember:#F08A3E; --ember-hi:#FFB25E; --green:#5BBF8A;
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:#07080A; font-family:'Manrope',system-ui,sans-serif; -webkit-font-smoothing:antialiased;}
+  .frame{
+    width:390px; height:844px; margin:0 auto; position:relative; overflow:hidden;
+    background:var(--bg-focus); color:var(--t1);
+    display:flex; flex-direction:column; align-items:center;
+  }
+  /* ambient ember vignette — running only */
+  .vignette{
+    position:absolute; left:50%; top:38%; width:600px; height:600px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle at center, rgba(240,138,62,.08) 0%, rgba(240,138,62,0) 58%);
+    pointer-events:none; z-index:0;
+    animation:breatheGlow 7s ease-in-out infinite;
+  }
+  @keyframes breatheGlow{0%,100%{opacity:.7;} 50%{opacity:1;}}
+  .stage{position:relative; z-index:1; width:100%; display:flex; flex-direction:column; align-items:center;}
+
+  /* top bar */
+  .topbar{width:100%; padding:56px 20px 0; display:flex; align-items:center; justify-content:space-between;}
+  .chev{width:40px; height:40px; border-radius:999px; background:rgba(22,24,29,.84); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--t2); cursor:pointer;
+    transition:border-color .18s var(--ease), color .18s var(--ease), background .18s var(--ease);}
+  .chev:hover{border-color:var(--line-hi); color:var(--t1); background:var(--surface-3);}
+  .phase{display:flex; flex-direction:column; align-items:center; gap:5px;}
+  .phase-row{display:flex; align-items:center; gap:8px;}
+  .phase-tick{width:6px; height:6px; border-radius:2px; background:var(--ember);}
+  .overline{font-size:11px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase;}
+  .phase-label{color:var(--t2);}
+  .phase-sub{font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--t4);}
+  .spacer{width:38px;}
+
+  /* ring — hairline track + slim luminous progress. Simple, satisfying. */
+  .ring-wrap{position:relative; width:312px; height:312px; margin-top:38px;}
+  svg.ring{position:absolute; inset:0; transform:rotate(-90deg); overflow:visible;}
+  circle.track{fill:none; stroke:#1A1D23; stroke-width:2;}
+  circle.prog{
+    fill:none; stroke:var(--ember); stroke-width:8; stroke-linecap:round;
+    filter:drop-shadow(0 0 5px rgba(240,138,62,.6)) drop-shadow(0 0 16px rgba(240,138,62,.25));
+    animation:progBreath 4s ease-in-out infinite;
+  }
+  @keyframes progBreath{0%,100%{opacity:.94;} 50%{opacity:1;}}
+  .center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .time{font-size:86px; font-weight:800; letter-spacing:-3.2px; line-height:1; font-variant-numeric:tabular-nums;}
+  .time-sub{margin-top:14px; color:var(--t4);}
+
+  /* bound task */
+  .task{margin-top:38px; width:100%; padding:0 40px; text-align:center;}
+  .task-title{font-size:20px; font-weight:800; letter-spacing:-.2px;}
+  .goalmark{display:inline-flex; align-items:center; gap:8px; margin-top:12px;}
+  .tick{width:3px; height:13px; border-radius:2px;}
+  .goalname{font-size:12px; font-weight:700;}
+  .meter{display:flex; gap:4px; justify-content:center; margin-top:14px;}
+  .seg{width:26px; height:6px; border-radius:3px; background:var(--line-soft);}
+  .seg.done{background:#C48FBF;}
+
+  /* controls */
+  .controls{margin-top:auto; margin-bottom:46px; display:flex; flex-direction:column; align-items:center; gap:22px;}
+  .fab{width:76px; height:76px; border-radius:999px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    background:rgba(14,15,18,.2); border:1.5px solid var(--line); transition:border-color .2s var(--ease), background .2s var(--ease), transform .2s var(--ease);}
+  .fab:hover{border-color:var(--line-hi); background:rgba(255,255,255,.025); transform:translateY(-1px);}
+  .end{font-size:13px; font-weight:700; color:var(--t4); cursor:pointer;}
+  .end:hover{color:var(--t3);}
+  .hint{position:absolute; bottom:20px; left:0; right:0; text-align:center; font-size:11px; font-weight:600; letter-spacing:.05px; color:var(--t5); z-index:1;}
+
+  @media (prefers-reduced-motion: reduce){
+    .vignette, circle.prog{animation:none;}
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="vignette"></div>
+    <div class="stage">
+
+      <div class="topbar">
+        <div class="chev" aria-label="Close focus">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 3.5 L5 8 L9.5 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="phase">
+          <div class="phase-row">
+            <span class="phase-tick"></span>
+            <span class="overline phase-label">Focus</span>
+          </div>
+          <span class="phase-sub">Block 3 of 3</span>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="ring-wrap">
+        <svg class="ring" width="312" height="312" viewBox="0 0 312 312">
+          <circle class="track" cx="156" cy="156" r="146"/>
+          <!-- progress: ~46% elapsed of block. C = 2π·146 = 917.3 -->
+          <circle class="prog" cx="156" cy="156" r="146"
+            stroke-dasharray="917.3" stroke-dashoffset="495.4"/>
+        </svg>
+        <div class="center">
+          <div class="time">13:24</div>
+          <div class="overline time-sub">Remaining</div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-title">ESP8266 firmware polling</div>
+        <div class="goalmark">
+          <span class="tick" style="background:#C48FBF"></span>
+          <span class="goalname" style="color:#C48FBF">Robotics Mission</span>
+        </div>
+        <div class="meter">
+          <span class="seg done"></span>
+          <span class="seg done"></span>
+          <span class="seg"></span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="controls">
+      <div class="fab" aria-label="Pause timer">
+        <svg width="22" height="22" viewBox="0 0 22 22">
+          <rect x="4" y="3" width="5" height="16" rx="2" fill="#ECEDEF"/>
+          <rect x="13" y="3" width="5" height="16" rx="2" fill="#ECEDEF"/>
+        </svg>
+      </div>
+      <div class="end">End session — minutes are kept</div>
+    </div>
+
+    <!-- Conditional: shown ONLY when an Ekagra Desk device is paired & connected -->
+    <div class="hint">Desk light mirrors this timer</div>
+  </div>
+</body>
+</html>

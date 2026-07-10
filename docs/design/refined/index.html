@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ekagra — Refined Design Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg-deep:#07080A; --line:#23262E; --t1:#ECEDEF; --t3:#8A8F98; --t4:#6B7078; --ember:#F08A3E;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg-deep); font-family:'Manrope',system-ui,sans-serif; color:var(--t1); -webkit-font-smoothing:antialiased;
+    padding:48px 40px 80px;}
+  header{max-width:1600px; margin:0 auto 44px;}
+  .brand{display:flex; align-items:center; gap:12px;}
+  .dot{width:14px; height:14px; border-radius:5px; background:var(--ember);}
+  h1{font-size:30px; font-weight:800; letter-spacing:-.5px;}
+  .sub{font-size:14px; font-weight:600; color:var(--t3); margin-top:10px; max-width:680px; line-height:1.55;}
+  .meta{font-size:12px; font-weight:600; color:var(--t4); margin-top:8px;}
+  .gallery{max-width:1600px; margin:0 auto; display:flex; gap:48px 40px; flex-wrap:wrap; justify-content:center;}
+  .device{display:flex; flex-direction:column; align-items:center; gap:16px;}
+  .screen-label{text-align:center;}
+  .screen-label .name{font-size:15px; font-weight:800;}
+  .screen-label .desc{font-size:12px; font-weight:600; color:var(--t4); margin-top:3px;}
+  .bezel{width:390px; height:844px; border-radius:44px; padding:0; overflow:hidden;
+    border:1px solid var(--line); box-shadow:0 30px 80px rgba(0,0,0,.6), 0 0 0 8px rgba(255,255,255,.012); background:#000;}
+  iframe{width:390px; height:844px; border:0; display:block;}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="dot"></span><h1>Ekagra — Refined Design Reference</h1></div>
+    <p class="sub">Dark-first, goal-bound focus app. The Focus timer is the hero: <b>running is quiet</b>
+      (don't distract the worker), <b>paused is loud</b> (get them back). English only, plain honest copy,
+      one warm accent earned by commitment — no gradients, no affirmations, no templated aesthetics.</p>
+    <p class="meta">Static reference · 390 × 844 · translates to Expo + web · see DESIGN-SPEC.md</p>
+  </header>
+
+  <div class="gallery">
+    <div class="device">
+      <div class="screen-label"><div class="name">Focus — Running</div><div class="desc">The hero. Calm field, breathing ring, bound task first-class.</div></div>
+      <div class="bezel"><iframe src="./focus-running.html" title="Focus running"></iframe></div>
+    </div>
+    <div class="device">
+      <div class="screen-label"><div class="name">Focus — Paused</div><div class="desc">Desaturated ring, dimmed time, loud ember Resume.</div></div>
+      <div class="bezel"><iframe src="./focus-paused.html" title="Focus paused"></iframe></div>
+    </div>
+    <div class="device">
+      <div class="screen-label"><div class="name">Today</div><div class="desc">Flat header, day ledger, committed tasks, hard-block start bar.</div></div>
+      <div class="bezel"><iframe src="./today.html" title="Today"></iframe></div>
+    </div>
+    <div class="device">
+      <div class="screen-label"><div class="name">Evening Close</div><div class="desc">Honest stats, forward-looking nudge, calm close + closed state.</div></div>
+      <div class="bezel"><iframe src="./evening-close.html" title="Evening close"></iframe></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -137,6 +137,20 @@ export type ForgivenessApplyRequest = {
   reason?: string | null;
 };
 
+/**
+ * A persisted day record — the plan-vs-actual row written by the morning-commit
+ * and evening-close rituals. Read directly from `day_records` (owner-scoped RLS);
+ * `planMatch`/`wentWrongTag` stay null until the day is closed.
+ */
+export type DayRecord = {
+  recordDate: string;
+  morningTaskIds: string[];
+  planMatch: boolean | null;
+  wentWrongTag: string | null;
+  note: string | null;
+  updatedAt: string;
+};
+
 export type DeviceAction = 'start_next_planned' | 'pause';
 
 export type DeviceActionRequest = {
@@ -183,6 +197,17 @@ function stringValue(value: unknown, field: string, maxLength = 200): string {
     );
   }
   return value.trim();
+}
+
+/** A string-or-null field: undefined/null map to null, anything non-string is rejected. */
+function nullableString(value: unknown, field: string, maxLength: number): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string' || value.length > maxLength) {
+    throw new ContractError(
+      `${field} must be a string of at most ${maxLength} characters or null.`,
+    );
+  }
+  return value;
 }
 
 function uuidValue(value: unknown, field: string): string {
@@ -335,6 +360,33 @@ export function parseEveningCloseRequest(value: unknown): EveningCloseRequest {
     planMatch: input.planMatch,
     wentWrongTag,
     note: input.note as string | null | undefined,
+  };
+}
+
+/**
+ * Maps a raw `day_records` row (snake_case, as returned by Supabase/RLS reads)
+ * into a typed {@link DayRecord}. Lenient on the ritual fields that are null
+ * until the day is closed.
+ */
+export function parseDayRecord(value: unknown): DayRecord {
+  const input = objectValue(value, 'dayRecord');
+  const recordDate = stringValue(input.record_date, 'record_date', 40);
+  const rawIds = Array.isArray(input.morning_task_ids) ? input.morning_task_ids : [];
+  const morningTaskIds = rawIds.map((id) => uuidValue(id, 'morning_task_ids'));
+  if (input.plan_match !== null && input.plan_match !== undefined) {
+    if (typeof input.plan_match !== 'boolean') {
+      throw new ContractError('plan_match must be a boolean or null.');
+    }
+  }
+  const note = nullableString(input.note, 'note', 1000);
+  const wentWrongTag = nullableString(input.went_wrong_tag, 'went_wrong_tag', 80);
+  return {
+    recordDate,
+    morningTaskIds,
+    planMatch: (input.plan_match as boolean | null | undefined) ?? null,
+    wentWrongTag,
+    note,
+    updatedAt: stringValue(input.updated_at, 'updated_at', 40),
   };
 }
 

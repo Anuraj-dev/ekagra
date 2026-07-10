@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
 import { PlayIcon, SettingsIcon } from '../components/icons';
@@ -7,6 +7,7 @@ import { CircleButton, GhostButton, SectionRow } from '../components/ui';
 import { useData } from '../data/DataProvider';
 import { formatClock, formatLongDate, greeting } from '../lib/format';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
+import { isDayClosedToday, loadCuePrefs, type RitualCue, ritualCueState } from '../lib/rituals';
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
 
@@ -28,11 +29,35 @@ export function Today() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dismissedCue, setDismissedCue] = useState<RitualCue>(null);
 
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
   const name = (session?.user.user_metadata?.name as string | undefined) ?? '';
-  const now = new Date();
+
+  // Cue state re-evaluates over time: a Today screen left open across a cue
+  // time must still surface the banner, so tick every 30s and on refocus.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    const interval = setInterval(tick, 30_000);
+    window.addEventListener('focus', tick);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', tick);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, []);
+
+  const cuePrefs = useMemo(() => loadCuePrefs(), []);
+  const cue = ritualCueState({
+    nowMinutes: now.getHours() * 60 + now.getMinutes(),
+    prefs: cuePrefs,
+    hasMorningPlan: committed.length > 0,
+    dayClosed: isDayClosedToday(now),
+  });
+  const showCue = cue !== null && cue !== dismissedCue;
 
   async function start() {
     // Client-side hard-block: no owned planned task selected → cannot start.
@@ -95,6 +120,13 @@ export function Today() {
       </div>
 
       <div className="enter-delay">
+        {showCue && cue && (
+          <CueBanner
+            cue={cue}
+            onAct={() => open(cue === 'morning' ? 'morning-commit' : 'evening-close')}
+            onDismiss={() => setDismissedCue(cue)}
+          />
+        )}
         <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />
 
         {committed.length === 0 ? (
@@ -291,6 +323,67 @@ function StartBar({
         {formatClock(25 * 60)}
       </span>
     </button>
+  );
+}
+
+/** Dismissible in-app ritual cue shown on Today when a cue time has passed. */
+function CueBanner({
+  cue,
+  onAct,
+  onDismiss,
+}: {
+  cue: 'morning' | 'evening';
+  onAct: () => void;
+  onDismiss: () => void;
+}) {
+  const title = cue === 'morning' ? 'Morning commit?' : 'Close your day?';
+  const body =
+    cue === 'morning'
+      ? 'Pick 1–3 tasks to commit to today.'
+      : 'Log how the day went and bank your blocks.';
+  return (
+    <div style={{ padding: '16px 16px 0' }}>
+      <div
+        style={{
+          background: 'rgba(240,138,62,.10)',
+          border: '1px solid rgba(240,138,62,.45)',
+          borderRadius: 16,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onAct}
+          style={{ flex: 1, textAlign: 'left', background: 'none' }}
+        >
+          <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: tokens.t1 }}>
+            {title}
+          </span>
+          <span
+            style={{
+              display: 'block',
+              fontSize: 12,
+              fontWeight: 600,
+              color: tokens.t3,
+              marginTop: 2,
+            }}
+          >
+            {body}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-label="Dismiss"
+          onClick={onDismiss}
+          style={{ flex: 'none', fontSize: 18, fontWeight: 700, color: tokens.t4, padding: 4 }}
+        >
+          ×
+        </button>
+      </div>
+    </div>
   );
 }
 

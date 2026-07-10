@@ -1,7 +1,20 @@
-import { useMemo } from 'react';
+import type { DayRecord } from '@ekagra/core';
+import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../data/DataProvider';
+import { dayRecordsApi } from '../lib/api';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { color as tokens } from '../theme/tokens';
+
+/** "Mon Jul 10" from a `YYYY-MM-DD` record date. */
+function formatRecordDate(recordDate: string): string {
+  const d = new Date(`${recordDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return recordDate;
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function prettyTag(tag: string): string {
+  return tag.replace(/-/g, ' ');
+}
 
 /**
  * Insights — honest numbers. Core-loop counters come from this app session;
@@ -12,6 +25,25 @@ export function Insights() {
   const { tasks, goals, todayEarnedBlocks, todayHonestMinutes, earnedByTask } = useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const planned = useMemo(() => tasks.filter((t) => t.status === 'planned'), [tasks]);
+  const [history, setHistory] = useState<DayRecord[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    dayRecordsApi
+      .recent()
+      .then((rows) => {
+        if (active) setHistory(rows);
+      })
+      .catch(() => {
+        if (active) setHistory([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Only closed days carry a plan-vs-actual verdict.
+  const closedDays = useMemo(() => (history ?? []).filter((r) => r.planMatch !== null), [history]);
 
   return (
     <div className="scroll" style={{ paddingBottom: 24 }}>
@@ -94,31 +126,59 @@ export function Insights() {
           )}
         </div>
 
-        {/* History placeholder — factual, no fake data */}
+        {/* Plan vs actual — closed-day history from day records */}
         <div style={{ padding: '24px 16px 0' }}>
-          <div
-            style={{
-              background: tokens.surface2,
-              border: `1px solid ${tokens.lineSoft}`,
-              borderRadius: 16,
-              padding: '15px 18px',
-            }}
-          >
-            <div className="overline" style={{ color: tokens.t3 }}>
-              Earned blocks · 10 weeks
-            </div>
-            <p
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: tokens.t4,
-                marginTop: 6,
-                lineHeight: 1.5,
-              }}
-            >
-              History arrives with the reporting endpoint. Counters above are live for this session.
-            </p>
+          <div className="overline" style={{ color: tokens.t3, marginBottom: 12 }}>
+            Plan vs actual
           </div>
+          {history === null ? (
+            <p style={{ fontSize: 13, fontWeight: 600, color: tokens.t4 }}>Loading recent days…</p>
+          ) : closedDays.length === 0 ? (
+            <p style={{ fontSize: 13, fontWeight: 600, color: tokens.t4 }}>
+              Close a day to start building your plan-vs-actual history.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {closedDays.map((day) => (
+                <div
+                  key={day.recordDate}
+                  style={{
+                    background: tokens.surface2,
+                    border: `1px solid ${tokens.lineSoft}`,
+                    borderRadius: 16,
+                    padding: '13px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: tokens.t2 }}>
+                      {formatRecordDate(day.recordDate)}
+                    </div>
+                    {day.wentWrongTag && day.wentWrongTag !== 'on-plan' && (
+                      <div
+                        style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 2 }}
+                      >
+                        {prettyTag(day.wentWrongTag)}
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    style={{
+                      flex: 'none',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: day.planMatch ? tokens.green : tokens.ember,
+                    }}
+                  >
+                    {day.planMatch ? 'On plan' : 'Off plan'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

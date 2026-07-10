@@ -15,6 +15,8 @@ import {
   stepTime,
 } from '../lib/cuePrefs';
 import { scheduleDailyCues } from '../lib/notifications';
+import { currentVersion } from '../lib/updates';
+import { useUpdater } from '../lib/useUpdater';
 import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
@@ -236,8 +238,93 @@ export function Settings() {
             </Text>
           )}
         </View>
+
+        {/* App updates */}
+        <View style={{ paddingTop: 24, paddingHorizontal: 16, paddingBottom: 24 }}>
+          <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>App</Text>
+          <UpdateRow />
+        </View>
       </Enter>
     </Screen>
+  );
+}
+
+/**
+ * Manual "check for updates" affordance (mirrors pomo's About-screen flow).
+ * Walks the same state machine as the launch banner: check -> download ->
+ * verify SHA-256 -> hand off to the Android installer.
+ */
+function UpdateRow() {
+  const { state, check, install } = useUpdater();
+
+  const busy =
+    state.phase === 'checking' ||
+    state.phase === 'downloading' ||
+    state.phase === 'verifying' ||
+    state.phase === 'installing';
+
+  const status =
+    state.phase === 'checking'
+      ? 'Checking…'
+      : state.phase === 'up-to-date'
+        ? 'You are on the latest version.'
+        : state.phase === 'update-available'
+          ? `v${state.update.version} is available${state.update.notes?.trim() ? ` — ${state.update.notes.trim()}` : ''}`
+          : state.phase === 'downloading'
+            ? `Downloading v${state.update.version}…`
+            : state.phase === 'verifying'
+              ? 'Verifying download…'
+              : state.phase === 'installing'
+                ? 'Opening installer…'
+                : state.phase === 'error'
+                  ? state.reason === 'offline'
+                    ? 'Network error — try again.'
+                    : state.reason === 'hash-mismatch'
+                      ? 'Download was corrupted — try again.'
+                      : state.reason === 'missing-asset'
+                        ? 'The APK is missing from the release.'
+                        : 'Could not launch the installer.'
+                  : null;
+
+  const actionLabel =
+    state.phase === 'update-available'
+      ? 'Install'
+      : state.phase === 'error'
+        ? 'Retry'
+        : 'Check for updates';
+
+  const onAction = () => {
+    if (state.phase === 'update-available' || state.phase === 'error') void install();
+    else void check();
+  };
+
+  return (
+    <View
+      style={{
+        backgroundColor: color.surface2,
+        borderWidth: 1,
+        borderColor: color.lineSoft,
+        borderRadius: 16,
+        paddingVertical: 15,
+        paddingHorizontal: 18,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={text(700, { fontSize: 14, color: color.t2, flex: 1 })}>
+          Ekagra v{currentVersion()}
+        </Text>
+        <Pressable
+          disabled={busy}
+          onPress={onAction}
+          style={({ pressed }) => ({ opacity: pressed || busy ? 0.6 : 1, marginLeft: 12 })}
+        >
+          <Text style={text(700, { fontSize: 13, color: color.ember })}>{actionLabel}</Text>
+        </Pressable>
+      </View>
+      {status && (
+        <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 6 })}>{status}</Text>
+      )}
+    </View>
   );
 }
 

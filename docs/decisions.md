@@ -59,3 +59,9 @@
 >>>>>>> origin/main
 ## 2026-07-10 — Insights analytics are auth.uid()-scoped SQL views, read directly by clients
 **Why:** Issue #8 hard rule "all analytics are SQL views"; avoids new edge fns, RLS stays in the view predicate. Rejected: insights edge function aggregating in TS.
+
+## 2026-07-11 — completeEarly as a first-class timer event, work-phase-only
+**Why:** "Done early" must persist honest minutes + the earned block instead of forcing abandon; restricted to the work phase because early completion is a statement about work (breaks end via complete). Alternative rejected: reusing complete with a force flag — muddies the reach-zero invariant.
+
+## 2026-07-11 — Daily totals server-derived from auth.uid()-scoped daily_activity view
+**Why:** Client-accumulated honest minutes/earned blocks were lost on re-login. A UTC-day RLS view keeps analytics in SQL (issue #8 rule) and clients merely overlay optimistic updates. Alternative rejected: persisting totals in client storage — drifts from server truth.

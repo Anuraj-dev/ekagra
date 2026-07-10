@@ -167,6 +167,18 @@ describe('timer state machine', () => {
     expect(remainingMs(result.state, 1_000 + 25 * minute)).toBe(5 * minute);
   });
 
+  test('completes early with honest minutes and no distraction reason', () => {
+    const running = start(createTimerState(), 1_000).state;
+    const result = transition(running, { type: 'completeEarly' }, 12 * minute + 1_000);
+
+    expect(result.session).toMatchObject({
+      outcome: 'completed',
+      distractionTag: null,
+      honestMinutes: 12,
+      earnedBlock: true,
+    });
+  });
+
   test('completes a break and returns to idle, preserving the earned-block total', () => {
     const work = start(createTimerState(), 1_000).state;
     const shortBreak = completeWork(work, 1_000 + 25 * minute).state;
@@ -203,7 +215,7 @@ describe('timer state machine', () => {
   });
 
   test('abandonment requires exactly one supported tag and never earns a block', () => {
-    const tags = ['distraction', 'interruption', 'done-early', 'energy'] as const;
+    const tags = ['distraction', 'interruption', 'energy'] as const;
 
     for (const tag of tags) {
       const running = start(createTimerState(), 1_000).state;

@@ -121,6 +121,22 @@ describe('session API handlers', () => {
     );
     expect(result).toMatchObject({ status: 'abandoned', honestMinutes: 12, earnedBlock: false });
   });
+
+  test('done early persists a completed session with honest minutes', async () => {
+    const repo = repository();
+    const handlers = createSessionHandlers(repo);
+    await handlers.start({ ownerId, now: 0 }, { taskId });
+    const result = await handlers.command(
+      { ownerId, now: 12 * 60_000 + 30_000 },
+      { action: 'completeEarly' },
+    );
+    expect(result).toMatchObject({
+      status: 'completed',
+      honestMinutes: 12,
+      earnedBlock: true,
+      distractionTag: null,
+    });
+  });
 });
 
 describe('device poll handler', () => {

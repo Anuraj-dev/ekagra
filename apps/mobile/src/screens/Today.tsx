@@ -131,7 +131,7 @@ export function Today() {
                   goalName={goalName(task.goalId, goals)}
                   earnedBlocks={earnedByTask[task.id] ?? 0}
                   selected={task.id === selectedId}
-                  onPress={() => setSelectedId(task.id)}
+                  onPress={() => setSelectedId((current) => (current === task.id ? null : task.id))}
                 />
               ))}
             </View>

@@ -22,7 +22,9 @@ describe('API contract validators', () => {
       action: 'abandon',
       distractionTag: 'energy',
     });
+    expect(parseSessionCommand({ action: 'completeEarly' })).toEqual({ action: 'completeEarly' });
     expect(parseMorningCommitRequest({ taskIds: [taskId] })).toEqual({ taskIds: [taskId] });
+    expect(parseMorningCommitRequest({ taskIds: [] })).toEqual({ taskIds: [] });
     expect(parseEveningCloseRequest({ planMatch: true, wentWrongTag: 'none' })).toEqual({
       planMatch: true,
       wentWrongTag: 'none',
@@ -40,6 +42,9 @@ describe('API contract validators', () => {
       parseSessionStartRequest({ taskId: '200000000000-0000-0000-0000-000000000001' }),
     ).toThrow('UUID');
     expect(() => parseMorningCommitRequest({ taskIds: [taskId, taskId] })).toThrow('unique');
+    expect(() => parseSessionCommand({ action: 'abandon', distractionTag: 'done-early' })).toThrow(
+      'supported',
+    );
     expect(() => parseDeviceActionRequest({ action: 'resume' })).toThrow('start_next_planned');
     expect(parseTaskStatus('planned')).toBe('planned');
     expect(() => parseTaskStatus('running')).toThrow('invalid');

@@ -1,6 +1,7 @@
 import type {
   ApiErrorBody,
   CurrentSessionResponse,
+  DailyActivity,
   DayRecord,
   DeviceRegistrationResponse,
   DistractionBreakdown,
@@ -178,6 +179,19 @@ function previousWeek(weekStart: string): string {
 export const insightsApi = {
   weekStart: utcMonday,
   previousWeek,
+  todayActivity: async (): Promise<DailyActivity> => {
+    const { data, error } = await supabase
+      .from('daily_activity')
+      .select('user_id,activity_date,earned_blocks,honest_minutes')
+      .single();
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return {
+      userId: String(data.user_id),
+      activityDate: String(data.activity_date),
+      earnedBlocks: Number(data.earned_blocks),
+      honestMinutes: Number(data.honest_minutes),
+    };
+  },
   weeklyReview: async (weekStart = utcMonday()): Promise<WeeklyReview[]> => {
     const { data, error } = await supabase
       .from('weekly_review')

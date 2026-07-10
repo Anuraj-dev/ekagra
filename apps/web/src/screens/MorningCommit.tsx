@@ -6,7 +6,7 @@ import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
 
-/** Morning Commit flow — pick 1–3 tasks. Enforces the hard-block precondition. */
+/** Morning Commit flow — save up to three tasks, or clear today's plan. */
 export function MorningCommit() {
   const { close } = useNav();
   const { tasks, goals, commitMorning } = useData();
@@ -34,7 +34,6 @@ export function MorningCommit() {
   }
 
   async function commit() {
-    if (selected.length < 1) return;
     setBusy(true);
     setError(null);
     try {
@@ -47,7 +46,7 @@ export function MorningCommit() {
     }
   }
 
-  const canCommit = selected.length >= 1 && selected.length <= 3;
+  const canCommit = selected.length <= 3;
 
   return (
     <div className="app-frame">
@@ -64,7 +63,7 @@ export function MorningCommit() {
               Morning Commit
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 3 }}>
-              Pick 1–3. Small and true beats big and false.
+              Pick up to 3. Small and true beats big and false.
             </div>
           </div>
         </div>
@@ -187,9 +186,9 @@ export function MorningCommit() {
             color: canCommit ? '#0E0F12' : tokens.t4,
           }}
         >
-          {canCommit
-            ? `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`
-            : 'Pick 1–3 tasks'}
+          {selected.length === 0
+            ? "Clear today's plan"
+            : `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`}
         </button>
       </div>
     </div>

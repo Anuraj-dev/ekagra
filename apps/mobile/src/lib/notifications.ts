@@ -12,8 +12,7 @@ import { Platform } from 'react-native';
  */
 
 const isExpoGoAndroid =
-  Platform.OS === 'android' &&
-  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 type NotificationsModule = typeof import('expo-notifications');
 

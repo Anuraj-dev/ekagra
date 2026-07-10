@@ -2,34 +2,39 @@
 > Focus-first life-management app: goal-bound Pomodoro synced across Expo, web, CLI, and an ESP8266 desk companion. · Last checkpoint: 2026-07-10
 
 ## 🚧 In progress / next
-- Phase 0 (issue #1) is implemented on `phase-0-scaffold`; next task is Phase 1 (issue #2), the full shared timer state machine.
-- Waiting on Raja: pick a design direction (propose-4 prompt already on his clipboard) — blocks Phase 3 UI only.
+- Next task: **Phase 3 (issue #4)** — Web + Expo apps. BLOCKED on design gate: Raja is prototyping a design direction in Claude (prompt delivered 2026-07-10 morning) and will hand back a prototype. Until then, Phase 4 (firmware, #5) or Phase 5 (#6) non-UI parts can go next.
 - Hardware: Raja to add a push button to the NodeMCU (~₹10) for physical start/pause.
 
 ## Status
-- Repo is design-complete, code-empty: only README + this context system exist.
-- PRD published and pinned: **issue #10** (problem, 42 user stories, all implementation/testing decisions, acceptance criteria). Phase issues **#1–#9** cover the full v1, labeled `ready-for-agent`.
-- Acceptance for v1: full loop end-to-end on all surfaces AND Raja logs ≥70% day-coverage over 30 days (his 2026 Notion baseline: 36.7%).
-- Goal seed data (identity roles + anchor mission from Raja's life-direction doc) documented in a comment on #10.
+- **Phases 0–2 merged to main** (PRs #11, #12/#14, #13; issues #1–#3 closed):
+  - Phase 0: Bun monorepo (packages/core, apps/{web,mobile,cli}, supabase, firmware), Supabase data spine + RLS, CI.
+  - Phase 1: pure-TS timer engine in packages/core (state machine, hard-block, honest minutes vs earned blocks, injected monotonic clock, serializable state; 18 tests).
+  - Phase 2: typed API contract (packages/core/src/api.ts), edge functions (sessions, tasks, goals, rituals, forgiveness, devices, device-poll/action), device token auth + rotation/revoke, atomic morning-commit RPC, cheap poll-aggregates RPC.
+- CI all green on main: fast job = lint + typecheck + bun test + vendor-sync check; heavy job = fresh-DB migrations + pgTAP + edge-function HTTP smoke (CI-only per save-RAM rule).
 
 ## Architecture map
-- `packages/core` — pure TypeScript hard-block and session-accounting seam, ready for the Phase 1 state machine.
-- `apps/web`, `apps/mobile`, `apps/cli` — non-UI entry-point scaffolds; UI remains design-gated.
-- `supabase/` — Phase 0 migration, seed fixtures, aggregate views, RLS, health Edge Function placeholder, and pgTAP checks.
-- `firmware/` — Phase 4 placeholder only.
+- Timer engine + API types -> packages/core/src/{index,api}.ts
+- Edge functions -> supabase/functions/* (shared logic in _shared/)
+- Vendored core for Deno -> supabase/functions/_vendor/core (sync: scripts/sync-core-vendor.sh; CI enforces)
+- Migrations -> supabase/migrations/ (phase_0 spine, phase_2 api, phase_2 review fixes, service_role grants)
+- DB tests -> supabase/tests/*.sql · HTTP smoke -> scripts/phase-2-smoke.ts
 
 ## Stack & run
-- Stack: Bun monorepo · Expo + Vite/React + bun CLI · Supabase (Postgres/auth/realtime/edge) · ESP8266 firmware. · Run: `bun install`; Test: `bun test` locally, heavy suites CI-only (save-RAM rule)
+- Stack: Bun monorepo · Expo + Vite/React + bun CLI · Supabase (Postgres/auth/realtime/edge) · ESP8266 firmware.
+- Run: (apps still stubs) · Test: `bun test` local; heavy suites CI-only (save-RAM rule).
 
 ## Key decisions (top 5)
-- Hard-block timer: no task, no timer (client engine + server both enforce)
-- Honest minutes vs earned blocks accounting; only blocks feed rates/leaderboard
-- Rolling 7/30-day rates, forgiveness token, nudges — no fragile Day-X-of-N streaks
-- Supabase owns truth; ESP8266 is a thin polling client (~3s HTTPS)
-- Heavy tests CI-only; shared pure-TS timer engine is the main test seam
+- Hard-block timer enforced client AND server side (sessions fn rejects start without owned planned task)
+- Honest minutes vs earned blocks; only blocks feed rates/leaderboard
+- Supabase owns truth; ESP8266 thin polling client — device-poll returns one-row RPC aggregates, last_seen writes throttled to 60s
+- Edge functions can't import outside supabase/functions → core is vendored; CI fails if out of sync
+- Model routing (Raja 2026-07-10): GPT Sol med = heavy backend, Sol low = reviews, GPT-5.6 Luna = heavy frontend (Opus fallback); codex ChatGPT account rejects -m ids → account default at same effort
 
 ## Gotchas
-- Evidence base (r≈0.08 vanity pomodoros, 2x morning-routine lever, silent-gap death pattern) is in PRD #10 — don't re-derive; don't redesign against it.
-- Luna frontend experiment (Jul 10–17): Raja's default routes frontend work to GPT-5.6 Luna via codex — but the Ekagra design prompt was explicitly requested for Claude/Opus. Confirm routing per task.
-- Design gate: NO UI implementation before Raja picks one of the 4 proposed directions.
-- Leaderboard privacy: aggregates only — task titles/reflections must never be queryable by friends.
+- Design gate STILL closed: no Phase 3 UI until Raja returns a chosen design prototype.
+- device-poll/device-action have verify_jwt=false in supabase/config.toml — auth is x-device-token only; never route privileged logic there without the token check.
+- service_role grants are explicit (20260710030000 migration); default privileges cover future tables.
+- pgTAP: wrap RLS assertions in `set local role authenticated` … `reset role` (superuser bypasses RLS silently); no data-modifying CTEs in asserts.
+- CI: `supabase functions serve` must be setsid-detached; edge container logs dumped on failure.
+- Leaderboard privacy: aggregates only — task titles/reflections never queryable by friends.
+- Evidence base in PRD #10 — don't re-derive.

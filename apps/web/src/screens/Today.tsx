@@ -1,3 +1,4 @@
+import type { MotivationStatus } from '@ekagra/core';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
@@ -13,6 +14,11 @@ import { isDayClosedToday, loadCuePrefs, type RitualCue, ritualCueState } from '
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
 
+// Last-known motivation snapshot survives tab-switch remounts so the rhythm
+// rings show the previous value while a refresh is in flight instead of
+// flickering through an empty/zero state.
+let motivationCache: MotivationStatus | null = null;
+
 export function Today() {
   const { open } = useNav();
   const { session } = useAuth();
@@ -24,6 +30,7 @@ export function Today() {
     earnedByTask,
     startSession,
     session: activeSession,
+    sessionEndVersion,
   } = useData();
 
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
@@ -32,9 +39,7 @@ export function Today() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dismissedCue, setDismissedCue] = useState<RitualCue>(null);
-  const [motivation, setMotivation] = useState<Awaited<
-    ReturnType<typeof motivationApi.status>
-  > | null>(null);
+  const [motivation, setMotivation] = useState<MotivationStatus | null>(motivationCache);
 
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
@@ -64,16 +69,22 @@ export function Today() {
   });
   const showCue = cue !== null && cue !== dismissedCue;
 
+  // Refresh the rhythm/motivation stats on mount and whenever a session ends;
+  // failures keep the last-known value on screen.
   useEffect(() => {
     let active = true;
+    void sessionEndVersion;
     motivationApi
       .status()
-      .then((value) => active && setMotivation(value))
+      .then((value) => {
+        motivationCache = value;
+        if (active) setMotivation(value);
+      })
       .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, []);
+  }, [sessionEndVersion]);
 
   async function start() {
     // Client-side hard-block: no owned planned task selected → cannot start.

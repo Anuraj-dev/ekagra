@@ -13,7 +13,15 @@ type HeatCell = {
   earnedBlocks: number;
 };
 type Async<T> = { value: T | null; loading: boolean; error: boolean };
-const initial = <T,>(): Async<T> => ({ value: null, loading: true, error: false });
+// Last-known section values survive tab-switch remounts so the screen shows
+// the previous numbers while a refresh is in flight instead of flashing a
+// loading/zero state.
+const lastKnown = new Map<string, unknown>();
+const initial = <T,>(key: string): Async<T> => ({
+  value: (lastKnown.get(key) as T | undefined) ?? null,
+  loading: !lastKnown.has(key),
+  error: false,
+});
 const pretty = (tag: string) => tag.replace(/-/g, ' ');
 const formatDate = (date: string) =>
   new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -23,38 +31,57 @@ const signed = (value: number | null, suffix = '') =>
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour));
 
 export function Insights() {
-  const { tasks, goals, todayEarnedBlocks, todayHonestMinutes, earnedByTask } = useData();
+  const { tasks, goals, todayEarnedBlocks, todayHonestMinutes, earnedByTask, sessionEndVersion } =
+    useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const planned = useMemo(() => tasks.filter((task) => task.status === 'planned'), [tasks]);
   const [history, setHistory] = useState<DayRecord[] | null>(null);
-  const [reviews, setReviews] = useState<Async<WeeklyReview[]>>(initial());
-  const [roles, setRoles] = useState<Async<IdentityRoleHours[]>>(initial());
+  const [reviews, setReviews] = useState<Async<WeeklyReview[]>>(initial('reviews'));
+  const [roles, setRoles] = useState<Async<IdentityRoleHours[]>>(initial('roles'));
   const [distractions, setDistractions] = useState<
     Async<Awaited<ReturnType<typeof insightsApi.distractionBreakdown>>>
-  >(initial());
-  const [heatmap, setHeatmap] = useState<Async<HeatCell[]>>(initial());
-  const [rituals, setRituals] = useState<Async<RitualCorrelation[]>>(initial());
+  >(initial('distractions'));
+  const [heatmap, setHeatmap] = useState<Async<HeatCell[]>>(initial('heatmap'));
+  const [rituals, setRituals] = useState<Async<RitualCorrelation[]>>(initial('rituals'));
 
+  // Refetch every view aggregate on mount (each tab visit) and whenever a
+  // session ends (sessionEndVersion), so weekly counts and the distraction
+  // breakdown stay consistent with the live "Today" row. Sections keep their
+  // last-known values while a refresh is in flight.
   useEffect(() => {
     let active = true;
-    const run = <T,>(load: () => Promise<T>, set: (state: Async<T>) => void) => {
+    void sessionEndVersion;
+    const run = <T,>(
+      key: string,
+      load: () => Promise<T>,
+      set: (update: (prev: Async<T>) => Async<T>) => void,
+    ) => {
       load()
-        .then((value) => active && set({ value, loading: false, error: false }))
-        .catch(() => active && set({ value: null, loading: false, error: true }));
+        .then((value) => {
+          lastKnown.set(key, value);
+          if (active) set(() => ({ value, loading: false, error: false }));
+        })
+        .catch(
+          () =>
+            active &&
+            set((prev) =>
+              prev.value !== null ? prev : { value: null, loading: false, error: true },
+            ),
+        );
     };
     dayRecordsApi
       .recent()
       .then((rows) => active && setHistory(rows))
-      .catch(() => active && setHistory([]));
-    run(insightsApi.weeklyReview, setReviews);
-    run(insightsApi.identityRoleHours, setRoles);
-    run(insightsApi.distractionBreakdown, setDistractions);
-    run(insightsApi.focusHoursHeatmap, setHeatmap);
-    run(insightsApi.ritualCorrelations, setRituals);
+      .catch(() => active && setHistory((prev) => prev ?? []));
+    run('reviews', insightsApi.weeklyReview, setReviews);
+    run('roles', insightsApi.identityRoleHours, setRoles);
+    run('distractions', insightsApi.distractionBreakdown, setDistractions);
+    run('heatmap', insightsApi.focusHoursHeatmap, setHeatmap);
+    run('rituals', insightsApi.ritualCorrelations, setRituals);
     return () => {
       active = false;
     };
-  }, []);
+  }, [sessionEndVersion]);
 
   const currentWeek = reviews.value?.find((row) => row.weekStart === insightsApi.weekStart());
   const previous = reviews.value?.find(

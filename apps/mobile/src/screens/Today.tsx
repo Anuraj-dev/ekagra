@@ -1,5 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
-import { useEffect, useMemo, useState } from 'react';
+import type { MotivationStatus } from '@ekagra/core';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
@@ -18,6 +19,11 @@ import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
+// Last-known motivation snapshot survives remounts so the rhythm rings show
+// the previous value while a refresh is in flight instead of flickering
+// through an empty/zero state.
+let motivationCache: MotivationStatus | null = null;
+
 export function Today() {
   const nav = useNavigation<RootNav>();
   const insets = useSafeAreaInsets();
@@ -30,6 +36,7 @@ export function Today() {
     earnedByTask,
     startSession,
     session: activeSession,
+    sessionEndVersion,
   } = useData();
 
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
@@ -37,24 +44,30 @@ export function Today() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [motivation, setMotivation] = useState<Awaited<
-    ReturnType<typeof motivationApi.status>
-  > | null>(null);
+  const [motivation, setMotivation] = useState<MotivationStatus | null>(motivationCache);
 
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
   const name = (session?.user.user_metadata?.name as string | undefined) ?? '';
   const now = new Date();
-  useEffect(() => {
-    let active = true;
-    motivationApi
-      .status()
-      .then((value) => active && setMotivation(value))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Refresh the rhythm/motivation stats whenever the screen gains focus or a
+  // session ends; failures keep the last-known value on screen.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void sessionEndVersion;
+      motivationApi
+        .status()
+        .then((value) => {
+          motivationCache = value;
+          if (active) setMotivation(value);
+        })
+        .catch(() => undefined);
+      return () => {
+        active = false;
+      };
+    }, [sessionEndVersion]),
+  );
 
   async function start() {
     // Client-side hard-block: no owned planned task selected → cannot start.

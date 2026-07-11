@@ -2,7 +2,7 @@ import type { DistractionTag } from '@ekagra/core';
 import { DISTRACTION_TAGS, remainingMs } from '@ekagra/core';
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -172,6 +172,14 @@ export function Focus() {
       );
       recordSessionEnd(ended);
       close();
+    } catch (err) {
+      // Never swallow a server rejection: the sheet has already closed, so a
+      // silent failure looks like a dead button while the timer keeps running.
+      Alert.alert(
+        'Could not end the session',
+        err instanceof Error ? err.message : 'Please try again.',
+      );
+      await reloadSession().catch(() => {});
     } finally {
       setBusy(false);
     }

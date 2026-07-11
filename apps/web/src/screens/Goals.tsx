@@ -1,5 +1,5 @@
 import type { Goal } from '@ekagra/core';
-import { type CSSProperties, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor } from '../lib/goals';
 import { color as tokens } from '../theme/tokens';
@@ -284,6 +284,9 @@ function GoalSheet({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+  const dismissRef = useRef<() => void>(() => {});
 
   const trimmedDeadline = deadline.trim();
   const dirty =
@@ -291,6 +294,53 @@ function GoalSheet({
     role.trim() !== goal.identityRole ||
     trimmedDeadline !== (goal.deadline ?? '');
   const canSave = title.trim().length > 0 && role.trim().length > 0 && dirty && !busy;
+
+  dismissRef.current = () => {
+    if (!busy) onClose();
+  };
+
+  useEffect(() => {
+    previousFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const focusable = dialog?.querySelector<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    (focusable ?? dialog)?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismissRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+
+      const focusableElements = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      const first = focusableElements[0];
+      const last = focusableElements.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      previousFocus.current?.focus();
+    };
+  }, []);
 
   async function save() {
     if (!canSave || submitting.current) return;
@@ -341,7 +391,7 @@ function GoalSheet({
       <button
         type="button"
         aria-label="Dismiss"
-        onClick={() => !busy && onClose()}
+        onClick={() => dismissRef.current()}
         style={{
           position: 'absolute',
           inset: 0,
@@ -352,7 +402,10 @@ function GoalSheet({
       />
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Edit goal"
+        ref={dialogRef}
+        tabIndex={-1}
         style={{
           position: 'relative',
           background: tokens.surface,

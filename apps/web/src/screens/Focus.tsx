@@ -525,6 +525,55 @@ function EndSheet({
   onCancel: () => void;
   onPick: (choice: EndChoice) => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+  const dismissRef = useRef(onCancel);
+
+  dismissRef.current = onCancel;
+
+  useEffect(() => {
+    previousFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const focusable = dialog?.querySelector<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    (focusable ?? dialog)?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismissRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+
+      const focusableElements = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      const first = focusableElements[0];
+      const last = focusableElements.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      previousFocus.current?.focus();
+    };
+  }, []);
+
   return (
     <div
       style={{
@@ -538,7 +587,7 @@ function EndSheet({
       <button
         type="button"
         aria-label="Dismiss"
-        onClick={onCancel}
+        onClick={() => dismissRef.current()}
         style={{
           position: 'absolute',
           inset: 0,
@@ -548,7 +597,10 @@ function EndSheet({
       />
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="End session"
+        ref={dialogRef}
+        tabIndex={-1}
         style={{
           position: 'relative',
           width: '100%',

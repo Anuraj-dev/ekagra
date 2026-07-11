@@ -1,6 +1,6 @@
 import type { Goal } from '@ekagra/core';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
@@ -294,134 +294,131 @@ function GoalSheet({
     }
   }
 
+  function dismiss() {
+    if (!busy) onClose();
+  }
+
   return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'flex-end',
-      }}
-    >
-      <Pressable
-        accessibilityLabel="Dismiss"
-        onPress={() => !busy && onClose()}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(7,8,10,0.6)',
-        }}
-      />
-      <View
-        style={{
-          backgroundColor: color.surface,
-          borderTopWidth: 1,
-          borderTopColor: color.line,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          paddingTop: 22,
-          paddingHorizontal: 20,
-          paddingBottom: 28 + insets.bottom,
-          gap: 12,
-        }}
-      >
-        <Text style={[overline, { color: color.t3 }]}>Edit goal</Text>
-        <View style={{ gap: 6 }}>
-          <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Goal</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="What are you building?"
-            placeholderTextColor={color.t4}
-            style={composerInput}
-          />
-        </View>
-        <View style={{ gap: 6 }}>
-          <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Identity role</Text>
-          <TextInput
-            value={role}
-            onChangeText={setRole}
-            placeholder="e.g. Engineer, Writer"
-            placeholderTextColor={color.t4}
-            style={composerInput}
-          />
-        </View>
-        <View style={{ gap: 6 }}>
-          <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Deadline · optional</Text>
-          <TextInput
-            value={deadline}
-            onChangeText={setDeadline}
-            placeholder="e.g. 2026-09-01"
-            placeholderTextColor={color.t4}
-            autoCapitalize="none"
-            style={composerInput}
-          />
-        </View>
-        {error && <Text style={text(600, { fontSize: 13, color: color.danger })}>{error}</Text>}
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
-          <Pressable
-            disabled={!canSave}
-            onPress={() => void save()}
-            style={{
-              flex: 1,
-              borderRadius: 12,
-              paddingVertical: 15,
-              alignItems: 'center',
-              backgroundColor: canSave ? color.ember : color.lineSoft,
-            }}
-          >
-            <Text style={text(800, { fontSize: 15, color: canSave ? color.bg : color.t4 })}>
-              {busy ? 'Saving…' : 'Save changes'}
-            </Text>
-          </Pressable>
-          <Pressable disabled={busy} onPress={onClose} style={{ paddingHorizontal: 8 }}>
-            <Text style={text(700, { fontSize: 14, color: color.t3 })}>Cancel</Text>
-          </Pressable>
-        </View>
-
-        {/* Two-step delete: the first tap arms, the second confirms. */}
-        {confirmDelete ? (
-          <View
-            style={{
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: 'rgba(228,121,107,0.4)',
-              backgroundColor: color.dangerDim,
-              padding: 14,
-              gap: 10,
-            }}
-          >
-            <Text style={text(600, { fontSize: 13, color: color.t2, lineHeight: 19 })}>
-              Delete “{goal.title}”? Its tasks stay but lose this goal.
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-              <Pressable disabled={busy} onPress={() => void remove()}>
-                <Text style={text(800, { fontSize: 14, color: color.danger })}>
-                  {busy ? 'Deleting…' : 'Delete goal'}
-                </Text>
-              </Pressable>
-              <Pressable disabled={busy} onPress={() => setConfirmDelete(false)}>
-                <Text style={text(700, { fontSize: 14, color: color.t4 })}>Keep</Text>
-              </Pressable>
-            </View>
+    <Modal transparent animationType="fade" onRequestClose={dismiss}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable
+          accessibilityLabel="Dismiss"
+          onPress={dismiss}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(7,8,10,0.6)',
+          }}
+        />
+        <View
+          style={{
+            backgroundColor: color.surface,
+            borderTopWidth: 1,
+            borderTopColor: color.line,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 22,
+            paddingHorizontal: 20,
+            paddingBottom: 28 + insets.bottom,
+            gap: 12,
+          }}
+        >
+          <Text style={[overline, { color: color.t3 }]}>Edit goal</Text>
+          <View style={{ gap: 6 }}>
+            <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Goal</Text>
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              placeholder="What are you building?"
+              placeholderTextColor={color.t4}
+              style={composerInput}
+            />
           </View>
-        ) : (
-          <Pressable
-            disabled={busy}
-            onPress={() => setConfirmDelete(true)}
-            style={{ alignSelf: 'flex-start', paddingVertical: 6 }}
-          >
-            <Text style={text(700, { fontSize: 13, color: color.danger })}>Delete goal</Text>
-          </Pressable>
-        )}
+          <View style={{ gap: 6 }}>
+            <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Identity role</Text>
+            <TextInput
+              value={role}
+              onChangeText={setRole}
+              placeholder="e.g. Engineer, Writer"
+              placeholderTextColor={color.t4}
+              style={composerInput}
+            />
+          </View>
+          <View style={{ gap: 6 }}>
+            <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Deadline · optional</Text>
+            <TextInput
+              value={deadline}
+              onChangeText={setDeadline}
+              placeholder="e.g. 2026-09-01"
+              placeholderTextColor={color.t4}
+              autoCapitalize="none"
+              style={composerInput}
+            />
+          </View>
+          {error && <Text style={text(600, { fontSize: 13, color: color.danger })}>{error}</Text>}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+            <Pressable
+              disabled={!canSave}
+              onPress={() => void save()}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                paddingVertical: 15,
+                alignItems: 'center',
+                backgroundColor: canSave ? color.ember : color.lineSoft,
+              }}
+            >
+              <Text style={text(800, { fontSize: 15, color: canSave ? color.bg : color.t4 })}>
+                {busy ? 'Saving…' : 'Save changes'}
+              </Text>
+            </Pressable>
+            <Pressable disabled={busy} onPress={onClose} style={{ paddingHorizontal: 8 }}>
+              <Text style={text(700, { fontSize: 14, color: color.t3 })}>Cancel</Text>
+            </Pressable>
+          </View>
+
+          {/* Two-step delete: the first tap arms, the second confirms. */}
+          {confirmDelete ? (
+            <View
+              style={{
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(228,121,107,0.4)',
+                backgroundColor: color.dangerDim,
+                padding: 14,
+                gap: 10,
+              }}
+            >
+              <Text style={text(600, { fontSize: 13, color: color.t2, lineHeight: 19 })}>
+                Delete “{goal.title}”? Its tasks stay but lose this goal.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+                <Pressable disabled={busy} onPress={() => void remove()}>
+                  <Text style={text(800, { fontSize: 14, color: color.danger })}>
+                    {busy ? 'Deleting…' : 'Delete goal'}
+                  </Text>
+                </Pressable>
+                <Pressable disabled={busy} onPress={() => setConfirmDelete(false)}>
+                  <Text style={text(700, { fontSize: 14, color: color.t4 })}>Keep</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              disabled={busy}
+              onPress={() => setConfirmDelete(true)}
+              style={{ alignSelf: 'flex-start', paddingVertical: 6 }}
+            >
+              <Text style={text(700, { fontSize: 13, color: color.danger })}>Delete goal</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 

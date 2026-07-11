@@ -156,6 +156,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deleteGoal = useCallback(async (id: string) => {
     await goalsApi.remove(id);
     setGoals((prev) => prev.filter((g) => g.id !== id));
+    setTasks((prev) => prev.map((task) => (task.goalId === id ? { ...task, goalId: null } : task)));
   }, []);
 
   const createTask = useCallback(

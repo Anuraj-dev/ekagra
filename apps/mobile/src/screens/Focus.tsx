@@ -2,7 +2,7 @@ import type { DistractionTag } from '@ekagra/core';
 import { DISTRACTION_TAGS, remainingMs } from '@ekagra/core';
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -458,112 +458,109 @@ function EndSheet({
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'flex-end',
-      }}
-    >
-      <Pressable
-        accessibilityLabel="Dismiss"
-        onPress={onCancel}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(7,8,10,0.6)',
-        }}
-      />
-      <View
-        style={{
-          backgroundColor: color.surface,
-          borderTopWidth: 1,
-          borderTopColor: color.line,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          paddingTop: 22,
-          paddingHorizontal: 20,
-          paddingBottom: 32 + insets.bottom,
-        }}
-      >
+    <Modal transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable
+          accessibilityLabel="Dismiss"
+          onPress={onCancel}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(7,8,10,0.6)',
+          }}
+        />
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            backgroundColor: color.surface,
+            borderTopWidth: 1,
+            borderTopColor: color.line,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 22,
+            paddingHorizontal: 20,
+            paddingBottom: 32 + insets.bottom,
           }}
         >
-          <Text style={[overline, { color: color.t3 }]}>What ended it?</Text>
-          {/* Honest state: the block behind this sheet has not stopped. */}
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 7,
-              backgroundColor: color.surface2,
-              borderWidth: 1,
-              borderColor: color.lineSoft,
-              borderRadius: 999,
-              paddingVertical: 5,
-              paddingHorizontal: 11,
+              justifyContent: 'space-between',
             }}
           >
+            <Text style={[overline, { color: color.t3 }]}>What ended it?</Text>
+            {/* Honest state: the block behind this sheet has not stopped. */}
             <View
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: 2,
-                backgroundColor: running ? color.ember : color.t4,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 7,
+                backgroundColor: color.surface2,
+                borderWidth: 1,
+                borderColor: color.lineSoft,
+                borderRadius: 999,
+                paddingVertical: 5,
+                paddingHorizontal: 11,
               }}
-            />
-            <Text style={[tabular, text(700, { fontSize: 12, color: color.t3 })]}>{timeLabel}</Text>
-            <Text style={text(600, { fontSize: 11, color: color.t4 })}>
-              {running ? 'still counting' : 'paused'}
+            >
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 2,
+                  backgroundColor: running ? color.ember : color.t4,
+                }}
+              />
+              <Text style={[tabular, text(700, { fontSize: 12, color: color.t3 })]}>
+                {timeLabel}
+              </Text>
+              <Text style={text(600, { fontSize: 11, color: color.t4 })}>
+                {running ? 'still counting' : 'paused'}
+              </Text>
+            </View>
+          </View>
+          <Text style={text(600, { fontSize: 13, color: color.t4, marginTop: 6 })}>
+            Minutes are kept either way. Tap outside to keep going.
+          </Text>
+          <Pressable
+            onPress={() => onPick('done-early')}
+            style={({ pressed }) => ({
+              marginTop: 16,
+              backgroundColor: pressed ? color.surface3 : color.surface2,
+              borderWidth: 1,
+              borderColor: pressed ? color.lineHi : color.lineSoft,
+              borderRadius: 12,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+            })}
+          >
+            <Text style={text(700, { fontSize: 15, color: color.t2 })}>
+              {TAG_COPY['done-early']}
             </Text>
+          </Pressable>
+          <View style={{ gap: 8, marginTop: 16 }}>
+            {DISTRACTION_TAGS.map((tag) => (
+              <Pressable
+                key={tag}
+                onPress={() => onPick(tag)}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? color.surface3 : color.surface2,
+                  borderWidth: 1,
+                  borderColor: pressed ? color.lineHi : color.lineSoft,
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                })}
+              >
+                <Text style={text(700, { fontSize: 15, color: color.t2 })}>{TAG_COPY[tag]}</Text>
+              </Pressable>
+            ))}
           </View>
         </View>
-        <Text style={text(600, { fontSize: 13, color: color.t4, marginTop: 6 })}>
-          Minutes are kept either way. Tap outside to keep going.
-        </Text>
-        <Pressable
-          onPress={() => onPick('done-early')}
-          style={({ pressed }) => ({
-            marginTop: 16,
-            backgroundColor: pressed ? color.surface3 : color.surface2,
-            borderWidth: 1,
-            borderColor: pressed ? color.lineHi : color.lineSoft,
-            borderRadius: 12,
-            paddingVertical: 14,
-            paddingHorizontal: 16,
-          })}
-        >
-          <Text style={text(700, { fontSize: 15, color: color.t2 })}>{TAG_COPY['done-early']}</Text>
-        </Pressable>
-        <View style={{ gap: 8, marginTop: 16 }}>
-          {DISTRACTION_TAGS.map((tag) => (
-            <Pressable
-              key={tag}
-              onPress={() => onPick(tag)}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? color.surface3 : color.surface2,
-                borderWidth: 1,
-                borderColor: pressed ? color.lineHi : color.lineSoft,
-                borderRadius: 12,
-                paddingVertical: 14,
-                paddingHorizontal: 16,
-              })}
-            >
-              <Text style={text(700, { fontSize: 15, color: color.t2 })}>{TAG_COPY[tag]}</Text>
-            </Pressable>
-          ))}
-        </View>
       </View>
-    </View>
+    </Modal>
   );
 }

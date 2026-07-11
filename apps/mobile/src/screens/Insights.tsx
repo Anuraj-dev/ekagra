@@ -447,7 +447,10 @@ const styles = {
     borderColor: color.lineSoft,
     borderRadius: 14,
     padding: 12,
-    width: '47%' as const,
+    // Two tiles per row that actually fill it (parity with web's 2-col grid),
+    // instead of the fixed 47% width that left a ragged right gutter.
+    flexBasis: '45%' as const,
+    flexGrow: 1,
   },
   subcard: {
     backgroundColor: color.surface2,

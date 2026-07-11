@@ -30,10 +30,12 @@ mock.module('react-native', () => ({
   Platform: { OS: 'android' },
   Linking: { openURL: async () => {} },
 }));
-// mock.module leaks process-wide in bun test, so mirror every named export
-// other test files may pull from the real module.
+// mock.module leaks process-wide in bun test, so mirror every named export and
+// keep supabase.auth functional for lib/api consumers in other test files.
 mock.module('./supabase', () => ({
-  supabase: {},
+  supabase: {
+    auth: { getSession: async () => ({ data: { session: null } }) },
+  },
   isSupabaseConfigured: true,
   SUPABASE_ANON_KEY: 'test-anon-key',
   FUNCTIONS_BASE: 'http://localhost/functions/v1',

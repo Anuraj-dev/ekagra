@@ -219,7 +219,7 @@ export function Crew() {
             ))
           )}
           {error && (
-            <Text style={text(600, { fontSize: 12, color: '#E4796B', marginTop: 10 })}>
+            <Text style={text(600, { fontSize: 12, color: color.danger, marginTop: 10 })}>
               {error}
             </Text>
           )}
@@ -361,7 +361,7 @@ function Forgiveness({
         {!applied && <Action label="Use" disabled={busy} onPress={onApply} muted />}
       </View>
       {error && (
-        <Text style={text(600, { fontSize: 12, color: '#E4796B', marginTop: 8 })}>{error}</Text>
+        <Text style={text(600, { fontSize: 12, color: color.danger, marginTop: 8 })}>{error}</Text>
       )}
     </View>
   );

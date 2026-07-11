@@ -11,6 +11,7 @@ import type {
   FriendInviteRequest,
   Goal,
   GoalCreateRequest,
+  GoalUpdateRequest,
   IdentityRoleHours,
   MorningCommitRequest,
   MotivationStatus,
@@ -124,6 +125,11 @@ export const goalsApi = {
   list: () => request<{ goals: Goal[] }>('/goals').then((r) => r.goals),
   create: (payload: GoalCreateRequest) =>
     request<{ goal: Goal }>('/goals', { method: 'POST', body: payload }).then((r) => r.goal),
+  update: (id: string, payload: GoalUpdateRequest) =>
+    request<{ goal: Goal }>('/goals', { method: 'PATCH', query: { id }, body: payload }).then(
+      (r) => r.goal,
+    ),
+  remove: (id: string) => request<void>('/goals', { method: 'DELETE', query: { id } }),
 };
 
 // --- Rituals ----------------------------------------------------------------

@@ -36,6 +36,7 @@ export function Focus() {
   const [nowMs, setNowMs] = useState(() => Date.now() + serverClockOffset);
   const [busy, setBusy] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [dismissNote, setDismissNote] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [deskConnected, setDeskConnected] = useState(false);
   // Terminal session kept locally so the ended state renders immediately
@@ -439,9 +440,18 @@ export function Focus() {
       )}
 
       {celebrate && <EarnedToast />}
+      {dismissNote && <DismissToast running={running} />}
       {ending && (
         <EndSheet
-          onCancel={() => setEnding(false)}
+          running={running}
+          timeLabel={formatClock(Math.ceil(remaining / 1000))}
+          onCancel={() => {
+            setEnding(false);
+            // Scrim-dismiss used to silently return to the session — make the
+            // outcome explicit so it never reads as a swallowed click.
+            setDismissNote(true);
+            window.setTimeout(() => setDismissNote(false), 2200);
+          }}
           onPick={(tag) => {
             setEnding(false);
             void endSession(tag);
@@ -478,13 +488,92 @@ function EarnedToast() {
   );
 }
 
+function DismissToast({ running }: { running: boolean }) {
+  return (
+    <div
+      role="status"
+      style={{
+        position: 'absolute',
+        left: 20,
+        right: 20,
+        bottom: 140,
+        background: tokens.surface,
+        border: `1px solid ${tokens.line}`,
+        borderRadius: 999,
+        padding: '12px 18px',
+        textAlign: 'center',
+        color: tokens.t2,
+        fontSize: 13,
+        fontWeight: 700,
+        zIndex: 3,
+        animation: 'toastRise 400ms var(--ease) both',
+      }}
+    >
+      {running ? 'Session continues — timer never stopped' : 'Session continues — still paused'}
+    </div>
+  );
+}
+
 function EndSheet({
+  running,
+  timeLabel,
   onCancel,
   onPick,
 }: {
+  running: boolean;
+  timeLabel: string;
   onCancel: () => void;
   onPick: (choice: EndChoice) => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+  const dismissRef = useRef(onCancel);
+
+  dismissRef.current = onCancel;
+
+  useEffect(() => {
+    previousFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const focusable = dialog?.querySelector<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    (focusable ?? dialog)?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismissRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+
+      const focusableElements = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      const first = focusableElements[0];
+      const last = focusableElements.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      previousFocus.current?.focus();
+    };
+  }, []);
+
   return (
     <div
       style={{
@@ -498,7 +587,7 @@ function EndSheet({
       <button
         type="button"
         aria-label="Dismiss"
-        onClick={onCancel}
+        onClick={() => dismissRef.current()}
         style={{
           position: 'absolute',
           inset: 0,
@@ -508,7 +597,10 @@ function EndSheet({
       />
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="End session"
+        ref={dialogRef}
+        tabIndex={-1}
         style={{
           position: 'relative',
           width: '100%',
@@ -519,11 +611,46 @@ function EndSheet({
           padding: '22px 20px 32px',
         }}
       >
-        <div className="overline" style={{ color: tokens.t3 }}>
-          What ended it?
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div className="overline" style={{ color: tokens.t3 }}>
+            What ended it?
+          </div>
+          {/* Honest state: the block behind this sheet has not stopped. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              background: tokens.surface2,
+              border: `1px solid ${tokens.lineSoft}`,
+              borderRadius: 999,
+              padding: '5px 11px',
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 2,
+                background: running ? tokens.ember : tokens.t4,
+              }}
+            />
+            <span className="tabular" style={{ fontSize: 12, fontWeight: 700, color: tokens.t3 }}>
+              {timeLabel}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: tokens.t4 }}>
+              {running ? 'still counting' : 'paused'}
+            </span>
+          </div>
         </div>
         <p style={{ fontSize: 13, fontWeight: 600, color: tokens.t4, marginTop: 6 }}>
-          Minutes are kept either way.
+          Minutes are kept either way. Click outside to keep going.
         </p>
         <button
           type="button"

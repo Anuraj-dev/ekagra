@@ -248,7 +248,7 @@ export function Crew() {
             ))
           )}
           {error && (
-            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: '#E4796B' }}>
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: tokens.danger }}>
               {error}
             </div>
           )}
@@ -332,7 +332,7 @@ function Forgiveness({
           </button>
         )}
       </div>
-      {error && <div style={{ fontSize: 12, color: '#E4796B', marginTop: 8 }}>{error}</div>}
+      {error && <div style={{ fontSize: 12, color: tokens.danger, marginTop: 8 }}>{error}</div>}
     </div>
   );
 }

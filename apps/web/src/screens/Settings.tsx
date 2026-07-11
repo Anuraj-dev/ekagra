@@ -202,7 +202,7 @@ export function Settings() {
               </div>
             )}
             {error && (
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#E4796B', marginTop: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: tokens.danger, marginTop: 10 }}>
                 {error}
               </div>
             )}

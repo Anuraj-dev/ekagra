@@ -2,7 +2,7 @@ import type { DistractionTag } from '@ekagra/core';
 import { DISTRACTION_TAGS, remainingMs } from '@ekagra/core';
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, Text, View } from 'react-native';
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -21,7 +21,7 @@ import { nudgeBlockComplete } from '../lib/notifications';
 import { timerStateFromSession } from '../lib/timer';
 import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
-import { overline, text } from '../theme/typography';
+import { overline, tabular, text } from '../theme/typography';
 
 type EndChoice = DistractionTag | 'done-early';
 
@@ -51,6 +51,7 @@ export function Focus() {
   const [nowMs, setNowMs] = useState(() => Date.now() + serverClockOffset);
   const [busy, setBusy] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [dismissNote, setDismissNote] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [deskConnected, setDeskConnected] = useState(false);
   const completingRef = useRef(false);
@@ -382,9 +383,18 @@ export function Focus() {
       )}
 
       {celebrate && <EarnedToast bottom={140 + insets.bottom} />}
+      {dismissNote && <DismissToast bottom={140 + insets.bottom} running={running} />}
       {ending && (
         <EndSheet
-          onCancel={() => setEnding(false)}
+          running={running}
+          timeLabel={formatClock(Math.ceil(remaining / 1000))}
+          onCancel={() => {
+            setEnding(false);
+            // Scrim-dismiss used to silently return to the session — make the
+            // outcome explicit so it never reads as a swallowed tap.
+            setDismissNote(true);
+            setTimeout(() => setDismissNote(false), 2200);
+          }}
           onPick={(tag) => {
             setEnding(false);
             void endSession(tag);
@@ -418,86 +428,147 @@ function EarnedToast({ bottom }: { bottom: number }) {
   );
 }
 
+function DismissToast({ bottom, running }: { bottom: number; running: boolean }) {
+  return (
+    <View
+      accessibilityRole="alert"
+      style={{
+        position: 'absolute',
+        left: 20,
+        right: 20,
+        bottom,
+        backgroundColor: color.surface,
+        borderWidth: 1,
+        borderColor: color.line,
+        borderRadius: 999,
+        paddingVertical: 12,
+        paddingHorizontal: 18,
+        alignItems: 'center',
+      }}
+    >
+      <Text style={text(700, { fontSize: 13, color: color.t2 })}>
+        {running ? 'Session continues — timer never stopped' : 'Session continues — still paused'}
+      </Text>
+    </View>
+  );
+}
+
 function EndSheet({
+  running,
+  timeLabel,
   onCancel,
   onPick,
 }: {
+  running: boolean;
+  timeLabel: string;
   onCancel: () => void;
   onPick: (choice: EndChoice) => void;
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'flex-end',
-      }}
-    >
-      <Pressable
-        accessibilityLabel="Dismiss"
-        onPress={onCancel}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(7,8,10,0.6)',
-        }}
-      />
-      <View
-        style={{
-          backgroundColor: color.surface,
-          borderTopWidth: 1,
-          borderTopColor: color.line,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          paddingTop: 22,
-          paddingHorizontal: 20,
-          paddingBottom: 32 + insets.bottom,
-        }}
-      >
-        <Text style={[overline, { color: color.t3 }]}>What ended it?</Text>
-        <Text style={text(600, { fontSize: 13, color: color.t4, marginTop: 6 })}>
-          Minutes are kept either way.
-        </Text>
+    <Modal transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable
-          onPress={() => onPick('done-early')}
+          accessibilityLabel="Dismiss"
+          onPress={onCancel}
           style={{
-            marginTop: 16,
-            backgroundColor: color.surface2,
-            borderWidth: 1,
-            borderColor: color.lineSoft,
-            borderRadius: 12,
-            paddingVertical: 14,
-            paddingHorizontal: 16,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(7,8,10,0.6)',
+          }}
+        />
+        <View
+          style={{
+            backgroundColor: color.surface,
+            borderTopWidth: 1,
+            borderTopColor: color.line,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 22,
+            paddingHorizontal: 20,
+            paddingBottom: 32 + insets.bottom,
           }}
         >
-          <Text style={text(700, { fontSize: 15, color: color.t2 })}>{TAG_COPY['done-early']}</Text>
-        </Pressable>
-        <View style={{ gap: 8, marginTop: 16 }}>
-          {DISTRACTION_TAGS.map((tag) => (
-            <Pressable
-              key={tag}
-              onPress={() => onPick(tag)}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Text style={[overline, { color: color.t3 }]}>What ended it?</Text>
+            {/* Honest state: the block behind this sheet has not stopped. */}
+            <View
               style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 7,
                 backgroundColor: color.surface2,
                 borderWidth: 1,
                 borderColor: color.lineSoft,
-                borderRadius: 12,
-                paddingVertical: 14,
-                paddingHorizontal: 16,
+                borderRadius: 999,
+                paddingVertical: 5,
+                paddingHorizontal: 11,
               }}
             >
-              <Text style={text(700, { fontSize: 15, color: color.t2 })}>{TAG_COPY[tag]}</Text>
-            </Pressable>
-          ))}
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 2,
+                  backgroundColor: running ? color.ember : color.t4,
+                }}
+              />
+              <Text style={[tabular, text(700, { fontSize: 12, color: color.t3 })]}>
+                {timeLabel}
+              </Text>
+              <Text style={text(600, { fontSize: 11, color: color.t4 })}>
+                {running ? 'still counting' : 'paused'}
+              </Text>
+            </View>
+          </View>
+          <Text style={text(600, { fontSize: 13, color: color.t4, marginTop: 6 })}>
+            Minutes are kept either way. Tap outside to keep going.
+          </Text>
+          <Pressable
+            onPress={() => onPick('done-early')}
+            style={({ pressed }) => ({
+              marginTop: 16,
+              backgroundColor: pressed ? color.surface3 : color.surface2,
+              borderWidth: 1,
+              borderColor: pressed ? color.lineHi : color.lineSoft,
+              borderRadius: 12,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+            })}
+          >
+            <Text style={text(700, { fontSize: 15, color: color.t2 })}>
+              {TAG_COPY['done-early']}
+            </Text>
+          </Pressable>
+          <View style={{ gap: 8, marginTop: 16 }}>
+            {DISTRACTION_TAGS.map((tag) => (
+              <Pressable
+                key={tag}
+                onPress={() => onPick(tag)}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? color.surface3 : color.surface2,
+                  borderWidth: 1,
+                  borderColor: pressed ? color.lineHi : color.lineSoft,
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                })}
+              >
+                <Text style={text(700, { fontSize: 15, color: color.t2 })}>{TAG_COPY[tag]}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 }

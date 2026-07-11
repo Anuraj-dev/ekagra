@@ -81,7 +81,7 @@ export function SignIn() {
           />
         </Field>
 
-        {error && <Text style={text(600, { fontSize: 13, color: '#E4796B' })}>{error}</Text>}
+        {error && <Text style={text(600, { fontSize: 13, color: color.danger })}>{error}</Text>}
         {notice && <Text style={text(600, { fontSize: 13, color: color.green })}>{notice}</Text>}
 
         <View style={{ marginTop: 8 }}>

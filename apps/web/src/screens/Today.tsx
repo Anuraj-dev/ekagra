@@ -206,6 +206,7 @@ export function Today() {
                   goalName={goalName(task.goalId, goals)}
                   earnedBlocks={earnedByTask[task.id] ?? 0}
                   selected={task.id === selectedId}
+                  selectable
                   onClick={() => setSelectedId((current) => (current === task.id ? null : task.id))}
                 />
               ))}
@@ -223,7 +224,7 @@ export function Today() {
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
-                    color: '#E4796B',
+                    color: tokens.danger,
                     marginTop: 8,
                     padding: '0 4px',
                   }}
@@ -313,10 +314,10 @@ function StartBar({
         </div>
         <div>
           <div style={{ fontSize: 16, fontWeight: 800, color: tokens.t3 }}>
-            Pick a task to start
+            Select a task above to start
           </div>
           <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 2 }}>
-            A focus block always belongs to a task
+            Click a committed task — a focus block always belongs to one
           </div>
         </div>
       </div>

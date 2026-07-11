@@ -75,7 +75,9 @@ export function SignIn() {
           />
         </Field>
 
-        {error && <div style={{ fontSize: 13, fontWeight: 600, color: '#E4796B' }}>{error}</div>}
+        {error && (
+          <div style={{ fontSize: 13, fontWeight: 600, color: tokens.danger }}>{error}</div>
+        )}
         {notice && (
           <div style={{ fontSize: 13, fontWeight: 600, color: tokens.green }}>{notice}</div>
         )}

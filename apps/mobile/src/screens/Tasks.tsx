@@ -145,7 +145,9 @@ export function Tasks() {
           </View>
         </View>
         {error && (
-          <Text style={text(600, { fontSize: 13, color: '#E4796B', marginTop: 8 })}>{error}</Text>
+          <Text style={text(600, { fontSize: 13, color: color.danger, marginTop: 8 })}>
+            {error}
+          </Text>
         )}
       </Enter>
 

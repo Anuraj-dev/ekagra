@@ -153,7 +153,7 @@ export function MorningCommit() {
             );
           })}
           {error && (
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#E4796B', padding: '0 4px' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: tokens.danger, padding: '0 4px' }}>
               {error}
             </div>
           )}

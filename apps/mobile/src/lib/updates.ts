@@ -318,7 +318,7 @@ export async function downloadAndInstall(
   onState: (state: UpdateState) => void,
 ): Promise<UpdateState> {
   const fail = (reason: UpdateErrorReason, cause?: unknown): UpdateState => {
-    const detail = cause instanceof Error ? cause.message : undefined;
+    const detail = cause instanceof Error ? cause.message.slice(0, 120) : undefined;
     const state: UpdateState = { phase: 'error', reason, update, detail };
     onState(state);
     return state;

@@ -284,7 +284,7 @@ function UpdateRow() {
                     : state.reason === 'hash-mismatch'
                       ? 'Download was corrupted — try again.'
                       : state.reason === 'verify-failed'
-                        ? 'Could not verify the download — try again.'
+                        ? `Could not verify the download — try again.${state.detail ? ` (${state.detail})` : ''}`
                         : state.reason === 'missing-asset'
                           ? 'The APK is missing from the release.'
                           : 'Could not launch the installer.'

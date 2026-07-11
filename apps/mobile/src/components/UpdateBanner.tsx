@@ -70,7 +70,9 @@ export function UpdateBanner() {
 
   const subtitle =
     state.phase === 'error'
-      ? ERROR_COPY[state.reason]
+      ? state.detail
+        ? `${ERROR_COPY[state.reason]} (${state.detail})`
+        : ERROR_COPY[state.reason]
       : state.phase === 'update-available'
         ? update?.notes?.trim() || 'Tap to download and install.'
         : 'Keep the app open.';

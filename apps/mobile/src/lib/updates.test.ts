@@ -52,7 +52,9 @@ mock.module('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-const { base64ToBytes, exactBuffer, isNewer, parseVersion } = await import('./updates');
+const { base64ToBytes, exactBuffer, isNewer, parseVersion, sha256HexJs } = await import(
+  './updates'
+);
 
 describe('base64ToBytes', () => {
   // Every length mod 3 (0/1/2 padding chars) must round-trip byte-for-byte.
@@ -96,6 +98,25 @@ describe('exactBuffer', () => {
       const expected = createHash('sha256').update(data).digest('hex');
       expect(hashed).toBe(expected);
     }
+  });
+});
+
+describe('sha256HexJs', () => {
+  // The pure-JS fallback verifier must agree with a reference implementation
+  // across block boundaries (64-byte blocks, 56-byte padding threshold).
+  it('matches node crypto for tricky lengths', () => {
+    for (const len of [0, 1, 55, 56, 57, 63, 64, 65, 127, 128, 1000, 100_003]) {
+      const data = randomBytes(len);
+      const expected = createHash('sha256').update(data).digest('hex');
+      expect(sha256HexJs(new Uint8Array(data))).toBe(expected);
+    }
+  });
+
+  it('hashes a subarray view by its own bytes only', () => {
+    const backing = new Uint8Array(randomBytes(256));
+    const view = backing.subarray(10, 110);
+    const expected = createHash('sha256').update(view).digest('hex');
+    expect(sha256HexJs(view)).toBe(expected);
   });
 });
 

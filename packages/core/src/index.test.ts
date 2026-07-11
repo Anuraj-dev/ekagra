@@ -179,6 +179,20 @@ describe('timer state machine', () => {
     });
   });
 
+  test('completes early from a paused work period before it reaches zero', () => {
+    const running = start(createTimerState(), 1_000).state;
+    const paused = transition(running, { type: 'pause' }, 1_000 + 10 * minute).state;
+    const result = transition(paused, { type: 'completeEarly' }, 1_000 + 12 * minute);
+
+    expect(result.session).toMatchObject({
+      outcome: 'completed',
+      distractionTag: null,
+      honestMinutes: 10,
+      earnedBlock: true,
+    });
+    expect(result.state).toMatchObject({ phase: 'short_break', completedBlocks: 1 });
+  });
+
   test('rejects early completion during a break', () => {
     const work = start(createTimerState(), 1_000).state;
     const shortBreak = completeWork(work, 1_000 + 25 * minute).state;

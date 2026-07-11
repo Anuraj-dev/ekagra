@@ -1,5 +1,6 @@
 import type { DayRecord, IdentityRoleHours, RitualCorrelation, WeeklyReview } from '@ekagra/core';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Enter } from '../components/motion';
@@ -26,7 +27,8 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour));
 
 export function Insights() {
   const insets = useSafeAreaInsets();
-  const { tasks, goals, todayEarnedBlocks, todayHonestMinutes, earnedByTask } = useData();
+  const { tasks, goals, todayEarnedBlocks, todayHonestMinutes, earnedByTask, sessionEndVersion } =
+    useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const planned = useMemo(() => tasks.filter((task) => task.status === 'planned'), [tasks]);
   const [history, setHistory] = useState<DayRecord[] | null>(null);
@@ -37,25 +39,45 @@ export function Insights() {
   >(initial());
   const [heatmap, setHeatmap] = useState<Async<HeatCell[]>>(initial());
   const [rituals, setRituals] = useState<Async<RitualCorrelation[]>>(initial());
-  useEffect(() => {
-    let active = true;
-    const run = <T,>(load: () => Promise<T>, set: (state: Async<T>) => void) =>
+  // Refetch every view aggregate whenever the screen gains focus or a session
+  // ends (sessionEndVersion), so the whole screen stays consistent with the
+  // live "Today" row. Tickets discard stale in-flight responses, and each
+  // section keeps its last-known value while a refresh is in flight instead
+  // of flashing back to a loading/zero state.
+  const ticket = useRef(0);
+  const reload = useCallback(() => {
+    const current = ++ticket.current;
+    // A newly ended session must refresh the weekly/distraction aggregates
+    // even without a nav event, so the version is a real dependency.
+    void sessionEndVersion;
+    const run = <T,>(load: () => Promise<T>, set: (update: (prev: Async<T>) => Async<T>) => void) =>
       load()
-        .then((value) => active && set({ value, loading: false, error: false }))
-        .catch(() => active && set({ value: null, loading: false, error: true }));
+        .then(
+          (value) =>
+            current === ticket.current && set(() => ({ value, loading: false, error: false })),
+        )
+        .catch(
+          () =>
+            current === ticket.current &&
+            set((prev) =>
+              prev.value !== null ? prev : { value: null, loading: false, error: true },
+            ),
+        );
     dayRecordsApi
       .recent()
-      .then((rows) => active && setHistory(rows))
-      .catch(() => active && setHistory([]));
+      .then((rows) => current === ticket.current && setHistory(rows))
+      .catch(() => current === ticket.current && setHistory((prev) => prev ?? []));
     run(insightsApi.weeklyReview, setReviews);
     run(insightsApi.identityRoleHours, setRoles);
     run(insightsApi.distractionBreakdown, setDistractions);
     run(insightsApi.focusHoursHeatmap, setHeatmap);
     run(insightsApi.ritualCorrelations, setRituals);
-    return () => {
-      active = false;
-    };
-  }, []);
+  }, [sessionEndVersion]);
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
   const currentWeek = reviews.value?.find((row) => row.weekStart === insightsApi.weekStart());
   const previous = reviews.value?.find(
     (row) => row.weekStart === insightsApi.previousWeek(insightsApi.weekStart()),

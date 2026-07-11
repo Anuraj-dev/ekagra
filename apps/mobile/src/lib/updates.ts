@@ -166,11 +166,19 @@ function bytesToHex(bytes: Uint8Array): string {
  * mid-verify on low-memory devices. Legacy read is kept as a fallback.
  */
 async function readFileBytes(fileUri: string): Promise<Uint8Array> {
+  let file: File | null = null;
   try {
-    const bytes = new File(fileUri).bytes();
-    if (bytes instanceof Uint8Array && bytes.byteLength > 0) return bytes;
+    file = new File(fileUri);
   } catch {
-    // fall through to the legacy base64 route
+    // File API unavailable on this runtime — take the legacy route below.
+  }
+  if (file) {
+    // bytes() is async in SDK 54. A read failure here is a real error
+    // (surfaces as verify-failed), not a reason to re-read 31 MB through
+    // the base64 bridge.
+    const bytes = await file.bytes();
+    if (bytes.byteLength === 0) throw new Error('empty file read');
+    return bytes;
   }
   const base64 = await FileSystem.readAsStringAsync(fileUri, {
     encoding: FileSystem.EncodingType.Base64,
@@ -180,10 +188,17 @@ async function readFileBytes(fileUri: string): Promise<Uint8Array> {
 
 /** Returns an ArrayBuffer covering exactly the view's bytes (digest input). */
 export function exactBuffer(bytes: Uint8Array): ArrayBuffer {
-  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) {
-    return bytes.buffer as ArrayBuffer;
+  const backing = bytes.buffer;
+  if (!(backing instanceof ArrayBuffer)) {
+    // SharedArrayBuffer-backed views can't be handed to Crypto.digest.
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    return copy.buffer as ArrayBuffer;
   }
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  if (bytes.byteOffset === 0 && bytes.byteLength === backing.byteLength) {
+    return backing;
+  }
+  return backing.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
 async function sha256HexOfFile(fileUri: string): Promise<string> {

@@ -10,9 +10,10 @@ mock.module('expo-crypto', () => ({
     createHash('sha256').update(new Uint8Array(data)).digest().buffer,
 }));
 mock.module('expo-file-system', () => ({
+  // Matches SDK 54: constructing works, but the async read fails in tests.
   File: class {
-    bytes(): Uint8Array {
-      throw new Error('native File API not available in tests');
+    bytes(): Promise<Uint8Array> {
+      return Promise.reject(new Error('native File API not available in tests'));
     }
   },
 }));

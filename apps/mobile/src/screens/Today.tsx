@@ -253,7 +253,7 @@ function StartBar({
         >
           <PlayIcon fill={color.t4} />
         </View>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={text(800, { fontSize: 16, color: color.t3 })}>
             Select a task above to start
           </Text>

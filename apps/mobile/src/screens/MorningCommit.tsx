@@ -12,7 +12,7 @@ import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 
-/** Morning Commit flow — save up to three tasks, or clear today's plan. */
+/** Morning Commit flow — save one to three tasks (the server contract's range). */
 export function MorningCommit() {
   const nav = useNavigation<RootNav>();
   const insets = useSafeAreaInsets();
@@ -53,7 +53,8 @@ export function MorningCommit() {
     }
   }
 
-  const canCommit = selected.length <= 3;
+  // The server contract requires 1–3 tasks; never offer a commit it will reject.
+  const canCommit = selected.length >= 1 && selected.length <= 3;
 
   return (
     <Screen scroll={false}>
@@ -168,7 +169,7 @@ export function MorningCommit() {
         >
           <Text style={text(800, { fontSize: 16, color: canCommit ? color.bg : color.t4 })}>
             {selected.length === 0
-              ? "Clear today's plan"
+              ? 'Select at least one task'
               : `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`}
           </Text>
         </Pressable>

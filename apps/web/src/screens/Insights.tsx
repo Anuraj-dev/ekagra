@@ -1,5 +1,6 @@
 import type { DayRecord, IdentityRoleHours, RitualCorrelation, WeeklyReview } from '@ekagra/core';
-import { Fragment, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 import { useData } from '../data/DataProvider';
 import { dayRecordsApi, insightsApi } from '../lib/api';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
@@ -16,10 +17,10 @@ type Async<T> = { value: T | null; loading: boolean; error: boolean };
 // Last-known section values survive tab-switch remounts so the screen shows
 // the previous numbers while a refresh is in flight instead of flashing a
 // loading/zero state.
-const lastKnown = new Map<string, unknown>();
-const initial = <T,>(key: string): Async<T> => ({
-  value: (lastKnown.get(key) as T | undefined) ?? null,
-  loading: !lastKnown.has(key),
+const lastKnown = new Map<string, Map<string, unknown>>();
+const initial = <T,>(userId: string, key: string): Async<T> => ({
+  value: (lastKnown.get(userId)?.get(key) as T | undefined) ?? null,
+  loading: !lastKnown.get(userId)?.has(key),
   error: false,
 });
 const pretty = (tag: string) => tag.replace(/-/g, ' ');
@@ -31,25 +32,31 @@ const signed = (value: number | null, suffix = '') =>
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour));
 
 export function Insights() {
+  const { session } = useAuth();
+  return <InsightsScreen key={session?.user.id} userId={session?.user.id ?? ''} />;
+}
+
+function InsightsScreen({ userId }: { userId: string }) {
   const { tasks, goals, todayEarnedBlocks, todayHonestMinutes, earnedByTask, sessionEndVersion } =
     useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const planned = useMemo(() => tasks.filter((task) => task.status === 'planned'), [tasks]);
   const [history, setHistory] = useState<DayRecord[] | null>(null);
-  const [reviews, setReviews] = useState<Async<WeeklyReview[]>>(initial('reviews'));
-  const [roles, setRoles] = useState<Async<IdentityRoleHours[]>>(initial('roles'));
+  const [reviews, setReviews] = useState<Async<WeeklyReview[]>>(initial(userId, 'reviews'));
+  const [roles, setRoles] = useState<Async<IdentityRoleHours[]>>(initial(userId, 'roles'));
   const [distractions, setDistractions] = useState<
     Async<Awaited<ReturnType<typeof insightsApi.distractionBreakdown>>>
-  >(initial('distractions'));
-  const [heatmap, setHeatmap] = useState<Async<HeatCell[]>>(initial('heatmap'));
-  const [rituals, setRituals] = useState<Async<RitualCorrelation[]>>(initial('rituals'));
+  >(initial(userId, 'distractions'));
+  const [heatmap, setHeatmap] = useState<Async<HeatCell[]>>(initial(userId, 'heatmap'));
+  const [rituals, setRituals] = useState<Async<RitualCorrelation[]>>(initial(userId, 'rituals'));
+  const ticket = useRef(0);
 
   // Refetch every view aggregate on mount (each tab visit) and whenever a
   // session ends (sessionEndVersion), so weekly counts and the distraction
   // breakdown stay consistent with the live "Today" row. Sections keep their
   // last-known values while a refresh is in flight.
   useEffect(() => {
-    let active = true;
+    const current = ++ticket.current;
     void sessionEndVersion;
     const run = <T,>(
       key: string,
@@ -58,12 +65,18 @@ export function Insights() {
     ) => {
       load()
         .then((value) => {
-          lastKnown.set(key, value);
-          if (active) set(() => ({ value, loading: false, error: false }));
+          if (current !== ticket.current) return;
+          let cache = lastKnown.get(userId);
+          if (!cache) {
+            cache = new Map();
+            lastKnown.set(userId, cache);
+          }
+          cache.set(key, value);
+          set(() => ({ value, loading: false, error: false }));
         })
         .catch(
           () =>
-            active &&
+            current === ticket.current &&
             set((prev) =>
               prev.value !== null ? prev : { value: null, loading: false, error: true },
             ),
@@ -71,17 +84,17 @@ export function Insights() {
     };
     dayRecordsApi
       .recent()
-      .then((rows) => active && setHistory(rows))
-      .catch(() => active && setHistory((prev) => prev ?? []));
+      .then((rows) => current === ticket.current && setHistory(rows))
+      .catch(() => current === ticket.current && setHistory((prev) => prev ?? []));
     run('reviews', insightsApi.weeklyReview, setReviews);
     run('roles', insightsApi.identityRoleHours, setRoles);
     run('distractions', insightsApi.distractionBreakdown, setDistractions);
     run('heatmap', insightsApi.focusHoursHeatmap, setHeatmap);
     run('rituals', insightsApi.ritualCorrelations, setRituals);
     return () => {
-      active = false;
+      ++ticket.current;
     };
-  }, [sessionEndVersion]);
+  }, [sessionEndVersion, userId]);
 
   const currentWeek = reviews.value?.find((row) => row.weekStart === insightsApi.weekStart());
   const previous = reviews.value?.find(

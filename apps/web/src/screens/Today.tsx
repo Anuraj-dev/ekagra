@@ -1,5 +1,5 @@
 import type { MotivationStatus } from '@ekagra/core';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
 import { PlayIcon, SettingsIcon } from '../components/icons';
@@ -17,7 +17,7 @@ import { color as tokens } from '../theme/tokens';
 // Last-known motivation snapshot survives tab-switch remounts so the rhythm
 // rings show the previous value while a refresh is in flight instead of
 // flickering through an empty/zero state.
-let motivationCache: MotivationStatus | null = null;
+const motivationCache = new Map<string, MotivationStatus>();
 
 export function Today() {
   const { open } = useNav();
@@ -32,6 +32,7 @@ export function Today() {
     session: activeSession,
     sessionEndVersion,
   } = useData();
+  const userId = session?.user.id;
 
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const committed = useMemo(() => tasks.filter((t) => t.status === 'planned'), [tasks]);
@@ -39,11 +40,18 @@ export function Today() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dismissedCue, setDismissedCue] = useState<RitualCue>(null);
-  const [motivation, setMotivation] = useState<MotivationStatus | null>(motivationCache);
+  const [motivation, setMotivation] = useState<{ userId: string; value: MotivationStatus } | null>(
+    () => {
+      const value = userId ? motivationCache.get(userId) : null;
+      return userId && value ? { userId, value } : null;
+    },
+  );
+  const ticket = useRef(0);
 
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
   const name = (session?.user.user_metadata?.name as string | undefined) ?? '';
+  const visibleMotivation = motivation && motivation.userId === userId ? motivation.value : null;
 
   // Cue state re-evaluates over time: a Today screen left open across a cue
   // time must still surface the banner, so tick every 30s and on refocus.
@@ -72,19 +80,24 @@ export function Today() {
   // Refresh the rhythm/motivation stats on mount and whenever a session ends;
   // failures keep the last-known value on screen.
   useEffect(() => {
-    let active = true;
+    const current = ++ticket.current;
     void sessionEndVersion;
+    if (!userId) {
+      setMotivation(null);
+      return;
+    }
     motivationApi
       .status()
       .then((value) => {
-        motivationCache = value;
-        if (active) setMotivation(value);
+        if (current !== ticket.current) return;
+        motivationCache.set(userId, value);
+        setMotivation({ userId, value });
       })
       .catch(() => undefined);
     return () => {
-      active = false;
+      ++ticket.current;
     };
-  }, [sessionEndVersion]);
+  }, [sessionEndVersion, userId]);
 
   async function start() {
     // Client-side hard-block: no owned planned task selected → cannot start.
@@ -155,10 +168,10 @@ export function Today() {
             onDismiss={() => setDismissedCue(cue)}
           />
         )}
-        {motivation && (
-          <MotivationPanel status={motivation} onPlan={() => open('morning-commit')} />
+        {visibleMotivation && (
+          <MotivationPanel status={visibleMotivation} onPlan={() => open('morning-commit')} />
         )}
-        {motivation && (
+        {visibleMotivation && (
           <div
             style={{
               margin: '18px 16px 0',
@@ -171,7 +184,7 @@ export function Today() {
             <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
               Your rhythm
             </div>
-            <RateRings rates={motivation.rates} />
+            <RateRings rates={visibleMotivation.rates} />
           </div>
         )}
         <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />

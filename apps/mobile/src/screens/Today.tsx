@@ -1,6 +1,6 @@
 import type { MotivationStatus } from '@ekagra/core';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
@@ -22,7 +22,7 @@ import { overline, tabular, text } from '../theme/typography';
 // Last-known motivation snapshot survives remounts so the rhythm rings show
 // the previous value while a refresh is in flight instead of flickering
 // through an empty/zero state.
-let motivationCache: MotivationStatus | null = null;
+const motivationCache = new Map<string, MotivationStatus>();
 
 export function Today() {
   const nav = useNavigation<RootNav>();
@@ -38,35 +38,48 @@ export function Today() {
     session: activeSession,
     sessionEndVersion,
   } = useData();
+  const userId = session?.user.id;
 
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const committed = useMemo(() => tasks.filter((t) => t.status === 'planned'), [tasks]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [motivation, setMotivation] = useState<MotivationStatus | null>(motivationCache);
+  const [motivation, setMotivation] = useState<{ userId: string; value: MotivationStatus } | null>(
+    () => {
+      const value = userId ? motivationCache.get(userId) : null;
+      return userId && value ? { userId, value } : null;
+    },
+  );
+  const ticket = useRef(0);
 
   const plannedBlocks = committed.reduce((sum, t) => sum + (t.estimatedBlocks ?? 1), 0);
   const selected = committed.find((t) => t.id === selectedId) ?? null;
   const name = (session?.user.user_metadata?.name as string | undefined) ?? '';
+  const visibleMotivation = motivation && motivation.userId === userId ? motivation.value : null;
   const now = new Date();
   // Refresh the rhythm/motivation stats whenever the screen gains focus or a
   // session ends; failures keep the last-known value on screen.
   useFocusEffect(
     useCallback(() => {
-      let active = true;
+      const current = ++ticket.current;
       void sessionEndVersion;
+      if (!userId) {
+        setMotivation(null);
+        return;
+      }
       motivationApi
         .status()
         .then((value) => {
-          motivationCache = value;
-          if (active) setMotivation(value);
+          if (current !== ticket.current) return;
+          motivationCache.set(userId, value);
+          setMotivation({ userId, value });
         })
         .catch(() => undefined);
       return () => {
-        active = false;
+        ++ticket.current;
       };
-    }, [sessionEndVersion]),
+    }, [sessionEndVersion, userId]),
   );
 
   async function start() {
@@ -106,10 +119,13 @@ export function Today() {
       </Enter>
 
       <Enter delay={60}>
-        {motivation && (
-          <MotivationPanel status={motivation} onPlan={() => nav.navigate('MorningCommit')} />
+        {visibleMotivation && (
+          <MotivationPanel
+            status={visibleMotivation}
+            onPlan={() => nav.navigate('MorningCommit')}
+          />
         )}
-        {motivation && (
+        {visibleMotivation && (
           <View
             style={{
               marginTop: 18,
@@ -122,7 +138,7 @@ export function Today() {
             }}
           >
             <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>Your rhythm</Text>
-            <RateRings rates={motivation.rates} />
+            <RateRings rates={visibleMotivation.rates} />
           </View>
         )}
         <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />

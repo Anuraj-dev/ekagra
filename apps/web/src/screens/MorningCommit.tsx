@@ -46,7 +46,8 @@ export function MorningCommit() {
     }
   }
 
-  const canCommit = selected.length <= 3;
+  // The server contract requires 1–3 tasks; never offer a commit it will reject.
+  const canCommit = selected.length >= 1 && selected.length <= 3;
 
   return (
     <div className="app-frame">
@@ -187,7 +188,7 @@ export function MorningCommit() {
           }}
         >
           {selected.length === 0
-            ? "Clear today's plan"
+            ? 'Select at least one task'
             : `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`}
         </button>
       </div>

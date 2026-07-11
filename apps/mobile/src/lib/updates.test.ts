@@ -34,6 +34,11 @@ mock.module('react-native', () => ({
 // Do NOT mock ./supabase: mock.module leaks process-wide in bun test and other
 // test files (DataProvider) depend on the real client's behavior. The real
 // module loads fine here — AsyncStorage is backed by an in-memory shim.
+// The env defaults must be set before ./supabase is first evaluated: whichever
+// test file loads it first bakes FUNCTIONS_BASE into the module cache for the
+// whole run (DataProvider's fetch stubs match on that URL).
+process.env.EXPO_PUBLIC_SUPABASE_URL ??= 'http://127.0.0.1:54321';
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??= 'test-anon-key';
 const asyncStore = new Map<string, string>();
 mock.module('@react-native-async-storage/async-storage', () => ({
   default: {

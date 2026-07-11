@@ -228,8 +228,10 @@ export class Sha256 {
   private readonly block = new Uint8Array(64);
   private blockLen = 0;
   private totalBytes = 0;
+  private finished = false;
 
   update(chunk: Uint8Array): void {
+    if (this.finished) throw new Error('Sha256 already finalized');
     this.totalBytes += chunk.length;
     let offset = 0;
     if (this.blockLen > 0) {
@@ -253,6 +255,9 @@ export class Sha256 {
   }
 
   hexDigest(): string {
+    // Finalizing mutates the running state, so a hasher is single-use.
+    if (this.finished) throw new Error('Sha256 already finalized');
+    this.finished = true;
     // Padding: 0x80, zeros, then the 64-bit big-endian bit length.
     const bitLenHi = Math.floor(this.totalBytes / 0x20000000);
     const bitLenLo = (this.totalBytes << 3) >>> 0;
@@ -330,7 +335,9 @@ const STREAM_CHUNK = 512 * 1024;
 
 /** Hashes the file pomo-style: a FileHandle read loop, never one big buffer. */
 function sha256HexStreaming(fileUri: string): string {
-  const handle = new File(fileUri).open();
+  const file = new File(fileUri);
+  const expectedSize = file.size;
+  const handle = file.open();
   try {
     const hash = new Sha256();
     let total = 0;
@@ -342,6 +349,12 @@ function sha256HexStreaming(fileUri: string): string {
       if (chunk.byteLength < STREAM_CHUNK) break;
     }
     if (total === 0) throw new Error('empty file read');
+    // A short non-EOF FileChannel read upstream returns a zero-padded buffer;
+    // the byte count would drift from the file size. Bail to the fallback
+    // readers rather than report a healthy download as corrupted.
+    if (expectedSize != null && total !== expectedSize) {
+      throw new Error(`short read: ${total} of ${expectedSize} bytes`);
+    }
     return hash.hexDigest();
   } finally {
     handle.close();
@@ -350,18 +363,27 @@ function sha256HexStreaming(fileUri: string): string {
 
 async function sha256HexOfFile(fileUri: string): Promise<string> {
   // Primary: chunked streaming (pomo parity — constant memory).
+  let streamError: unknown;
   try {
     return sha256HexStreaming(fileUri);
-  } catch {
+  } catch (err) {
     // FileHandle unavailable or the read failed — whole-buffer routes below.
+    streamError = err;
   }
-  const bytes = await readFileBytes(fileUri);
   try {
-    const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, exactBuffer(bytes));
-    return bytesToHex(new Uint8Array(digest));
-  } catch {
-    // Native digest can reject large buffers on some runtimes.
-    return sha256HexJs(bytes);
+    const bytes = await readFileBytes(fileUri);
+    try {
+      const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, exactBuffer(bytes));
+      return bytesToHex(new Uint8Array(digest));
+    } catch {
+      // Native digest can reject large buffers on some runtimes.
+      return sha256HexJs(bytes);
+    }
+  } catch (fallbackErr) {
+    // Every route failed; the primary path's error is the diagnostic one.
+    const stream = streamError instanceof Error ? streamError.message : String(streamError);
+    const fallback = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+    throw new Error(`stream: ${stream}; fallback: ${fallback}`);
   }
 }
 
@@ -406,10 +428,15 @@ export async function downloadAndInstall(
   const targetUri = `${FileSystem.cacheDirectory}updates/ekagra-${update.version}.apk`;
 
   onState({ phase: 'downloading', update });
+  // pomo-style hygiene: only the newest download is ever needed, so drop
+  // stragglers (old versions, partial files) before writing the new one. A
+  // failed cleanup is not a download failure — carry on and overwrite.
   try {
-    // pomo-style hygiene: only the newest download is ever needed, so drop
-    // stragglers (old versions, partial files) before writing the new one.
     await FileSystem.deleteAsync(`${FileSystem.cacheDirectory}updates`, { idempotent: true });
+  } catch {
+    // best-effort only
+  }
+  try {
     await FileSystem.makeDirectoryAsync(`${FileSystem.cacheDirectory}updates`, {
       intermediates: true,
     });

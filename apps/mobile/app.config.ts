@@ -8,7 +8,7 @@ import type { ExpoConfig } from 'expo/config';
 const config: ExpoConfig = {
   name: 'Ekagra',
   slug: 'ekagra',
-  version: '0.1.1',
+  version: '0.1.2',
   orientation: 'portrait',
   scheme: 'ekagra',
   userInterfaceStyle: 'dark',

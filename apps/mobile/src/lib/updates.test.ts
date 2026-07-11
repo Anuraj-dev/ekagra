@@ -31,15 +31,20 @@ mock.module('react-native', () => ({
   Platform: { OS: 'android' },
   Linking: { openURL: async () => {} },
 }));
-// mock.module leaks process-wide in bun test, so mirror every named export and
-// keep supabase.auth functional for lib/api consumers in other test files.
-mock.module('./supabase', () => ({
-  supabase: {
-    auth: { getSession: async () => ({ data: { session: null } }) },
+// Do NOT mock ./supabase: mock.module leaks process-wide in bun test and other
+// test files (DataProvider) depend on the real client's behavior. The real
+// module loads fine here — AsyncStorage is backed by an in-memory shim.
+const asyncStore = new Map<string, string>();
+mock.module('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: async (key: string) => asyncStore.get(key) ?? null,
+    setItem: async (key: string, value: string) => {
+      asyncStore.set(key, value);
+    },
+    removeItem: async (key: string) => {
+      asyncStore.delete(key);
+    },
   },
-  isSupabaseConfigured: true,
-  SUPABASE_ANON_KEY: 'test-anon-key',
-  FUNCTIONS_BASE: 'http://localhost/functions/v1',
 }));
 
 const { base64ToBytes, exactBuffer, isNewer, parseVersion } = await import('./updates');

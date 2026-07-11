@@ -139,7 +139,7 @@ export function MorningCommit() {
             );
           })}
           {error && (
-            <Text style={text(600, { fontSize: 13, color: '#E4796B', paddingHorizontal: 4 })}>
+            <Text style={text(600, { fontSize: 13, color: color.danger, paddingHorizontal: 4 })}>
               {error}
             </Text>
           )}

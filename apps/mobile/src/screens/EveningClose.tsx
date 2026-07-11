@@ -223,7 +223,7 @@ export function EveningClose() {
               ]}
             />
             {error && (
-              <Text style={text(600, { fontSize: 13, color: '#E4796B', marginTop: 10 })}>
+              <Text style={text(600, { fontSize: 13, color: color.danger, marginTop: 10 })}>
                 {error}
               </Text>
             )}

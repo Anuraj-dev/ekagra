@@ -119,7 +119,7 @@ export function Tasks() {
           </div>
         </div>
         {error && (
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#E4796B', marginTop: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: tokens.danger, marginTop: 8 }}>
             {error}
           </div>
         )}

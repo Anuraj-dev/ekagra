@@ -28,6 +28,9 @@ export const color = {
   emberHi: '#FFB25E',
   emberDim: '#7C5638',
   green: '#5BBF8A',
+  // Destructive / error — systematized from the raw hex previously inlined app-wide.
+  danger: '#E4796B',
+  dangerDim: '#3A2320',
   // Goal hues
   goalMauve: '#C48FBF',
   goalBlue: '#7C9BC4',
@@ -101,6 +104,8 @@ export function tokensToCssVars(): string {
     '--ember-hi': color.emberHi,
     '--ember-dim': color.emberDim,
     '--green': color.green,
+    '--danger': color.danger,
+    '--danger-dim': color.dangerDim,
     '--goal-mauve': color.goalMauve,
     '--goal-blue': color.goalBlue,
     '--goal-tan': color.goalTan,

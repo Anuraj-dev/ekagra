@@ -2,6 +2,7 @@ import type {
   EveningCloseRequest,
   Goal,
   GoalCreateRequest,
+  GoalUpdateRequest,
   Session,
   SessionCommand,
   Task,
@@ -41,6 +42,8 @@ type DataContextValue = {
   reloadAll: () => Promise<void>;
   createTask: (payload: TaskCreateRequest) => Promise<Task>;
   createGoal: (payload: GoalCreateRequest) => Promise<Goal>;
+  updateGoal: (id: string, payload: GoalUpdateRequest) => Promise<Goal>;
+  deleteGoal: (id: string) => Promise<void>;
   updateTask: (id: string, payload: TaskUpdateRequest) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
   commitMorning: (taskIds: string[]) => Promise<void>;
@@ -144,6 +147,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return goal;
   }, []);
 
+  const updateGoal = useCallback(async (id: string, payload: GoalUpdateRequest) => {
+    const goal = await goalsApi.update(id, payload);
+    setGoals((prev) => prev.map((g) => (g.id === goal.id ? goal : g)));
+    return goal;
+  }, []);
+
+  const deleteGoal = useCallback(async (id: string) => {
+    await goalsApi.remove(id);
+    setGoals((prev) => prev.filter((g) => g.id !== id));
+  }, []);
+
   const createTask = useCallback(
     async (payload: TaskCreateRequest) => {
       const task = await tasksApi.create(payload);
@@ -231,6 +245,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       reloadAll,
       createTask,
       createGoal,
+      updateGoal,
+      deleteGoal,
       updateTask,
       deleteTask,
       commitMorning,
@@ -255,6 +271,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       reloadAll,
       createTask,
       createGoal,
+      updateGoal,
+      deleteGoal,
       updateTask,
       deleteTask,
       commitMorning,

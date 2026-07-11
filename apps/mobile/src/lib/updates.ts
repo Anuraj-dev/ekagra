@@ -215,27 +215,62 @@ const K = new Uint32Array([
 ]);
 
 /**
- * Pure-JS SHA-256 (FIPS 180-4), the last-resort verifier when expo-crypto's
- * native digest throws. Slow for a 31 MB APK (seconds on Hermes) but it always
- * completes, and a slow verify beats an update pipeline that cannot verify.
+ * Streaming SHA-256 (FIPS 180-4), modeled on pomo's ApkInstaller: the APK is
+ * hashed in small chunks so the 31 MB file never has to exist as one buffer in
+ * JS memory. Pure JS (Hermes has no native streaming digest) — a few seconds
+ * for a release APK, surfaced as the 'verifying' phase.
  */
-export function sha256HexJs(bytes: Uint8Array): string {
-  const h = new Uint32Array([
+export class Sha256 {
+  private readonly h = new Uint32Array([
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
   ]);
-  const len = bytes.length;
-  const bitLenHi = Math.floor(len / 0x20000000);
-  const bitLenLo = (len << 3) >>> 0;
-  const paddedLen = (((len + 8) >> 6) + 1) << 6;
-  const padded = new Uint8Array(paddedLen);
-  padded.set(bytes);
-  padded[len] = 0x80;
-  const dv = new DataView(padded.buffer);
-  dv.setUint32(paddedLen - 8, bitLenHi);
-  dv.setUint32(paddedLen - 4, bitLenLo);
+  private readonly w = new Uint32Array(64);
+  private readonly block = new Uint8Array(64);
+  private blockLen = 0;
+  private totalBytes = 0;
 
-  const w = new Uint32Array(64);
-  for (let offset = 0; offset < paddedLen; offset += 64) {
+  update(chunk: Uint8Array): void {
+    this.totalBytes += chunk.length;
+    let offset = 0;
+    if (this.blockLen > 0) {
+      const take = Math.min(64 - this.blockLen, chunk.length);
+      this.block.set(chunk.subarray(0, take), this.blockLen);
+      this.blockLen += take;
+      offset = take;
+      if (this.blockLen < 64) return;
+      this.compress(new DataView(this.block.buffer), 0);
+      this.blockLen = 0;
+    }
+    const dv = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    while (offset + 64 <= chunk.length) {
+      this.compress(dv, offset);
+      offset += 64;
+    }
+    if (offset < chunk.length) {
+      this.block.set(chunk.subarray(offset));
+      this.blockLen = chunk.length - offset;
+    }
+  }
+
+  hexDigest(): string {
+    // Padding: 0x80, zeros, then the 64-bit big-endian bit length.
+    const bitLenHi = Math.floor(this.totalBytes / 0x20000000);
+    const bitLenLo = (this.totalBytes << 3) >>> 0;
+    const tail = new Uint8Array(this.blockLen >= 56 ? 128 : 64);
+    tail.set(this.block.subarray(0, this.blockLen));
+    tail[this.blockLen] = 0x80;
+    const dv = new DataView(tail.buffer);
+    dv.setUint32(tail.length - 8, bitLenHi);
+    dv.setUint32(tail.length - 4, bitLenLo);
+    for (let offset = 0; offset < tail.length; offset += 64) this.compress(dv, offset);
+    let hex = '';
+    for (const word of this.h) hex += word.toString(16).padStart(8, '0');
+    return hex;
+  }
+
+  private compress(dv: DataView, offset: number): void {
+    const h = this.h;
+    const w = this.w;
     for (let i = 0; i < 16; i++) w[i] = dv.getUint32(offset + i * 4);
     for (let i = 16; i < 64; i++) {
       const s0 =
@@ -248,7 +283,14 @@ export function sha256HexJs(bytes: Uint8Array): string {
         (w[i - 2] >>> 10);
       w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
     }
-    let [a, b, c, d, e, f, g, hh] = h as unknown as number[];
+    let a = h[0];
+    let b = h[1];
+    let c = h[2];
+    let d = h[3];
+    let e = h[4];
+    let f = h[5];
+    let g = h[6];
+    let hh = h[7];
     for (let i = 0; i < 64; i++) {
       const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
       const ch = (e & f) ^ (~e & g);
@@ -274,12 +316,45 @@ export function sha256HexJs(bytes: Uint8Array): string {
     h[6] = (h[6] + g) >>> 0;
     h[7] = (h[7] + hh) >>> 0;
   }
-  let hex = '';
-  for (const word of h) hex += word.toString(16).padStart(8, '0');
-  return hex;
+}
+
+/** One-shot convenience over the streaming hasher (also the test surface). */
+export function sha256HexJs(bytes: Uint8Array): string {
+  const hash = new Sha256();
+  hash.update(bytes);
+  return hash.hexDigest();
+}
+
+/** 512 KB per read: small enough for low-RAM devices, large enough to be quick. */
+const STREAM_CHUNK = 512 * 1024;
+
+/** Hashes the file pomo-style: a FileHandle read loop, never one big buffer. */
+function sha256HexStreaming(fileUri: string): string {
+  const handle = new File(fileUri).open();
+  try {
+    const hash = new Sha256();
+    let total = 0;
+    while (true) {
+      const chunk = handle.readBytes(STREAM_CHUNK);
+      if (chunk.byteLength === 0) break;
+      total += chunk.byteLength;
+      hash.update(chunk);
+      if (chunk.byteLength < STREAM_CHUNK) break;
+    }
+    if (total === 0) throw new Error('empty file read');
+    return hash.hexDigest();
+  } finally {
+    handle.close();
+  }
 }
 
 async function sha256HexOfFile(fileUri: string): Promise<string> {
+  // Primary: chunked streaming (pomo parity — constant memory).
+  try {
+    return sha256HexStreaming(fileUri);
+  } catch {
+    // FileHandle unavailable or the read failed — whole-buffer routes below.
+  }
   const bytes = await readFileBytes(fileUri);
   try {
     const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, exactBuffer(bytes));
@@ -332,6 +407,9 @@ export async function downloadAndInstall(
 
   onState({ phase: 'downloading', update });
   try {
+    // pomo-style hygiene: only the newest download is ever needed, so drop
+    // stragglers (old versions, partial files) before writing the new one.
+    await FileSystem.deleteAsync(`${FileSystem.cacheDirectory}updates`, { idempotent: true });
     await FileSystem.makeDirectoryAsync(`${FileSystem.cacheDirectory}updates`, {
       intermediates: true,
     });

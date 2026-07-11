@@ -52,7 +52,7 @@ mock.module('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-const { base64ToBytes, exactBuffer, isNewer, parseVersion, sha256HexJs } = await import(
+const { base64ToBytes, exactBuffer, isNewer, parseVersion, sha256HexJs, Sha256 } = await import(
   './updates'
 );
 
@@ -109,6 +109,20 @@ describe('sha256HexJs', () => {
       const data = randomBytes(len);
       const expected = createHash('sha256').update(data).digest('hex');
       expect(sha256HexJs(new Uint8Array(data))).toBe(expected);
+    }
+  });
+
+  // The streaming path feeds the hasher file chunks of arbitrary size; every
+  // split (mid-block, block-aligned, tiny tail) must agree with one-shot.
+  it('streams chunk splits identically to one-shot', () => {
+    const data = new Uint8Array(randomBytes(200_003));
+    const expected = createHash('sha256').update(data).digest('hex');
+    for (const chunkSize of [1, 17, 63, 64, 65, 4096, 65_536]) {
+      const hash = new Sha256();
+      for (let i = 0; i < data.length; i += chunkSize) {
+        hash.update(data.subarray(i, i + chunkSize));
+      }
+      expect(hash.hexDigest()).toBe(expected);
     }
   });
 

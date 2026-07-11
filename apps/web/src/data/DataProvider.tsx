@@ -34,6 +34,8 @@ type DataContextValue = {
   todayEarnedBlocks: number;
   todayHonestMinutes: number;
   earnedByTask: Record<string, number>;
+  /** Bumped once per newly ended session — screens use it to refetch server aggregates. */
+  sessionEndVersion: number;
   recordSessionEnd: (ended: Session) => void;
   loading: boolean;
   error: string | null;
@@ -67,11 +69,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [todayHonestMinutes, setTodayHonestMinutes] = useState(0);
   const [earnedByTask, setEarnedByTask] = useState<Record<string, number>>({});
   const countedSessions = useRef<Set<string>>(new Set());
+  const [sessionEndVersion, setSessionEndVersion] = useState(0);
 
   const recordSessionEnd = useCallback((ended: Session) => {
     if (ended.status !== 'completed' && ended.status !== 'abandoned') return;
     if (countedSessions.current.has(ended.id)) return;
     countedSessions.current.add(ended.id);
+    setSessionEndVersion((v) => v + 1);
     setTodayHonestMinutes((m) => m + ended.honestMinutes);
     if (ended.earnedBlock) {
       setTodayEarnedBlocks((b) => b + 1);
@@ -238,6 +242,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       todayEarnedBlocks,
       todayHonestMinutes,
       earnedByTask,
+      sessionEndVersion,
       recordSessionEnd,
       loading,
       error,
@@ -264,6 +269,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       todayEarnedBlocks,
       todayHonestMinutes,
       earnedByTask,
+      sessionEndVersion,
       recordSessionEnd,
       loading,
       error,

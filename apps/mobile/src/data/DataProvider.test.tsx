@@ -80,12 +80,14 @@ function stubFetch(patchResult: Session | null) {
 
 function Probe() {
   const { session, todayEarnedBlocks, todayHonestMinutes, loading, sessionCommand } = useData();
+  const { sessionEndVersion } = useData();
   return (
     <div>
       <span data-testid="loading">{String(loading)}</span>
       <span data-testid="session">{session ? session.status : 'none'}</span>
       <span data-testid="earned">{todayEarnedBlocks}</span>
       <span data-testid="honest">{todayHonestMinutes}</span>
+      <span data-testid="end-version">{sessionEndVersion}</span>
       <button type="button" onClick={() => void sessionCommand({ action: 'complete' })}>
         complete
       </button>
@@ -119,6 +121,9 @@ describe('DataProvider sessionCommand (mobile)', () => {
     await waitFor(() => expect(screen.getByTestId('session').textContent).toBe('none'));
     await waitFor(() => expect(screen.getByTestId('earned').textContent).toBe('1'));
     expect(screen.getByTestId('honest').textContent).toBe('25');
+    // Screens listening to sessionEndVersion (Insights, Today rhythm) must be
+    // notified exactly once per newly ended session.
+    expect(screen.getByTestId('end-version').textContent).toBe('1');
   });
 
   it('keeps a non-terminal session active after pause', async () => {
@@ -136,5 +141,6 @@ describe('DataProvider sessionCommand (mobile)', () => {
 
     await waitFor(() => expect(screen.getByTestId('session').textContent).toBe('paused'));
     expect(screen.getByTestId('earned').textContent).toBe('0');
+    expect(screen.getByTestId('end-version').textContent).toBe('0');
   });
 });

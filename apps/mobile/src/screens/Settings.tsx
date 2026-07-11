@@ -283,9 +283,11 @@ function UpdateRow() {
                     ? 'Network error — try again.'
                     : state.reason === 'hash-mismatch'
                       ? 'Download was corrupted — try again.'
-                      : state.reason === 'missing-asset'
-                        ? 'The APK is missing from the release.'
-                        : 'Could not launch the installer.'
+                      : state.reason === 'verify-failed'
+                        ? 'Could not verify the download — try again.'
+                        : state.reason === 'missing-asset'
+                          ? 'The APK is missing from the release.'
+                          : 'Could not launch the installer.'
                   : null;
 
   const actionLabel =

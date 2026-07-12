@@ -1,4 +1,5 @@
 import type { Task } from '@ekagra/core';
+import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { color } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
@@ -20,6 +21,9 @@ export function TaskCard({
   selectable = false,
   showMeter = true,
   onPress,
+  onLongPress,
+  accessibilityHint,
+  footer,
 }: {
   task: Task;
   goalColor: string;
@@ -29,13 +33,18 @@ export function TaskCard({
   selectable?: boolean;
   showMeter?: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
+  accessibilityHint?: string;
+  footer?: ReactNode;
 }) {
   const total = task.estimatedBlocks ?? 1;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={selectable ? { selected } : undefined}
+      accessibilityHint={accessibilityHint}
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => ({
         backgroundColor: selected ? color.surface3 : pressed ? color.surface3 : color.surface,
         borderWidth: 1,
@@ -78,6 +87,7 @@ export function TaskCard({
         </Text>
       </View>
       {showMeter && <BlockMeter total={total} earned={earnedBlocks} color={goalColor} />}
+      {footer && <View style={{ flexDirection: 'row', gap: 14, marginTop: 12 }}>{footer}</View>}
     </Pressable>
   );
 }

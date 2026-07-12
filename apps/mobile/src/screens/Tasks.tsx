@@ -1,11 +1,11 @@
 import type { Goal, Task } from '@ekagra/core';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GoalMark } from '../components/GoalMark';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
-import { SectionRow } from '../components/ui';
+import { TaskCard } from '../components/TaskCard';
+import { Chip, GhostButton, SectionRow } from '../components/ui';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { color } from '../theme/tokens';
@@ -48,12 +48,18 @@ export function Tasks() {
     }
   }
 
+  function confirmDelete(task: Task) {
+    Alert.alert('Delete task?', task.title, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void deleteTask(task.id) },
+    ]);
+  }
+
   return (
     <Screen>
       <Enter style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-        <Text style={text(800, { fontSize: 26, letterSpacing: -0.4, color: color.t1 })}>Inbox</Text>
-        <Text style={text(600, { fontSize: 13, color: color.t3, marginTop: 6 })}>
-          {inbox.length} task{inbox.length === 1 ? '' : 's'} waiting
+        <Text style={text(800, { fontSize: 26, letterSpacing: -0.4, color: color.t1 })}>
+          Inbox · {inbox.length}
         </Text>
       </Enter>
 
@@ -68,7 +74,7 @@ export function Tasks() {
           returnKeyType="done"
           onFocus={() => setInputFocused(true)}
           onBlur={() => setInputFocused(false)}
-          placeholder="+ New task — Enter saves and stays"
+          placeholder="New task"
           placeholderTextColor={color.t4}
           style={[
             text(500, {
@@ -93,24 +99,14 @@ export function Tasks() {
         >
           {goals.map((goal) => {
             const active = captureGoalId === goal.id;
-            const gColor = goalColor(goal.id, colorMap);
             return (
-              <Pressable
+              <Chip
                 key={goal.id}
+                label={goal.title}
+                active={active}
+                tint={goalColor(goal.id, colorMap)}
                 onPress={() => setCaptureGoalId(active ? null : goal.id)}
-                style={{
-                  borderRadius: 999,
-                  paddingVertical: 6,
-                  paddingHorizontal: 12,
-                  borderWidth: 1,
-                  borderColor: active ? gColor : color.line,
-                  backgroundColor: active ? color.surface3 : 'transparent',
-                }}
-              >
-                <Text style={text(700, { fontSize: 12, color: active ? gColor : color.t4 })}>
-                  {goal.title}
-                </Text>
-              </Pressable>
+              />
             );
           })}
           <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -120,6 +116,10 @@ export function Tasks() {
               return (
                 <Pressable
                   key={n}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Estimate ${n} block${n === 1 ? '' : 's'}`}
+                  accessibilityState={{ selected: active }}
+                  hitSlop={8}
                   onPress={() => setEstimate(n)}
                   style={{
                     width: 28,
@@ -159,13 +159,19 @@ export function Tasks() {
             <SectionRow label={goalName(goalId, goals)} paddingHorizontal={16} />
             <View style={{ gap: 10, paddingHorizontal: 16 }}>
               {items.map((task) => (
-                <InboxRow
+                <TaskCard
                   key={task.id}
                   task={task}
-                  tint={goalColor(task.goalId, colorMap)}
-                  goalTitle={goalName(task.goalId, goals)}
-                  onCommit={() => void updateTask(task.id, { status: 'planned' })}
-                  onDelete={() => void deleteTask(task.id)}
+                  goalColor={goalColor(task.goalId, colorMap)}
+                  goalName={goalName(task.goalId, goals)}
+                  showMeter={false}
+                  onLongPress={() => confirmDelete(task)}
+                  accessibilityHint="Long press to delete"
+                  footer={
+                    <GhostButton onPress={() => void updateTask(task.id, { status: 'planned' })}>
+                      Commit to today
+                    </GhostButton>
+                  }
                 />
               ))}
             </View>
@@ -181,56 +187,11 @@ export function Tasks() {
               lineHeight: 21,
             })}
           >
-            Inbox zero. Capture the next task above.
+            Inbox is empty.
           </Text>
         )}
       </Enter>
     </Screen>
-  );
-}
-
-function InboxRow({
-  task,
-  tint,
-  goalTitle,
-  onCommit,
-  onDelete,
-}: {
-  task: Task;
-  tint: string;
-  goalTitle: string;
-  onCommit: () => void;
-  onDelete: () => void;
-}) {
-  const est = task.estimatedBlocks ?? 1;
-  return (
-    <View
-      style={{
-        backgroundColor: color.surface,
-        borderWidth: 1,
-        borderColor: color.line,
-        borderRadius: 16,
-        padding: 16,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <GoalMark color={tint} name={goalTitle} />
-        <Text style={[tabular, text(600, { marginLeft: 'auto', fontSize: 12, color: color.t4 })]}>
-          est {est} block{est === 1 ? '' : 's'}
-        </Text>
-      </View>
-      <Text style={text(700, { fontSize: 16, letterSpacing: -0.1, color: color.t1, marginTop: 9 })}>
-        {task.title}
-      </Text>
-      <View style={{ flexDirection: 'row', gap: 14, marginTop: 12 }}>
-        <Pressable onPress={onCommit}>
-          <Text style={text(700, { fontSize: 13, color: color.ember })}>Commit to today</Text>
-        </Pressable>
-        <Pressable onPress={onDelete}>
-          <Text style={text(700, { fontSize: 13, color: color.t4 })}>Delete</Text>
-        </Pressable>
-      </View>
-    </View>
   );
 }
 

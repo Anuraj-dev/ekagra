@@ -1,10 +1,10 @@
-import type { DayRecord, IdentityRoleHours, RitualCorrelation, WeeklyReview } from '@ekagra/core';
-import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import type { WeeklyReview } from '@ekagra/core';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { useData } from '../data/DataProvider';
-import { dayRecordsApi, insightsApi } from '../lib/api';
+import { insightsApi } from '../lib/api';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
-import { color as tokens } from '../theme/tokens';
+import { color as tokens, withAlpha } from '../theme/tokens';
 
 type HeatCell = {
   dayOfWeek: number;
@@ -14,8 +14,8 @@ type HeatCell = {
   earnedBlocks: number;
 };
 type Async<T> = { value: T | null; loading: boolean; error: boolean };
-// Last-known section values survive tab-switch remounts so the screen shows
-// the previous numbers while a refresh is in flight instead of flashing a
+// Last-known section values survive tab-switch remounts so the screen shows the
+// previous numbers while a refresh is in flight instead of flashing a
 // loading/zero state.
 const lastKnown = new Map<string, Map<string, unknown>>();
 const initial = <T,>(userId: string, key: string): Async<T> => ({
@@ -23,13 +23,18 @@ const initial = <T,>(userId: string, key: string): Async<T> => ({
   loading: !lastKnown.get(userId)?.has(key),
   error: false,
 });
-const pretty = (tag: string) => tag.replace(/-/g, ' ');
-const formatDate = (date: string) =>
-  new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-const delta = (now: number, before?: number) => (before === undefined ? null : now - before);
-const signed = (value: number | null, suffix = '') =>
-  value === null ? '' : ` · ${value > 0 ? '+' : ''}${value}${suffix}`;
-const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour));
+
+const WEEKS = 10;
+const WEEKDAYS = [
+  ['Mon', 'M'],
+  ['Tue', 'T'],
+  ['Wed', 'W'],
+  ['Thu', 'T'],
+  ['Fri', 'F'],
+  ['Sat', 'S'],
+  ['Sun', 'S'],
+] as const;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function Insights() {
   const { session } = useAuth();
@@ -41,20 +46,14 @@ function InsightsScreen({ userId }: { userId: string }) {
     useData();
   const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
   const planned = useMemo(() => tasks.filter((task) => task.status === 'planned'), [tasks]);
-  const [history, setHistory] = useState<DayRecord[] | null>(null);
   const [reviews, setReviews] = useState<Async<WeeklyReview[]>>(initial(userId, 'reviews'));
-  const [roles, setRoles] = useState<Async<IdentityRoleHours[]>>(initial(userId, 'roles'));
-  const [distractions, setDistractions] = useState<
-    Async<Awaited<ReturnType<typeof insightsApi.distractionBreakdown>>>
-  >(initial(userId, 'distractions'));
   const [heatmap, setHeatmap] = useState<Async<HeatCell[]>>(initial(userId, 'heatmap'));
-  const [rituals, setRituals] = useState<Async<RitualCorrelation[]>>(initial(userId, 'rituals'));
   const ticket = useRef(0);
 
-  // Refetch every view aggregate on mount (each tab visit) and whenever a
-  // session ends (sessionEndVersion), so weekly counts and the distraction
-  // breakdown stay consistent with the live "Today" row. Sections keep their
-  // last-known values while a refresh is in flight.
+  // Refetch the weekly review + heatmap on mount (each tab visit) and whenever a
+  // session ends (sessionEndVersion), so the numbers stay consistent with the
+  // live "Today" row. Sections keep their last-known values while a refresh is
+  // in flight.
   useEffect(() => {
     const current = ++ticket.current;
     void sessionEndVersion;
@@ -82,198 +81,59 @@ function InsightsScreen({ userId }: { userId: string }) {
             ),
         );
     };
-    dayRecordsApi
-      .recent()
-      .then((rows) => current === ticket.current && setHistory(rows))
-      .catch(() => current === ticket.current && setHistory((prev) => prev ?? []));
     run('reviews', insightsApi.weeklyReview, setReviews);
-    run('roles', insightsApi.identityRoleHours, setRoles);
-    run('distractions', insightsApi.distractionBreakdown, setDistractions);
     run('heatmap', insightsApi.focusHoursHeatmap, setHeatmap);
-    run('rituals', insightsApi.ritualCorrelations, setRituals);
     return () => {
       ++ticket.current;
     };
   }, [sessionEndVersion, userId]);
 
   const currentWeek = reviews.value?.find((row) => row.weekStart === insightsApi.weekStart());
-  const previous = reviews.value?.find(
-    (row) => row.weekStart === insightsApi.previousWeek(insightsApi.weekStart()),
+
+  const totals = planned.reduce(
+    (acc, task) => {
+      acc.est += task.estimatedBlocks ?? 1;
+      acc.actual += earnedByTask[task.id] ?? 0;
+      return acc;
+    },
+    { est: 0, actual: 0 },
   );
-  const closedDays = (history ?? []).filter((row) => row.planMatch !== null);
+  const estimateInsight =
+    totals.est > 0 && totals.actual > 0
+      ? (() => {
+          const pct = Math.round(((totals.est - totals.actual) / totals.est) * 100);
+          if (pct > 0) return `You run ~${pct}% optimistic on estimates.`;
+          if (pct < 0) return `You run ~${-pct}% under on estimates.`;
+          return 'Estimates match actuals so far.';
+        })()
+      : null;
 
   return (
     <div className="scroll" style={{ paddingBottom: 24 }}>
       <div className="enter" style={{ padding: '58px 20px 0' }}>
         <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.4px' }}>Insights</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 6 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 8 }}>
           Honest numbers.
         </div>
       </div>
       <div className="enter-delay">
-        <Section title="Weekly review" accent>
-          {reviews.loading ? (
-            <Status text="Gathering this week’s story…" />
-          ) : reviews.error ? (
-            <Status text="Weekly review is taking a breather. Try again soon." error />
-          ) : !currentWeek ? (
-            <Status text="Your first week will take shape as you focus and close days." />
+        <Section title="Earned blocks · 10 weeks">
+          {heatmap.loading ? (
+            <Status text="Loading…" />
+          ) : heatmap.error ? (
+            <Status text="Couldn’t load focus hours. Retry." error />
+          ) : !heatmap.value?.length ? (
+            <Status text="No focus-hour data yet." />
           ) : (
-            <div
-              style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
-            >
-              <ReviewFact
-                label="Days met"
-                value={`${currentWeek.metDays} / ${currentWeek.closedDays}`}
-                detail={signed(delta(currentWeek.metDays, previous?.metDays))}
-              />
-              <ReviewFact
-                label="Earned blocks"
-                value={currentWeek.earnedBlocks}
-                detail={signed(delta(currentWeek.earnedBlocks, previous?.earnedBlocks))}
-              />
-              <ReviewFact
-                label="Honest hours"
-                value={(currentWeek.honestMinutes / 60).toFixed(1)}
-                detail={signed(
-                  delta(currentWeek.honestMinutes, previous?.honestMinutes) === null
-                    ? null
-                    : Number(
-                        ((currentWeek.honestMinutes - (previous?.honestMinutes ?? 0)) / 60).toFixed(
-                          1,
-                        ),
-                      ),
-                  'h',
-                )}
-              />
-              <ReviewFact
-                label="Completed / abandoned"
-                value={`${currentWeek.completedSessions} / ${currentWeek.abandonedSessions}`}
-                detail={signed(delta(currentWeek.abandonedSessions, previous?.abandonedSessions))}
-              />
-              <ReviewFact
-                label="Estimate accuracy"
-                value={`${currentWeek.actualBlocks} / ${currentWeek.estimatedBlocks}`}
-                detail={
-                  currentWeek.estimatedBlocks
-                    ? `${Math.round((currentWeek.actualBlocks / currentWeek.estimatedBlocks) * 100)}% delivered`
-                    : 'No estimates yet'
-                }
-              />
-              <ReviewFact
-                label="Top distraction"
-                value={
-                  currentWeek.topDistractionTag ? pretty(currentWeek.topDistractionTag) : 'None yet'
-                }
-                detail="Notice it, then return."
-              />
-            </div>
+            <EarnedGrid rows={heatmap.value} />
           )}
         </Section>
-        <Section title="Today">
-          <div
-            style={{
-              background: tokens.surface,
-              border: `1px solid ${tokens.line}`,
-              borderRadius: 16,
-              padding: 18,
-              display: 'flex',
-              gap: 24,
-            }}
-          >
-            <Fact value={todayEarnedBlocks} label="Blocks earned" />
-            <Fact value={todayHonestMinutes} label="Honest minutes" />
-            <Fact value={planned.length} label="Tasks committed" />
-          </div>
-        </Section>
-        <Section title="Hours per identity role">
-          <AsyncBlock<IdentityRoleHours[]>
-            state={roles}
-            empty="Focus by identity role will appear here as you work this week."
-          >
-            {(rows) => (
-              <Bars
-                rows={rows.map((row) => ({
-                  label: row.identityRole,
-                  value: row.honestMinutes / 60,
-                  suffix: `${(row.honestMinutes / 60).toFixed(1)}h · ${row.earnedBlocks} blocks`,
-                }))}
-                color={tokens.ember}
-              />
-            )}
-          </AsyncBlock>
-        </Section>
-        <Section title="Distraction breakdown">
-          <AsyncBlock<Awaited<ReturnType<typeof insightsApi.distractionBreakdown>>>
-            state={distractions}
-            empty="No abandoned sessions this week. Keep protecting your focus."
-          >
-            {(rows) => (
-              <Bars
-                rows={rows.map((row) => ({
-                  label: pretty(row.distractionTag),
-                  value: row.honestMinutesLost,
-                  suffix: `${row.abandonedSessions} abandoned · ${row.honestMinutesLost}m lost`,
-                }))}
-                color={tokens.emberHi}
-              />
-            )}
-          </AsyncBlock>
-        </Section>
-        <Section title="Best focus hours">
-          <AsyncBlock<HeatCell[]>
-            state={heatmap}
-            empty="Your focus map will light up after a few sessions."
-          >
-            {(rows) => <Heatmap rows={rows} />}
-          </AsyncBlock>
-        </Section>
-        <Section title="Ritual correlations">
-          <AsyncBlock<RitualCorrelation[]>
-            state={rituals}
-            empty="Keep a few mornings and evenings consistent to reveal useful patterns."
-          >
-            {(rows) => {
-              const useful = rows.filter((row) => row.daysWith >= 5 && row.daysWithout >= 5);
-              return useful.length ? (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {useful.map((row) => (
-                    <div
-                      key={row.signal}
-                      style={{
-                        background: tokens.surface2,
-                        border: `1px solid ${tokens.lineSoft}`,
-                        borderRadius: 14,
-                        padding: 14,
-                      }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 800, color: tokens.t2 }}>
-                        {row.signal === 'morning_commit' ? 'Morning commit' : 'Evening close'}
-                      </div>
-                      <div
-                        style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 5 }}
-                      >
-                        Days with it average {row.avgBlocksWith.toFixed(1)} blocks vs{' '}
-                        {row.avgBlocksWithout.toFixed(1)} without{' '}
-                        <span style={{ color: tokens.green }}>
-                          ({row.lift >= 0 ? '+' : ''}
-                          {row.lift.toFixed(1)} lift)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <Status text="A little more consistency will make these patterns meaningful." />
-              );
-            }}
-          </AsyncBlock>
-        </Section>
+
         <Section title="Estimate vs actual">
           {planned.length === 0 ? (
             <Status text="Commit tasks to see estimates against earned blocks." />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {planned.map((task) => {
                 const est = task.estimatedBlocks ?? 1;
                 const actual = earnedByTask[task.id] ?? 0;
@@ -306,187 +166,116 @@ function InsightsScreen({ userId }: { userId: string }) {
                   </div>
                 );
               })}
+              {estimateInsight ? (
+                <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3 }}>
+                  {estimateInsight}
+                </div>
+              ) : null}
             </div>
           )}
         </Section>
-        <Section title="Plan vs actual">
-          {history === null ? (
-            <Status text="Loading recent days…" />
-          ) : closedDays.length === 0 ? (
-            <Status text="Close a day to start building your plan-vs-actual history." />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {closedDays.map((day) => (
-                <div
-                  key={day.recordDate}
-                  style={{
-                    background: tokens.surface2,
-                    border: `1px solid ${tokens.lineSoft}`,
-                    borderRadius: 16,
-                    padding: '13px 18px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: tokens.t2 }}>
-                      {formatDate(day.recordDate)}
-                    </div>
-                    {day.wentWrongTag && day.wentWrongTag !== 'on-plan' && (
-                      <div
-                        style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 2 }}
-                      >
-                        {pretty(day.wentWrongTag)}
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: day.planMatch ? tokens.green : tokens.ember,
-                    }}
-                  >
-                    {day.planMatch ? 'On plan' : 'Off plan'}
-                  </span>
-                </div>
-              ))}
+
+        <Section>
+          <div
+            style={{
+              background: tokens.surface,
+              border: `1px solid ${tokens.line}`,
+              borderRadius: 16,
+              padding: 20,
+            }}
+          >
+            <div className="overline" style={{ color: tokens.ember, marginBottom: 12 }}>
+              This week
             </div>
-          )}
+            {reviews.loading ? (
+              <Status text="Loading this week…" />
+            ) : reviews.error ? (
+              <Status text="Couldn’t load weekly review. Retry." error />
+            ) : !currentWeek ? (
+              <Status text="No closed days yet this week." />
+            ) : (
+              <ThisWeek
+                week={currentWeek}
+                todayEarnedBlocks={todayEarnedBlocks}
+                todayHonestMinutes={todayHonestMinutes}
+              />
+            )}
+          </div>
         </Section>
       </div>
     </div>
   );
 }
 
-function Section({
-  title,
-  accent,
-  children,
+function ThisWeek({
+  week,
+  todayEarnedBlocks,
+  todayHonestMinutes,
 }: {
-  title: string;
-  accent?: boolean;
-  children: React.ReactNode;
+  week: WeeklyReview;
+  todayEarnedBlocks: number;
+  todayHonestMinutes: number;
 }) {
+  const optimistic =
+    week.estimatedBlocks > 0 && week.actualBlocks > 0
+      ? Math.round(((week.estimatedBlocks - week.actualBlocks) / week.estimatedBlocks) * 100)
+      : null;
+  const suggestion =
+    optimistic !== null && optimistic > 15
+      ? 'Running optimistic. Commit one block fewer next task.'
+      : null;
   return (
-    <div style={{ padding: '24px 16px 0' }}>
-      <div
-        className="overline"
-        style={{ color: accent ? tokens.ember : tokens.t3, marginBottom: 12 }}
-      >
-        {title}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+        <Stat value={week.earnedBlocks} label="Earned blocks" />
+        <Stat value={`${week.metDays}/${week.closedDays}`} label="Days met" />
+        <Stat value={(week.honestMinutes / 60).toFixed(1)} label="Honest hours" />
       </div>
-      {children}
+      <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3 }}>
+        Today: {todayEarnedBlocks} blocks · {todayHonestMinutes} min
+      </div>
+      {suggestion ? (
+        <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3 }}>{suggestion}</div>
+      ) : null}
     </div>
   );
 }
-function Status({ text, error = false }: { text: string; error?: boolean }) {
-  return (
-    <p style={{ fontSize: 13, fontWeight: 600, color: error ? tokens.ember : tokens.t4 }}>{text}</p>
-  );
-}
-function AsyncBlock<T extends unknown[]>({
-  state,
-  empty,
-  children,
-}: {
-  state: Async<T>;
-  empty: string;
-  children: (value: T) => ReactNode;
-}) {
-  if (state.loading) return <Status text="Loading…" />;
-  if (state.error) return <Status text="Couldn’t load this section right now." error />;
-  if (!state.value?.length) return <Status text={empty} />;
-  return <>{children(state.value)}</>;
-}
-function Fact({ value, label }: { value: number; label: string }) {
+
+function Stat({ value, label }: { value: string | number; label: string }) {
   return (
     <div>
-      <div className="tabular" style={{ fontSize: 30, fontWeight: 800, lineHeight: 1 }}>
+      <div className="tabular" style={{ fontSize: 34, fontWeight: 800, lineHeight: 1 }}>
         {value}
       </div>
       <div style={{ fontSize: 12, fontWeight: 700, color: tokens.t3, marginTop: 8 }}>{label}</div>
     </div>
   );
 }
-function ReviewFact({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string | number;
-  detail: string;
-}) {
+
+function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <div
-      style={{
-        background: tokens.surface2,
-        border: `1px solid ${tokens.lineSoft}`,
-        borderRadius: 14,
-        padding: 13,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: tokens.t4,
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        className="tabular"
-        style={{ fontSize: 22, fontWeight: 800, color: tokens.t1, marginTop: 7 }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: tokens.t3, marginTop: 4 }}>{detail}</div>
-    </div>
-  );
-}
-function Bars({
-  rows,
-  color,
-}: {
-  rows: Array<{ label: string; value: number; suffix: string }>;
-  color: string;
-}) {
-  const max = Math.max(...rows.map((row) => row.value), 1);
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {rows.map((row) => (
-        <div key={row.label}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 12,
-              fontSize: 13,
-              fontWeight: 700,
-              color: tokens.t2,
-            }}
-          >
-            <span>{row.label}</span>
-            <span className="tabular" style={{ color: tokens.t4 }}>
-              {row.suffix}
-            </span>
-          </div>
-          <Bar value={row.value / max} color={color} />
+    <div style={{ padding: '24px 16px 0' }}>
+      {title ? (
+        <div className="overline" style={{ color: tokens.t3, marginBottom: 12 }}>
+          {title}
         </div>
-      ))}
+      ) : null}
+      {children}
     </div>
   );
 }
+
+function Status({ text, error = false }: { text: string; error?: boolean }) {
+  return (
+    <p style={{ fontSize: 13, fontWeight: 600, color: error ? tokens.ember : tokens.t4 }}>{text}</p>
+  );
+}
+
 function Bar({ value, color }: { value: number; color: string }) {
   return (
     <div
       style={{
-        marginTop: 6,
+        marginTop: 8,
         height: 7,
         borderRadius: 4,
         background: tokens.lineSoft,
@@ -504,49 +293,98 @@ function Bar({ value, color }: { value: number; color: string }) {
     </div>
   );
 }
-function Heatmap({ rows }: { rows: HeatCell[] }) {
-  const max = Math.max(...rows.map((row) => row.earnedBlocks), 1);
-  const values = new Map(
-    rows.map((row) => [`${row.dayOfWeek}-${row.hourOfDay}`, row.earnedBlocks]),
-  );
+
+/**
+ * 10-week calendar grid (weeks × days) of earned blocks. Fill is a continuous
+ * ember alpha ramp scaled by value/max. Per-day earned totals come from the
+ * focus-hours heatmap aggregated across hours into a per-weekday value (the only
+ * earned-block-by-day signal available client-side without a dated daily view).
+ */
+function EarnedGrid({ rows }: { rows: HeatCell[] }) {
+  const byDow = new Map<number, number>();
+  for (const row of rows) {
+    byDow.set(row.dayOfWeek, (byDow.get(row.dayOfWeek) ?? 0) + row.earnedBlocks);
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  const offset = (start.getDay() + 6) % 7; // days since Monday
+  start.setDate(start.getDate() - offset - (WEEKS - 1) * 7);
+
+  let prevMonth = -1;
+  const weeks = Array.from({ length: WEEKS }, (_, w) => {
+    const first = new Date(start);
+    first.setDate(start.getDate() + w * 7);
+    const monthLabel = first.getMonth() !== prevMonth ? MONTHS[first.getMonth()] : '';
+    prevMonth = first.getMonth();
+    const days = Array.from({ length: 7 }, (_, d) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + w * 7 + d);
+      const iso = ((date.getDay() + 6) % 7) + 1; // 1=Mon..7=Sun
+      const value = date > today ? 0 : (byDow.get(iso) ?? 0);
+      return { date, value };
+    });
+    return { monthLabel, days };
+  });
+  const max = Math.max(...weeks.flatMap((week) => week.days.map((day) => day.value)), 1);
+
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '34px repeat(24, minmax(13px, 1fr))',
-          gap: 3,
-          minWidth: 420,
-          // Cap stretch on very wide viewports so cells stay readable.
-          maxWidth: 720,
-        }}
-      >
-        {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day, index) => (
-          <Fragment key={day}>
-            <div style={{ fontSize: 10, color: tokens.t4, alignSelf: 'center' }}>
-              {day[0].toUpperCase()}
-            </div>
-            {HOURS.map((hour) => {
-              const value = values.get(`${index + 1}-${hour}`) ?? 0;
-              return (
-                <div
-                  key={hour}
-                  title={`${day} ${hour}:00 · ${value} blocks`}
-                  style={{
-                    width: '100%',
-                    minWidth: 13,
-                    height: 13,
-                    borderRadius: 3,
-                    background: value
-                      ? `color-mix(in srgb, ${tokens.ember} ${Math.max(20, Math.round((value / max) * 100))}%, ${tokens.surface3})`
-                      : tokens.surface3,
-                  }}
-                />
-              );
-            })}
-          </Fragment>
+    <div
+      role="img"
+      aria-label="Earned blocks over the last 10 weeks"
+      style={{ display: 'flex', gap: 4, maxWidth: 520 }}
+    >
+      {/* Weekday initials for orientation. */}
+      <div style={{ display: 'grid', gridTemplateRows: '12px repeat(7, 12px)', gap: 4 }}>
+        <span />
+        {WEEKDAYS.map(([name, initial]) => (
+          <span
+            key={name}
+            style={{ fontSize: 9, fontWeight: 700, color: tokens.t4, lineHeight: '12px' }}
+          >
+            {initial}
+          </span>
         ))}
       </div>
+      {weeks.map((week) => (
+        <div
+          key={week.days[0].date.toISOString()}
+          style={{
+            flex: 1,
+            display: 'grid',
+            gridTemplateRows: '12px repeat(7, 12px)',
+            gap: 4,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              color: tokens.t4,
+              lineHeight: '12px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {week.monthLabel}
+          </span>
+          {week.days.map((day) => (
+            <div
+              key={day.date.toISOString()}
+              title={`${day.date.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              })}: ${day.value} blocks`}
+              style={{
+                borderRadius: 3,
+                background:
+                  day.value > 0
+                    ? withAlpha(tokens.ember, 0.18 + 0.82 * (day.value / max))
+                    : tokens.surface3,
+              }}
+            />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

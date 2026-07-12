@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckIcon } from '../components/icons';
@@ -7,8 +7,9 @@ import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useData } from '../data/DataProvider';
+import { motivationApi } from '../lib/api';
 import type { RootNav } from '../nav/types';
-import { color, withAlpha } from '../theme/tokens';
+import { color } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 const WENT_WRONG_TAGS = ['on-plan', 'scope-creep', 'interruptions', 'low-energy', 'other'] as const;
@@ -33,19 +34,38 @@ export function EveningClose() {
     [tasks],
   );
 
-  const [planMatch, setPlanMatch] = useState(true);
   const [tag, setTag] = useState<(typeof WENT_WRONG_TAGS)[number]>('on-plan');
   const [note, setNote] = useState('');
   const [noteFocused, setNoteFocused] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
+  const [weekRate, setWeekRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    motivationApi
+      .status()
+      .then((m) => {
+        const seven = m.rates.find((r) => r.windowDays === 7);
+        if (active && seven) setWeekRate(seven.completionRate);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
-      await closeEvening({ planMatch, wentWrongTag: tag, note: note.trim() || null });
+      // The API still requires the planMatch boolean; derive it from the single tag input.
+      await closeEvening({
+        planMatch: tag === 'on-plan',
+        wentWrongTag: tag,
+        note: note.trim() || null,
+      });
       setClosed(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not close the day.');
@@ -69,7 +89,7 @@ export function EveningClose() {
             style={{
               backgroundColor: color.surface,
               borderWidth: 1,
-              borderColor: withAlpha(color.green, 0.35),
+              borderColor: color.greenLine,
               borderRadius: 18,
               paddingVertical: 26,
               paddingHorizontal: 22,
@@ -81,9 +101,9 @@ export function EveningClose() {
                 width: 46,
                 height: 46,
                 borderRadius: 999,
-                backgroundColor: withAlpha(color.green, 0.14),
+                backgroundColor: color.greenWash,
                 borderWidth: 1,
-                borderColor: withAlpha(color.green, 0.18),
+                borderColor: color.greenLine,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -106,13 +126,18 @@ export function EveningClose() {
                 {`“${note.trim()}”`}
               </Text>
             )}
-            <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 14 })}>
-              {`${todayEarnedBlocks} block${todayEarnedBlocks === 1 ? '' : 's'} banked · ${todayHonestMinutes} honest minute${todayHonestMinutes === 1 ? '' : 's'}`}
-            </Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, alignSelf: 'stretch' }}>
+              <Stat value={`${todayEarnedBlocks}`} label="Blocks banked" tint={color.ember} />
+              <Stat value={`${todayHonestMinutes}`} label="Honest minutes" tint={color.green} />
+            </View>
           </View>
-          <Pressable onPress={() => nav.goBack()} style={{ marginTop: 20 }}>
+          <Pressable
+            onPress={() => nav.goBack()}
+            accessibilityRole="button"
+            style={{ marginTop: 20 }}
+          >
             <Text style={text(700, { fontSize: 14, color: color.t3, textAlign: 'center' })}>
-              Back to Today
+              ‹ Back to Today
             </Text>
           </Pressable>
         </Enter>
@@ -129,42 +154,28 @@ export function EveningClose() {
             <Stat value={`${todayHonestMinutes}`} label="Honest minutes" tint={color.green} />
           </View>
 
-          {/* Plan match */}
-          <View style={{ paddingHorizontal: 16, paddingTop: 24 }}>
-            <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>
-              Did the day match the plan?
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[
-                { key: true, label: 'Yes' },
-                { key: false, label: 'No' },
-              ].map(({ key, label }) => {
-                const active = planMatch === key;
-                return (
-                  <Pressable
-                    key={label}
-                    onPress={() => setPlanMatch(key)}
-                    style={{
-                      flex: 1,
-                      borderRadius: 12,
-                      paddingVertical: 12,
-                      alignItems: 'center',
-                      backgroundColor: active ? color.surface3 : color.surface,
-                      borderWidth: 1,
-                      borderColor: active ? color.emberLine : color.line,
-                    }}
-                  >
-                    <Text style={text(700, { fontSize: 14, color: active ? color.t1 : color.t3 })}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          {/* Rate nudge — only when the 7-day rate slips */}
+          {weekRate !== null && weekRate < 0.7 && (
+            <View
+              style={{
+                marginHorizontal: 16,
+                marginTop: 16,
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                borderRadius: 12,
+                backgroundColor: color.emberWash,
+                borderWidth: 1,
+                borderColor: color.emberLine,
+              }}
+            >
+              <Text style={text(600, { fontSize: 13, lineHeight: 20, color: color.t2 })}>
+                {`7-day rate is at ${Math.round(weekRate * 100)}%. Tomorrow, commit one task fewer and finish it.`}
+              </Text>
             </View>
-          </View>
+          )}
 
-          {/* What got in the way */}
-          <View style={{ paddingHorizontal: 16, paddingTop: 20 }}>
+          {/* What shaped the day */}
+          <View style={{ paddingHorizontal: 16, paddingTop: 24 }}>
             <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>
               What shaped the day
             </Text>
@@ -175,6 +186,8 @@ export function EveningClose() {
                   <Pressable
                     key={t}
                     onPress={() => setTag(t)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
                     style={{
                       borderRadius: 999,
                       paddingVertical: 8,
@@ -205,7 +218,7 @@ export function EveningClose() {
               onBlur={() => setNoteFocused(false)}
               maxLength={1000}
               multiline
-              placeholder="What did today teach you?"
+              placeholder="One line on today."
               placeholderTextColor={color.t4}
               style={[
                 text(500, {

@@ -2,23 +2,18 @@ import type { Friend } from '@ekagra/core';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { MotivationPanel, RateRings } from '../components/Motivation';
 import { ScreenHeader } from '../components/ScreenHeader';
 import {
   ApiError,
   forgivenessApi,
   friendsApi,
   leaderboardApi,
-  motivationApi,
   type WeeklyLeaderboardRow,
 } from '../lib/api';
-import { color as tokens, withAlpha } from '../theme/tokens';
+import { color as tokens } from '../theme/tokens';
 
 export function Crew() {
   const { session } = useAuth();
-  const [motivation, setMotivation] = useState<Awaited<
-    ReturnType<typeof motivationApi.status>
-  > | null>(null);
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [leaderboard, setLeaderboard] = useState<WeeklyLeaderboardRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +23,9 @@ export function Crew() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([motivationApi.status(), friendsApi.list(), leaderboardApi.weekly()])
-      .then(([m, f, l]) => {
+    Promise.all([friendsApi.list(), leaderboardApi.weekly()])
+      .then(([f, l]) => {
         if (active) {
-          setMotivation(m);
           setFriends(f);
           setLeaderboard(l);
         }
@@ -83,36 +77,8 @@ export function Crew() {
 
   return (
     <div className="scroll" style={{ paddingBottom: 32 }}>
-      <ScreenHeader title="Crew" sub="A little visible momentum. Nothing personal is shared." />
+      <ScreenHeader title="Crew" sub="Weekly earned blocks. Totals only — tasks stay private." />
       <div className="enter-delay">
-        {motivation && (
-          <div
-            style={{
-              margin: '24px 16px 0',
-              padding: 16,
-              background: tokens.surface2,
-              border: `1px solid ${tokens.lineSoft}`,
-              borderRadius: 16,
-            }}
-          >
-            <div className="overline" style={{ color: tokens.t3, marginBottom: 12 }}>
-              Your rhythm
-            </div>
-            <RateRings rates={motivation.rates} />
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span
-                style={{ fontSize: 26, fontWeight: 800, color: tokens.ember }}
-                className="tabular"
-              >
-                {motivation.streakDays}
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: tokens.t3 }}>
-                day streak · misses dent rates, they do not erase them
-              </span>
-            </div>
-          </div>
-        )}
-        {motivation && <MotivationPanel status={motivation} onPlan={() => undefined} />}
         <Forgiveness
           applied={applied}
           busy={busy}
@@ -131,36 +97,92 @@ export function Crew() {
             <Muted>Complete a block to start this week’s board.</Muted>
           ) : (
             <div>
-              {leaderboard.map((row, index) => (
-                <div
-                  key={row.userId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '13px 0',
-                    borderBottom: `1px solid ${tokens.lineSoft}`,
-                    color: row.userId === session?.user.id ? tokens.t1 : tokens.t2,
-                  }}
-                >
-                  <span
-                    className="tabular"
+              {leaderboard.map((row, index) => {
+                const isYou = row.userId === session?.user.id;
+                const name = isYou ? 'You' : row.displayName || 'Crew member';
+                const top = Math.max(1, ...leaderboard.map((r) => r.earnedBlocks));
+                return (
+                  <div
+                    key={row.userId}
                     style={{
-                      width: 22,
-                      color: row.userId === session?.user.id ? tokens.ember : tokens.t4,
-                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: isYou ? '13px 10px' : '13px 0',
+                      margin: isYou ? '0 -10px' : 0,
+                      borderBottom: `1px solid ${isYou ? tokens.emberLine : tokens.lineSoft}`,
+                      border: isYou ? `1px solid ${tokens.emberLine}` : undefined,
+                      borderRadius: isYou ? 12 : 0,
+                      background: isYou ? tokens.emberWash : undefined,
+                      color: isYou ? tokens.t1 : tokens.t2,
                     }}
                   >
-                    {index + 1}
-                  </span>
-                  <span style={{ flex: 1, fontWeight: 700 }}>
-                    {row.userId === session?.user.id ? 'You' : row.displayName || 'Crew member'}
-                  </span>
-                  <span className="tabular" style={{ fontSize: 20, fontWeight: 800 }}>
-                    {row.earnedBlocks}
-                  </span>
-                </div>
-              ))}
+                    <span
+                      className="tabular"
+                      style={{
+                        width: 22,
+                        color: isYou ? tokens.ember : tokens.t4,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 999,
+                        background: tokens.surface3,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: tokens.t2,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontWeight: 700,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {name}
+                      </span>
+                      <span
+                        style={{
+                          display: 'block',
+                          marginTop: 5,
+                          height: 3,
+                          borderRadius: 2,
+                          background: tokens.surface3,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'block',
+                            width: `${Math.round((row.earnedBlocks / top) * 100)}%`,
+                            height: 3,
+                            borderRadius: 2,
+                            background: isYou ? tokens.ember : tokens.t4,
+                          }}
+                        />
+                      </span>
+                    </span>
+                    <span className="tabular" style={{ fontSize: 20, fontWeight: 800 }}>
+                      {row.earnedBlocks}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Section>
@@ -185,7 +207,7 @@ export function Crew() {
           {friends === null ? (
             <Muted>Loading friends…</Muted>
           ) : friends.length === 0 ? (
-            <Muted>Your Crew is empty. Invite someone to make progress visible together.</Muted>
+            <Muted>Your Crew is empty. Invite someone by email.</Muted>
           ) : (
             friends.map((friend) => (
               <div
@@ -311,11 +333,10 @@ function Forgiveness({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ width: 8, height: 8, borderRadius: 3, background: tokens.green }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>Forgiveness token</div>
-          <div style={{ fontSize: 12, color: tokens.t4, marginTop: 2 }}>
-            {applied ? 'Used this week.' : 'One per week. Protects one missed day.'}
-          </div>
+        <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: tokens.t2 }}>
+          {applied
+            ? 'Forgiveness token · used this week.'
+            : 'Forgiveness token · one per week, protects one missed day.'}
         </div>
         {!applied && (
           <button
@@ -346,7 +367,7 @@ const buttonStyle = {
   border: 0,
   borderRadius: 10,
   padding: '9px 12px',
-  background: withAlpha(tokens.ember, 0.14),
+  background: tokens.emberWash,
   color: tokens.ember,
   font: '800 12px Manrope, sans-serif',
   whiteSpace: 'nowrap' as const,

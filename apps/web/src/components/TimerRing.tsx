@@ -44,7 +44,7 @@ export function TimerRing({
           cy={ring.size / 2}
           r={ring.radius}
           fill="none"
-          stroke="#1A1D23"
+          stroke={tokens.trackHairline}
           strokeWidth={2}
           strokeDasharray={running ? undefined : '3 8'}
         />

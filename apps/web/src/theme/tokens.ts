@@ -17,6 +17,7 @@ export const color = {
   line: '#23262E',
   lineSoft: '#1D2028',
   lineHi: '#3A3F49',
+  trackHairline: '#1A1D23',
   // Text ramp
   t1: '#ECEDEF',
   t2: '#B9BDC4',
@@ -94,6 +95,14 @@ export const motion = {
 
 export const shadow = {
   fab: '0 10px 30px rgba(240,138,62,.30)',
+  /** React Native decomposition of `fab` (CSS blur 30 ≈ RN shadowRadius 15). */
+  fabNative: {
+    shadowColor: color.ember,
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
   sheet: '0 -8px 40px rgba(0,0,0,.55)',
 } as const;
 
@@ -118,6 +127,7 @@ export function tokensToCssVars(): string {
     '--line': color.line,
     '--line-soft': color.lineSoft,
     '--line-hi': color.lineHi,
+    '--track-hairline': color.trackHairline,
     '--t1': color.t1,
     '--t2': color.t2,
     '--t3': color.t3,

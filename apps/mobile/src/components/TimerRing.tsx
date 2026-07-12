@@ -69,9 +69,11 @@ export function TimerRing({
     opacity: breath.value,
   }));
 
+  // Glow holds a fixed opacity while running — decoupled from the arc's breath
+  // cycle so only one layer moves (DESIGN-SPEC §7: nothing pulses in lockstep).
   const glowProps = useAnimatedProps(() => ({
     strokeDashoffset: offset.value,
-    opacity: running ? breath.value * 0.2 : 0,
+    opacity: running ? 0.2 : 0,
   }));
 
   return (
@@ -88,7 +90,7 @@ export function TimerRing({
           cy={ring.size / 2}
           r={ring.radius}
           fill="none"
-          stroke="#1A1D23"
+          stroke={color.trackHairline}
           strokeWidth={2}
           strokeDasharray={running ? undefined : '3 8'}
         />

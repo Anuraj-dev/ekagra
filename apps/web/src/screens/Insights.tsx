@@ -374,10 +374,6 @@ function EarnedGrid({ rows }: { rows: HeatCell[] }) {
                 month: 'short',
                 day: 'numeric',
               })}: ${day.value} blocks`}
-              aria-label={`${day.date.toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-              })}: ${day.value} blocks`}
               style={{
                 borderRadius: 3,
                 background:

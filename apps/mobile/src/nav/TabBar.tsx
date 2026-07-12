@@ -38,7 +38,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable
             key={route.key}
             accessibilityRole="button"
-            accessibilityState={active ? { selected: true } : {}}
+            accessibilityState={{ selected: active }}
             onPress={() => {
               const event = navigation.emit({
                 type: 'tabPress',

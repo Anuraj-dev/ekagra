@@ -19,7 +19,10 @@ export function Enter({
   return (
     <Animated.View
       style={style}
-      entering={FadeInDown.duration(320).delay(delay).reduceMotion(ReduceMotion.System)}
+      entering={FadeInDown.duration(320)
+        .delay(delay)
+        .reduceMotion(ReduceMotion.System)
+        .withInitialValues({ transform: [{ translateY: 8 }] })}
     >
       {children}
     </Animated.View>

@@ -2,7 +2,7 @@ import type { Goal } from '@ekagra/core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor } from '../lib/goals';
-import { color as tokens } from '../theme/tokens';
+import { radius, space, color as tokens } from '../theme/tokens';
 
 /** Goals — goal cards with role overline and weekly-rate meters (session-local data for now). */
 export function Goals() {
@@ -45,13 +45,13 @@ export function Goals() {
             <button
               type="button"
               key={goal.id}
-              aria-label={`Edit goal ${goal.title}`}
+              aria-label={`${goal.title}, ${goal.identityRole}, ${weeklyBlocks} block${weeklyBlocks === 1 ? '' : 's'} per week. Edit goal`}
               onClick={() => setEditing(goal)}
               style={{
                 background: tokens.surface,
                 border: `1px solid ${tokens.line}`,
-                borderRadius: 16,
-                padding: 18,
+                borderRadius: radius.md,
+                padding: space[4],
                 textAlign: 'left',
                 color: 'inherit',
                 font: 'inherit',
@@ -68,7 +68,7 @@ export function Goals() {
                 e.currentTarget.style.borderColor = tokens.line;
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 3, height: 13, borderRadius: 2, background: gColor }} />
                 <span className="overline" style={{ color: tokens.t4 }}>
                   {goal.identityRole}
@@ -77,20 +77,27 @@ export function Goals() {
                   className="tabular"
                   style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: tokens.t3 }}
                 >
-                  {weeklyBlocks} block{weeklyBlocks === 1 ? '' : 's'} this session
+                  {weeklyBlocks} blocks/wk
                 </span>
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-.2px', marginTop: 8 }}>
+              <div
+                aria-hidden="true"
+                style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-.2px', marginTop: 8 }}
+              >
                 {goal.title}
               </div>
               {goal.deadline && (
-                <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 4 }}>
+                <div
+                  aria-hidden="true"
+                  style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 4 }}
+                >
                   Deadline {goal.deadline}
                 </div>
               )}
-              {/* Twin thin meters: 7-day (full) and 30-day (.45) — session-local data for now. */}
-              <RateMeter color={gColor} value={Math.min(1, weeklyBlocks / 9)} opacity={1} />
-              <RateMeter color={gColor} value={Math.min(1, weeklyBlocks / 20)} opacity={0.45} />
+              {/* One 7-day rate meter. A second (30-day) bar is deliberately absent:
+                  only one session-local total exists client-side, and rescaling the
+                  same number twice would fake an independent signal. */}
+              <RateMeter color={gColor} value={Math.min(1, weeklyBlocks / 9)} />
             </button>
           );
         })}
@@ -104,7 +111,7 @@ export function Goals() {
               lineHeight: 1.5,
             }}
           >
-            Click a goal to rename, re-role, or delete it. Rolling rates, not streaks.
+            Rolling rates, not streaks. A slow week is data.
           </p>
         )}
       </div>
@@ -178,7 +185,7 @@ function GoalComposer({
           cursor: 'pointer',
           fontSize: 13,
           fontWeight: 700,
-          color: tokens.ember,
+          color: tokens.t3,
         }}
       >
         + New goal
@@ -191,8 +198,8 @@ function GoalComposer({
       style={{
         background: tokens.surface,
         border: `1px solid ${tokens.line}`,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: radius.md,
+        padding: space[4],
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
@@ -410,7 +417,7 @@ function GoalSheet({
           position: 'relative',
           background: tokens.surface,
           borderTop: `1px solid ${tokens.line}`,
-          borderRadius: '20px 20px 0 0',
+          borderRadius: `${radius.lg}px ${radius.lg}px 0 0`,
           padding: '22px 20px 28px',
           display: 'flex',
           flexDirection: 'column',
@@ -462,7 +469,7 @@ function GoalSheet({
             onClick={() => void save()}
             style={{
               flex: 1,
-              borderRadius: 12,
+              borderRadius: radius.sm,
               border: 'none',
               padding: '15px 0',
               fontSize: 15,
@@ -496,7 +503,7 @@ function GoalSheet({
         {confirmDelete ? (
           <div
             style={{
-              borderRadius: 12,
+              borderRadius: radius.sm,
               border: '1px solid rgba(228,121,107,0.4)',
               background: tokens.dangerDim,
               padding: 14,
@@ -506,7 +513,7 @@ function GoalSheet({
             }}
           >
             <p style={{ fontSize: 13, fontWeight: 600, color: tokens.t2, lineHeight: 1.45 }}>
-              Delete “{goal.title}”? Its tasks stay but lose this goal.
+              Delete “{goal.title}”? Tasks stay, lose the goal.
             </p>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
               <button
@@ -570,7 +577,7 @@ function GoalSheet({
 const inputStyle: CSSProperties = {
   background: tokens.surface2,
   border: `1.5px solid ${tokens.line}`,
-  borderRadius: 12,
+  borderRadius: radius.sm,
   padding: 14,
   color: tokens.t1,
   fontSize: 15,
@@ -579,11 +586,13 @@ const inputStyle: CSSProperties = {
   boxSizing: 'border-box',
 };
 
-function RateMeter({ color, value, opacity }: { color: string; value: number; opacity: number }) {
+function RateMeter({ color, value }: { color: string; value: number }) {
   return (
     <div
       style={{
         marginTop: 10,
+        // 4/2 is intentionally thinner than BlockMeter's 6/3: this is a continuous
+        // rate hairline, not a countable block ledger.
         height: 4,
         borderRadius: 2,
         background: tokens.lineSoft,
@@ -596,7 +605,6 @@ function RateMeter({ color, value, opacity }: { color: string; value: number; op
           height: '100%',
           borderRadius: 2,
           background: color,
-          opacity,
           transition: 'width .3s var(--ease)',
         }}
       />

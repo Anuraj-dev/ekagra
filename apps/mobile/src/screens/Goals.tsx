@@ -6,7 +6,7 @@ import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor } from '../lib/goals';
-import { color } from '../theme/tokens';
+import { color, radius, space } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 /** Goals — goal cards with role overline and weekly-rate meters (session-local data for now). */
@@ -46,15 +46,16 @@ export function Goals() {
           return (
             <Pressable
               key={goal.id}
+              accessible
               accessibilityRole="button"
-              accessibilityLabel={`Edit goal ${goal.title}`}
+              accessibilityLabel={`${goal.title}, ${goal.identityRole}, ${weeklyBlocks} block${weeklyBlocks === 1 ? '' : 's'} per week. Edit goal`}
               onPress={() => setEditing(goal)}
               style={({ pressed }) => ({
                 backgroundColor: pressed ? color.surface3 : color.surface,
                 borderWidth: 1,
                 borderColor: pressed ? color.lineHi : color.line,
-                borderRadius: 16,
-                padding: 18,
+                borderRadius: radius.md,
+                padding: space[4],
               })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -66,7 +67,7 @@ export function Goals() {
                     text(700, { marginLeft: 'auto', fontSize: 13, color: color.t3 }),
                   ]}
                 >
-                  {weeklyBlocks} block{weeklyBlocks === 1 ? '' : 's'} this session
+                  {weeklyBlocks} blocks/wk
                 </Text>
               </View>
               <Text
@@ -84,9 +85,10 @@ export function Goals() {
                   Deadline {goal.deadline}
                 </Text>
               )}
-              {/* Twin thin meters: 7-day (full) and 30-day (.45) — session-local data for now. */}
-              <RateMeter color={gColor} value={Math.min(1, weeklyBlocks / 9)} opacity={1} />
-              <RateMeter color={gColor} value={Math.min(1, weeklyBlocks / 20)} opacity={0.45} />
+              {/* One 7-day rate meter. A second (30-day) bar is deliberately absent:
+                  only one session-local total exists client-side, and rescaling the
+                  same number twice would fake an independent signal. */}
+              <RateMeter color={gColor} value={Math.min(1, weeklyBlocks / 9)} />
             </Pressable>
           );
         })}
@@ -100,7 +102,7 @@ export function Goals() {
               lineHeight: 18,
             })}
           >
-            Tap a goal to rename, re-role, or delete it. Rolling rates, not streaks.
+            Rolling rates, not streaks. A slow week is data.
           </Text>
         )}
       </Enter>
@@ -171,7 +173,7 @@ function GoalComposer({
           paddingHorizontal: 4,
         })}
       >
-        <Text style={text(700, { fontSize: 13, color: color.ember })}>+ New goal</Text>
+        <Text style={text(700, { fontSize: 13, color: color.t3 })}>+ New goal</Text>
       </Pressable>
     );
   }
@@ -182,8 +184,8 @@ function GoalComposer({
         backgroundColor: color.surface,
         borderWidth: 1,
         borderColor: color.line,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: radius.md,
+        padding: space[4],
         gap: 10,
       }}
     >
@@ -318,8 +320,8 @@ function GoalSheet({
             backgroundColor: color.surface,
             borderTopWidth: 1,
             borderTopColor: color.line,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
+            borderTopLeftRadius: radius.lg,
+            borderTopRightRadius: radius.lg,
             paddingTop: 22,
             paddingHorizontal: 20,
             paddingBottom: 28 + insets.bottom,
@@ -366,7 +368,7 @@ function GoalSheet({
               onPress={() => void save()}
               style={{
                 flex: 1,
-                borderRadius: 12,
+                borderRadius: radius.sm,
                 paddingVertical: 15,
                 alignItems: 'center',
                 backgroundColor: canSave ? color.ember : color.lineSoft,
@@ -385,7 +387,7 @@ function GoalSheet({
           {confirmDelete ? (
             <View
               style={{
-                borderRadius: 12,
+                borderRadius: radius.sm,
                 borderWidth: 1,
                 borderColor: 'rgba(228,121,107,0.4)',
                 backgroundColor: color.dangerDim,
@@ -394,7 +396,7 @@ function GoalSheet({
               }}
             >
               <Text style={text(600, { fontSize: 13, color: color.t2, lineHeight: 19 })}>
-                Delete “{goal.title}”? Its tasks stay but lose this goal.
+                Delete “{goal.title}”? Tasks stay, lose the goal.
               </Text>
               <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
                 <Pressable disabled={busy} onPress={() => void remove()}>
@@ -426,25 +428,19 @@ const composerInput = text(500, {
   backgroundColor: color.surface2,
   borderWidth: 1.5,
   borderColor: color.line,
-  borderRadius: 12,
+  borderRadius: radius.sm,
   padding: 14,
   color: color.t1,
   fontSize: 15,
 });
 
-function RateMeter({
-  color: fill,
-  value,
-  opacity,
-}: {
-  color: string;
-  value: number;
-  opacity: number;
-}) {
+function RateMeter({ color: fill, value }: { color: string; value: number }) {
   return (
     <View
       style={{
         marginTop: 10,
+        // 4/2 is intentionally thinner than BlockMeter's 6/3: this is a continuous
+        // rate hairline, not a countable block ledger.
         height: 4,
         borderRadius: 2,
         backgroundColor: color.lineSoft,
@@ -457,7 +453,6 @@ function RateMeter({
           height: '100%',
           borderRadius: 2,
           backgroundColor: fill,
-          opacity,
         }}
       />
     </View>

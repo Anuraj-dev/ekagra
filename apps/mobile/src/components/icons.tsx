@@ -79,7 +79,7 @@ export function TasksIcon({ tint = color.t4 }: { tint?: string }) {
 
 export function SettingsIcon({ tint = color.t3 }: { tint?: string }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 20 20">
+    <Svg width={20} height={20} viewBox="0 0 20 20">
       <Path d="M3 6 L17 6" stroke={tint} strokeWidth={1.8} strokeLinecap="round" />
       <Path d="M3 14 L17 14" stroke={tint} strokeWidth={1.8} strokeLinecap="round" />
       <Circle cx={12.5} cy={6} r={2.2} fill={color.bg} stroke={tint} strokeWidth={1.8} />
@@ -120,10 +120,10 @@ export function PauseIcon({ tint = color.t1 }: { tint?: string }) {
   );
 }
 
-export function ResumeGlyph() {
+export function ResumeIcon({ fill = color.bg }: { fill?: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24">
-      <Path d="M7 4 L19 12 L7 20 Z" fill={color.bg} />
+      <Path d="M7 4 L19 12 L7 20 Z" fill={fill} />
     </Svg>
   );
 }
@@ -135,7 +135,7 @@ export function CheckIcon({ tint = color.green, size = 18 }: { tint?: string; si
         d="M3 9.5 L7.5 14 L15 4.5"
         fill="none"
         stroke={tint}
-        strokeWidth={2.6}
+        strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />

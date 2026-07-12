@@ -77,7 +77,7 @@ export function TasksIcon() {
 
 export function SettingsIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
       <path d="M3 6 L17 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       <path d="M3 14 L17 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       <circle cx="12.5" cy="6" r="2.2" fill="var(--bg)" stroke="currentColor" strokeWidth="1.8" />
@@ -118,10 +118,10 @@ export function PauseIcon({ color = '#ECEDEF' }: { color?: string }) {
   );
 }
 
-export function ResumeGlyph() {
+export function ResumeIcon({ fill = '#0E0F12' }: { fill?: string }) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 4 L19 12 L7 20 Z" fill="#0E0F12" />
+      <path d="M7 4 L19 12 L7 20 Z" fill={fill} />
     </svg>
   );
 }
@@ -133,7 +133,7 @@ export function CheckIcon({ color = '#5BBF8A', size = 18 }: { color?: string; si
         d="M3 9.5 L7.5 14 L15 4.5"
         fill="none"
         stroke={color}
-        strokeWidth="2.6"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

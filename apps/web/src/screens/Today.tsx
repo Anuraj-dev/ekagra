@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
 import { PlayIcon, SettingsIcon } from '../components/icons';
-import { MotivationPanel, RateRings } from '../components/Motivation';
 import { TaskCard } from '../components/TaskCard';
 import { CircleButton, GhostButton, SectionRow } from '../components/ui';
 import { useData } from '../data/DataProvider';
@@ -121,18 +120,6 @@ export function Today() {
         className="enter"
         style={{ position: 'relative', padding: '58px 20px 0', overflow: 'hidden' }}
       >
-        <div
-          style={{
-            position: 'absolute',
-            right: -60,
-            top: -40,
-            width: 220,
-            height: 180,
-            background:
-              'radial-gradient(circle at center, rgba(240,138,62,.10) 0%, rgba(240,138,62,0) 66%)',
-            pointerEvents: 'none',
-          }}
-        />
         <div style={{ position: 'absolute', right: 20, top: 56 }}>
           <CircleButton aria-label="Settings" onClick={() => open('settings')}>
             <SettingsIcon />
@@ -168,23 +155,9 @@ export function Today() {
             onDismiss={() => setDismissedCue(cue)}
           />
         )}
-        {visibleMotivation && (
-          <MotivationPanel status={visibleMotivation} onPlan={() => open('morning-commit')} />
-        )}
-        {visibleMotivation && (
-          <div
-            style={{
-              margin: '18px 16px 0',
-              padding: '14px 16px',
-              borderRadius: 16,
-              background: tokens.surface2,
-              border: `1px solid ${tokens.lineSoft}`,
-            }}
-          >
-            <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
-              Your rhythm
-            </div>
-            <RateRings rates={visibleMotivation.rates} />
+        {visibleMotivation?.daysSilent != null && visibleMotivation.daysSilent >= 2 && (
+          <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, margin: '16px 16px 0' }}>
+            {visibleMotivation.daysSilent} days since last block
           </div>
         )}
         <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />
@@ -196,6 +169,7 @@ export function Today() {
             <SectionRow
               label={`Committed · ${committed.length} task${committed.length === 1 ? '' : 's'}`}
               action={<GhostButton onClick={() => open('morning-commit')}>Edit</GhostButton>}
+              paddingHorizontal={16}
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
               {committed.map((task) => (
@@ -221,6 +195,7 @@ export function Today() {
               />
               {error && (
                 <div
+                  role="alert"
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
@@ -251,21 +226,8 @@ export function Today() {
                 textAlign: 'left',
               }}
             >
-              <span>
-                <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: tokens.t2 }}>
-                  Close the day
-                </span>
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: tokens.t4,
-                    marginTop: 2,
-                  }}
-                >
-                  {todayHonestMinutes} honest minute{todayHonestMinutes === 1 ? '' : 's'} so far
-                </span>
+              <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: tokens.t2 }}>
+                Close the day
               </span>
               <span style={{ color: tokens.t4, fontSize: 18 }}>›</span>
             </button>
@@ -312,13 +274,8 @@ function StartBar({
         >
           <PlayIcon fill={tokens.t4} />
         </div>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: tokens.t3 }}>
-            Select a task above to start
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 2 }}>
-            Click a committed task — a focus block always belongs to one
-          </div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: tokens.t3 }}>
+          Select a task to start
         </div>
       </div>
     );
@@ -336,8 +293,8 @@ function StartBar({
         alignItems: 'center',
         gap: 14,
         textAlign: 'left',
-        background: 'rgba(240,138,62,.10)',
-        border: '1px solid rgba(240,138,62,.45)',
+        background: tokens.emberWash,
+        border: `1px solid ${tokens.emberLine}`,
         opacity: disabled ? 0.6 : 1,
       }}
     >
@@ -355,33 +312,34 @@ function StartBar({
       >
         <PlayIcon />
       </span>
-      <span>
-        <span style={{ display: 'block', fontSize: 16, fontWeight: 800, letterSpacing: '-.1px' }}>
-          Start focus
-        </span>
-        <span
-          style={{
-            display: 'block',
-            fontSize: 12,
-            fontWeight: 600,
-            color: tokens.t3,
-            marginTop: 2,
-          }}
-        >
-          {selectedTitle}
-        </span>
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'block',
+          fontSize: 16,
+          fontWeight: 800,
+          letterSpacing: '-.1px',
+          color: tokens.t1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {selectedTitle}
       </span>
       <span
         className="tabular"
         style={{
           marginLeft: 'auto',
-          fontSize: 20,
+          flex: 'none',
+          fontSize: 15,
           fontWeight: 800,
           color: tokens.ember,
-          letterSpacing: '-.5px',
+          letterSpacing: '-.2px',
         }}
       >
-        {formatClock(25 * 60)}
+        Start · {formatClock(25 * 60)}
       </span>
     </button>
   );
@@ -406,8 +364,8 @@ function CueBanner({
     <div style={{ padding: '16px 16px 0' }}>
       <div
         style={{
-          background: 'rgba(240,138,62,.10)',
-          border: '1px solid rgba(240,138,62,.45)',
+          background: tokens.emberWash,
+          border: `1px solid ${tokens.emberLine}`,
           borderRadius: 16,
           padding: '14px 16px',
           display: 'flex',
@@ -454,7 +412,7 @@ function EmptyCommit({ onCommit }: { onCommit: () => void }) {
       <SectionRow label="No plan yet" />
       <div style={{ padding: '0 16px' }}>
         <p style={{ fontSize: 14, fontWeight: 600, color: tokens.t3, lineHeight: 1.5 }}>
-          Commit 1–3 tasks to start the day. You can't start a focus block without a plan.
+          Commit 1–3 tasks to start the day.
         </p>
         <button
           type="button"

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { EntryRow, GhostButton, SectionRow } from '../components/ui';
 import { type DeviceSummary, devicesApi } from '../lib/api';
 import {
   type CuePrefs,
@@ -11,6 +12,13 @@ import {
 } from '../lib/rituals';
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
+
+/** Consistent 12px recessed caption. */
+const caption = (c: string): React.CSSProperties => ({
+  fontSize: 12,
+  fontWeight: 600,
+  color: c,
+});
 
 /** Settings — behind the Today header icon (not a tab). Account + paired devices. */
 export function Settings() {
@@ -62,22 +70,23 @@ export function Settings() {
     }
   }
 
+  function confirmRevoke(device: DeviceSummary) {
+    const ok = window.confirm(
+      `Revoke "${device.label}"? It will lose access. This can't be undone.`,
+    );
+    if (ok) void revoke(device.id);
+  }
+
   return (
     <div className="app-frame">
       <div className="scroll" style={{ paddingBottom: 32 }}>
         <ScreenHeader title="Settings" onBack={close} />
 
         <div className="enter-delay">
-          <div style={{ padding: '24px 16px 0' }}>
-            <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
-              Account
-            </div>
-            <div
+          <SectionRow label="Account" paddingHorizontal={16} />
+          <div style={{ padding: '0 16px' }}>
+            <EntryRow
               style={{
-                background: tokens.surface2,
-                border: `1px solid ${tokens.lineSoft}`,
-                borderRadius: 16,
-                padding: '15px 18px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -94,26 +103,14 @@ export function Settings() {
               >
                 {session?.user.email ?? 'Signed in'}
               </span>
-              <button
-                type="button"
-                onClick={() => void signOut()}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: tokens.ember,
-                  flex: 'none',
-                  marginLeft: 12,
-                }}
-              >
+              <GhostButton onClick={() => void signOut()} style={{ flex: 'none', marginLeft: 12 }}>
                 Sign out
-              </button>
-            </div>
+              </GhostButton>
+            </EntryRow>
           </div>
 
-          <div style={{ padding: '24px 16px 0' }}>
-            <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
-              Ritual cues
-            </div>
+          <SectionRow label="Ritual cues" paddingHorizontal={16} />
+          <div style={{ padding: '0 16px' }}>
             <CueRow
               label="Morning commit"
               value={formatCueTime(cuePrefs.morning)}
@@ -124,25 +121,19 @@ export function Settings() {
               value={formatCueTime(cuePrefs.evening)}
               onChange={(v) => updateCue('evening', v)}
             />
-            <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t5, marginTop: 8 }}>
+            <div style={{ ...caption(tokens.t5), marginTop: 8 }}>
               Today shows a gentle in-app prompt when a cue is due.
             </div>
           </div>
 
-          <div style={{ padding: '24px 16px 0' }}>
-            <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
-              Ekagra Desk
-            </div>
+          <SectionRow label="Ekagra Desk" paddingHorizontal={16} />
+          <div style={{ padding: '0 16px' }}>
             {devices
               .filter((d) => d.revoked_at === null)
               .map((device) => (
-                <div
+                <EntryRow
                   key={device.id}
                   style={{
-                    background: tokens.surface2,
-                    border: `1px solid ${tokens.lineSoft}`,
-                    borderRadius: 16,
-                    padding: '15px 18px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -153,40 +144,35 @@ export function Settings() {
                     <div style={{ fontSize: 14, fontWeight: 700, color: tokens.t2 }}>
                       {device.label}
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 2 }}>
+                    <div style={{ ...caption(tokens.t4), marginTop: 2 }}>
                       {device.last_seen_at
                         ? `Last seen ${new Date(device.last_seen_at).toLocaleString()}`
                         : 'Never connected'}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void revoke(device.id)}
-                    style={{ fontSize: 13, fontWeight: 700, color: tokens.t4 }}
+                  <GhostButton
+                    onClick={() => confirmRevoke(device)}
+                    style={{ color: tokens.danger, flex: 'none', marginLeft: 12 }}
                   >
                     Revoke
-                  </button>
-                </div>
+                  </GhostButton>
+                </EntryRow>
               ))}
-            <button
-              type="button"
-              onClick={pairDevice}
-              style={{ fontSize: 13, fontWeight: 700, color: tokens.ember, padding: '8px 4px' }}
-            >
+            <GhostButton onClick={() => void pairDevice()} style={{ padding: '8px 4px' }}>
               + Pair a desk device
-            </button>
+            </GhostButton>
             {newToken && (
               <div
                 style={{
                   marginTop: 10,
-                  background: 'rgba(91,191,138,.12)',
-                  border: '1px solid rgba(91,191,138,.40)',
+                  background: tokens.greenWash,
+                  border: `1px solid ${tokens.greenLine}`,
                   borderRadius: 12,
                   padding: '13px 16px',
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 700, color: tokens.green }}>
-                  Device token — shown once, copy it into the firmware:
+                <div style={{ ...caption(tokens.green), fontWeight: 700 }}>
+                  Device token — copy it into the firmware now.
                 </div>
                 <code
                   style={{
@@ -224,12 +210,8 @@ function CueRow({
   onChange: (value: string) => void;
 }) {
   return (
-    <div
+    <EntryRow
       style={{
-        background: tokens.surface2,
-        border: `1px solid ${tokens.lineSoft}`,
-        borderRadius: 16,
-        padding: '13px 18px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -253,6 +235,6 @@ function CueRow({
           colorScheme: 'dark',
         }}
       />
-    </div>
+    </EntryRow>
   );
 }

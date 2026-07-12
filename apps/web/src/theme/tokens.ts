@@ -17,6 +17,7 @@ export const color = {
   line: '#23262E',
   lineSoft: '#1D2028',
   lineHi: '#3A3F49',
+  trackHairline: '#1A1D23',
   // Text ramp
   t1: '#ECEDEF',
   t2: '#B9BDC4',
@@ -35,7 +36,30 @@ export const color = {
   goalMauve: '#C48FBF',
   goalBlue: '#7C9BC4',
   goalTan: '#B7A46B',
+  // Accent tints (wells / fills only — never gradients). See spec §2.
+  emberWash: 'rgba(240,138,62,0.10)',
+  emberLine: 'rgba(240,138,62,0.45)',
+  greenWash: 'rgba(91,191,138,0.12)',
+  greenLine: 'rgba(91,191,138,0.40)',
 } as const;
+
+/**
+ * Returns a `hex` color at the given `alpha` (0–1) as an `rgba()` string. Covers the
+ * one-off tint cases the named wash/line tokens don't. Accepts #RGB or #RRGGBB.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  let h = hex.replace('#', '');
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('');
+  const n = Number.parseInt(h, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 /** Ordered palette assigned to goals deterministically. Ember is reserved for system meaning. */
 export const goalPalette = [color.goalMauve, color.goalBlue, color.green, color.goalTan] as const;
@@ -71,6 +95,14 @@ export const motion = {
 
 export const shadow = {
   fab: '0 10px 30px rgba(240,138,62,.30)',
+  /** React Native decomposition of `fab` (CSS blur 30 ≈ RN shadowRadius 15). */
+  fabNative: {
+    shadowColor: color.ember,
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
   sheet: '0 -8px 40px rgba(0,0,0,.55)',
 } as const;
 
@@ -95,6 +127,7 @@ export function tokensToCssVars(): string {
     '--line': color.line,
     '--line-soft': color.lineSoft,
     '--line-hi': color.lineHi,
+    '--track-hairline': color.trackHairline,
     '--t1': color.t1,
     '--t2': color.t2,
     '--t3': color.t3,
@@ -104,6 +137,10 @@ export function tokensToCssVars(): string {
     '--ember-hi': color.emberHi,
     '--ember-dim': color.emberDim,
     '--green': color.green,
+    '--ember-wash': color.emberWash,
+    '--ember-line': color.emberLine,
+    '--green-wash': color.greenWash,
+    '--green-line': color.greenLine,
     '--danger': color.danger,
     '--danger-dim': color.dangerDim,
     '--goal-mauve': color.goalMauve,

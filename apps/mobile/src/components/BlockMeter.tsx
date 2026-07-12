@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { color } from '../theme/tokens';
+import { color, space } from '../theme/tokens';
 
 /**
  * Segmented ledger bar (DESIGN-SPEC §6). Each segment is one estimated block;
@@ -18,29 +18,34 @@ export function BlockMeter({
   centered?: boolean;
   fixedSegmentWidth?: number;
 }) {
-  const segments = Math.max(1, total);
+  if (total <= 0) return null;
+  const segments = total;
+  const filled = Math.max(0, Math.min(earned, segments));
   return (
     <View
+      accessible
+      accessibilityLabel={`${filled} of ${segments} blocks`}
+      accessibilityRole="progressbar"
       style={{
         flexDirection: 'row',
         gap: 4,
-        marginTop: 12,
+        marginTop: space[3],
         justifyContent: centered ? 'center' : 'flex-start',
       }}
     >
       {Array.from({ length: segments }, (_, i) => {
-        const done = i < earned;
+        const done = i < filled;
         return (
           <View
+            aria-hidden
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-count homogeneous segments, never reordered
             key={`seg-${segments}-${i}`}
             style={{
               height: 6,
               borderRadius: 3,
-              flexGrow: fixedSegmentWidth ? 0 : 1,
-              flexBasis: fixedSegmentWidth ?? 0,
-              width: fixedSegmentWidth,
-              maxWidth: fixedSegmentWidth ?? 32,
+              flexGrow: 0,
+              flexShrink: 0,
+              width: fixedSegmentWidth ?? 32,
               backgroundColor: done ? tint : color.lineSoft,
             }}
           />

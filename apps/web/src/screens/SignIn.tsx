@@ -3,6 +3,21 @@ import { useAuth } from '../auth/AuthProvider';
 import { PrimaryButton } from '../components/ui';
 import { color as tokens } from '../theme/tokens';
 
+/** Map raw Supabase error messages to plain, sanitized copy. */
+function sanitizeAuthError(err: unknown): string {
+  const raw = err instanceof Error ? err.message.toLowerCase() : '';
+  if (raw.includes('invalid login') || raw.includes('invalid credentials')) {
+    return 'Wrong email or password.';
+  }
+  if (raw.includes('already registered') || raw.includes('already exists')) {
+    return 'That email is already registered.';
+  }
+  if (raw.includes('network') || raw.includes('fetch') || raw.includes('timeout')) {
+    return 'Network error — try again.';
+  }
+  return 'Something went wrong — try again.';
+}
+
 /** Minimal email/password gate. Supabase manages the session and JWT. */
 export function SignIn() {
   const { signIn, signUp } = useAuth();
@@ -15,19 +30,25 @@ export function SignIn() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setNotice(null);
+      setError('Enter your email and password.');
+      return;
+    }
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       if (mode === 'in') {
-        await signIn(email.trim(), password);
+        await signIn(trimmedEmail, password);
       } else {
-        await signUp(email.trim(), password);
-        setNotice('Account created. Check your email if confirmation is required, then sign in.');
+        await signUp(trimmedEmail, password);
+        setNotice('Account created — sign in.');
         setMode('in');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed.');
+      setError(sanitizeAuthError(err));
     } finally {
       setBusy(false);
     }
@@ -42,9 +63,6 @@ export function SignIn() {
         <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.4px', marginTop: 10 }}>
           {mode === 'in' ? 'Sign in' : 'Create your account'}
         </h1>
-        <p style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 6 }}>
-          Goal-bound focus. One block at a time.
-        </p>
       </div>
 
       <form
@@ -76,7 +94,19 @@ export function SignIn() {
         </Field>
 
         {error && (
-          <div style={{ fontSize: 13, fontWeight: 600, color: tokens.danger }}>{error}</div>
+          <div
+            role="alert"
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: tokens.danger,
+              background: tokens.dangerDim,
+              borderRadius: 12,
+              padding: '12px 14px',
+            }}
+          >
+            {error}
+          </div>
         )}
         {notice && (
           <div style={{ fontSize: 13, fontWeight: 600, color: tokens.green }}>{notice}</div>
@@ -84,7 +114,13 @@ export function SignIn() {
 
         <div style={{ marginTop: 8 }}>
           <PrimaryButton type="submit" disabled={busy}>
-            {busy ? 'Please wait…' : mode === 'in' ? 'Sign in' : 'Create account'}
+            {busy
+              ? mode === 'in'
+                ? 'Signing in…'
+                : 'Creating…'
+              : mode === 'in'
+                ? 'Sign in'
+                : 'Create account'}
           </PrimaryButton>
         </div>
       </form>

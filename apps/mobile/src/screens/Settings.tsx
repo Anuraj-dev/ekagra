@@ -1,11 +1,12 @@
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { EntryRow, GhostButton, SectionRow } from '../components/ui';
 import { type DeviceSummary, devicesApi } from '../lib/api';
 import {
   type CuePrefs,
@@ -20,7 +21,10 @@ import { currentVersion } from '../lib/updates';
 import { useUpdater } from '../lib/useUpdater';
 import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
-import { overline, tabular, text } from '../theme/typography';
+import { tabular, text } from '../theme/typography';
+
+/** Consistent 12px recessed caption. */
+const caption = (c: string) => text(600, { fontSize: 12, color: c });
 
 /** Settings — pushed modal over Today (not a tab). Account + paired devices. */
 export function Settings() {
@@ -96,22 +100,23 @@ export function Settings() {
     }
   }
 
+  function confirmRevoke(device: DeviceSummary) {
+    Alert.alert('Revoke device?', `${device.label} will lose access. This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Revoke', style: 'destructive', onPress: () => void revoke(device.id) },
+    ]);
+  }
+
   return (
     <Screen>
       <ScreenHeader title="Settings" onBack={() => nav.goBack()} topInset={insets.top} />
 
       <Enter delay={60}>
         {/* Account */}
-        <View style={{ paddingTop: 24, paddingHorizontal: 16 }}>
-          <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>Account</Text>
-          <View
+        <SectionRow label="Account" paddingHorizontal={16} />
+        <View style={{ paddingHorizontal: 16 }}>
+          <EntryRow
             style={{
-              backgroundColor: color.surface2,
-              borderWidth: 1,
-              borderColor: color.lineSoft,
-              borderRadius: 16,
-              paddingVertical: 15,
-              paddingHorizontal: 18,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -120,18 +125,15 @@ export function Settings() {
             <Text numberOfLines={1} style={text(600, { fontSize: 14, color: color.t2, flex: 1 })}>
               {session?.user.email ?? 'Signed in'}
             </Text>
-            <Pressable
-              onPress={() => void signOut()}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginLeft: 12 })}
-            >
-              <Text style={text(700, { fontSize: 13, color: color.ember })}>Sign out</Text>
-            </Pressable>
-          </View>
+            <View style={{ marginLeft: 12 }}>
+              <GhostButton onPress={() => void signOut()}>Sign out</GhostButton>
+            </View>
+          </EntryRow>
         </View>
 
         {/* Ritual cues */}
-        <View style={{ paddingTop: 24, paddingHorizontal: 16 }}>
-          <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>Ritual cues</Text>
+        <SectionRow label="Ritual cues" paddingHorizontal={16} />
+        <View style={{ paddingHorizontal: 16 }}>
           <CueRow
             label="Morning commit"
             value={formatCueTime(cuePrefs.morning)}
@@ -142,26 +144,20 @@ export function Settings() {
             value={formatCueTime(cuePrefs.evening)}
             onStep={(delta) => void adjustCue('evening', delta)}
           />
-          <Text style={text(600, { fontSize: 12, color: color.t5, marginTop: 8 })}>
+          <Text style={[caption(color.t5), { marginTop: 8 }]}>
             Local reminders only — no notifications leave the device.
           </Text>
         </View>
 
         {/* Ekagra Desk */}
-        <View style={{ paddingTop: 24, paddingHorizontal: 16 }}>
-          <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>Ekagra Desk</Text>
+        <SectionRow label="Ekagra Desk" paddingHorizontal={16} />
+        <View style={{ paddingHorizontal: 16 }}>
           {devices
             .filter((d) => d.revoked_at === null)
             .map((device) => (
-              <View
+              <EntryRow
                 key={device.id}
                 style={{
-                  backgroundColor: color.surface2,
-                  borderWidth: 1,
-                  borderColor: color.lineSoft,
-                  borderRadius: 16,
-                  paddingVertical: 15,
-                  paddingHorizontal: 18,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -170,46 +166,36 @@ export function Settings() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={text(700, { fontSize: 14, color: color.t2 })}>{device.label}</Text>
-                  <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 2 })}>
+                  <Text style={[caption(color.t4), { marginTop: 2 }]}>
                     {device.last_seen_at
                       ? `Last seen ${new Date(device.last_seen_at).toLocaleString()}`
                       : 'Never connected'}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={() => void revoke(device.id)}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginLeft: 12 })}
-                >
-                  <Text style={text(700, { fontSize: 13, color: color.t4 })}>Revoke</Text>
-                </Pressable>
-              </View>
+                <View style={{ marginLeft: 12 }}>
+                  <GhostButton tint={color.danger} onPress={() => confirmRevoke(device)}>
+                    Revoke
+                  </GhostButton>
+                </View>
+              </EntryRow>
             ))}
-          <Pressable
-            onPress={pairDevice}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.6 : 1,
-              paddingVertical: 8,
-              paddingHorizontal: 4,
-            })}
-          >
-            <Text style={text(700, { fontSize: 13, color: color.ember })}>
-              + Pair a desk device
-            </Text>
-          </Pressable>
+          <View style={{ paddingVertical: 8, paddingHorizontal: 4 }}>
+            <GhostButton onPress={pairDevice}>+ Pair a desk device</GhostButton>
+          </View>
           {newToken && (
             <View
               style={{
                 marginTop: 10,
-                backgroundColor: 'rgba(91,191,138,0.12)',
+                backgroundColor: color.greenWash,
                 borderWidth: 1,
-                borderColor: 'rgba(91,191,138,0.40)',
+                borderColor: color.greenLine,
                 borderRadius: 12,
                 paddingVertical: 13,
                 paddingHorizontal: 16,
               }}
             >
-              <Text style={text(700, { fontSize: 12, color: color.green })}>
-                Device token — shown once, copy it into the firmware:
+              <Text style={caption(color.green)}>
+                Device token — copy it into the firmware now.
               </Text>
               <View
                 style={{
@@ -229,9 +215,6 @@ export function Settings() {
                   {newToken.deviceToken}
                 </Text>
               </View>
-              <Text style={text(600, { fontSize: 11, color: color.t5, marginTop: 6 })}>
-                Shown once — copy it now.
-              </Text>
             </View>
           )}
           {error && (
@@ -242,8 +225,8 @@ export function Settings() {
         </View>
 
         {/* App updates */}
-        <View style={{ paddingTop: 24, paddingHorizontal: 16, paddingBottom: 24 }}>
-          <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>App</Text>
+        <SectionRow label="App" paddingHorizontal={16} />
+        <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
           <UpdateRow />
         </View>
       </Enter>
@@ -269,7 +252,7 @@ function UpdateRow() {
     state.phase === 'checking'
       ? 'Checking…'
       : state.phase === 'up-to-date'
-        ? 'You are on the latest version.'
+        ? 'Up to date.'
         : state.phase === 'update-available'
           ? `v${state.update.version} is available${state.update.notes?.trim() ? ` — ${state.update.notes.trim()}` : ''}`
           : state.phase === 'downloading'
@@ -280,15 +263,18 @@ function UpdateRow() {
                 ? 'Opening installer…'
                 : state.phase === 'error'
                   ? state.reason === 'offline'
-                    ? 'Network error — try again.'
+                    ? 'Offline — retry.'
                     : state.reason === 'hash-mismatch'
-                      ? 'Download was corrupted — try again.'
+                      ? 'Download was corrupted — retry.'
                       : state.reason === 'verify-failed'
-                        ? `Could not verify the download — try again.${state.detail ? ` (${state.detail})` : ''}`
+                        ? 'Verify failed — retry.'
                         : state.reason === 'missing-asset'
                           ? 'The APK is missing from the release.'
                           : 'Could not launch the installer.'
                   : null;
+
+  // Raw failure cause is debug-only; users see the terse status above.
+  const debugDetail = __DEV__ && state.phase === 'error' && state.detail ? state.detail : null;
 
   const actionLabel =
     state.phase === 'update-available'
@@ -303,32 +289,18 @@ function UpdateRow() {
   };
 
   return (
-    <View
-      style={{
-        backgroundColor: color.surface2,
-        borderWidth: 1,
-        borderColor: color.lineSoft,
-        borderRadius: 16,
-        paddingVertical: 15,
-        paddingHorizontal: 18,
-      }}
-    >
+    <EntryRow>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={text(700, { fontSize: 14, color: color.t2, flex: 1 })}>
           Ekagra v{currentVersion()}
         </Text>
-        <Pressable
-          disabled={busy}
-          onPress={onAction}
-          style={({ pressed }) => ({ opacity: pressed || busy ? 0.6 : 1, marginLeft: 12 })}
-        >
-          <Text style={text(700, { fontSize: 13, color: color.ember })}>{actionLabel}</Text>
-        </Pressable>
+        <View style={{ marginLeft: 12, opacity: busy ? 0.6 : 1 }}>
+          <GhostButton onPress={busy ? undefined : onAction}>{actionLabel}</GhostButton>
+        </View>
       </View>
-      {status && (
-        <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 6 })}>{status}</Text>
-      )}
-    </View>
+      {status && <Text style={[caption(color.t4), { marginTop: 6 }]}>{status}</Text>}
+      {debugDetail && <Text style={[caption(color.t5), { marginTop: 4 }]}>{debugDetail}</Text>}
+    </EntryRow>
   );
 }
 
@@ -343,14 +315,8 @@ function CueRow({
   onStep: (deltaMinutes: number) => void;
 }) {
   return (
-    <View
+    <EntryRow
       style={{
-        backgroundColor: color.surface2,
-        borderWidth: 1,
-        borderColor: color.lineSoft,
-        borderRadius: 16,
-        paddingVertical: 12,
-        paddingHorizontal: 18,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -370,7 +336,7 @@ function CueRow({
         </Text>
         <Stepper glyph="+" onPress={() => onStep(15)} />
       </View>
-    </View>
+    </EntryRow>
   );
 }
 

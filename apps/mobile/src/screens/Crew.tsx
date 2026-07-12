@@ -1,31 +1,24 @@
 import type { Friend } from '@ekagra/core';
-import { useNavigation } from '@react-navigation/native';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
-import { MotivationPanel, RateRings } from '../components/Motivation';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
+import { ScreenHeader } from '../components/ScreenHeader';
 import {
   ApiError,
   forgivenessApi,
   friendsApi,
   leaderboardApi,
-  motivationApi,
   type WeeklyLeaderboardRow,
 } from '../lib/api';
-import type { RootNav } from '../nav/types';
 import { color } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 export function Crew() {
   const insets = useSafeAreaInsets();
-  const nav = useNavigation<RootNav>();
   const { session } = useAuth();
-  const [motivation, setMotivation] = useState<Awaited<
-    ReturnType<typeof motivationApi.status>
-  > | null>(null);
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [leaderboard, setLeaderboard] = useState<WeeklyLeaderboardRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,10 +27,9 @@ export function Crew() {
   const [applied, setApplied] = useState(false);
   useEffect(() => {
     let active = true;
-    Promise.all([motivationApi.status(), friendsApi.list(), leaderboardApi.weekly()])
-      .then(([m, f, l]) => {
+    Promise.all([friendsApi.list(), leaderboardApi.weekly()])
+      .then(([f, l]) => {
         if (active) {
-          setMotivation(m);
           setFriends(f);
           setLeaderboard(l);
         }
@@ -87,30 +79,12 @@ export function Crew() {
   );
   return (
     <Screen>
-      <Enter style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-        <Text style={text(800, { fontSize: 26, letterSpacing: -0.4, color: color.t1 })}>Crew</Text>
-        <Text style={text(600, { fontSize: 13, color: color.t3, marginTop: 6 })}>
-          A little visible momentum. Nothing personal is shared.
-        </Text>
-      </Enter>
+      <ScreenHeader
+        title="Crew"
+        sub="Weekly earned blocks. Totals only — tasks stay private."
+        topInset={insets.top}
+      />
       <Enter delay={60}>
-        {motivation && (
-          <View style={card}>
-            <Text style={[overline, { color: color.t3, marginBottom: 12 }]}>Your rhythm</Text>
-            <RateRings rates={motivation.rates} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
-              <Text style={[tabular, text(800, { fontSize: 26, color: color.ember })]}>
-                {motivation.streakDays}
-              </Text>
-              <Text style={text(700, { flex: 1, fontSize: 12, color: color.t3 })}>
-                day streak · misses dent rates, they do not erase them
-              </Text>
-            </View>
-          </View>
-        )}
-        {motivation && (
-          <MotivationPanel status={motivation} onPlan={() => nav.navigate('MorningCommit')} />
-        )}
         <Forgiveness
           applied={applied}
           busy={busy}
@@ -128,32 +102,80 @@ export function Crew() {
           ) : leaderboard.length === 0 ? (
             <Muted>Complete a block to start this week’s board.</Muted>
           ) : (
-            leaderboard.map((row, index) => (
-              <View key={row.userId} style={rowStyle}>
-                <Text
+            leaderboard.map((row, index) => {
+              const isYou = row.userId === session?.user.id;
+              const name = isYou ? 'You' : row.displayName || 'Crew member';
+              const top = Math.max(1, ...leaderboard.map((r) => r.earnedBlocks));
+              return (
+                <View
+                  key={row.userId}
                   style={[
-                    tabular,
-                    text(800, {
-                      width: 22,
-                      color: row.userId === session?.user.id ? color.ember : color.t4,
-                    }),
+                    rowStyle,
+                    isYou && {
+                      backgroundColor: color.emberWash,
+                      borderWidth: 1,
+                      borderColor: color.emberLine,
+                      borderBottomColor: color.emberLine,
+                      borderRadius: 12,
+                      paddingHorizontal: 10,
+                      marginHorizontal: -10,
+                    },
                   ]}
                 >
-                  {index + 1}
-                </Text>
-                <Text
-                  style={text(700, {
-                    flex: 1,
-                    color: row.userId === session?.user.id ? color.t1 : color.t2,
-                  })}
-                >
-                  {row.userId === session?.user.id ? 'You' : row.displayName || 'Crew member'}
-                </Text>
-                <Text style={[tabular, text(800, { fontSize: 20, color: color.t1 })]}>
-                  {row.earnedBlocks}
-                </Text>
-              </View>
-            ))
+                  <Text
+                    style={[
+                      tabular,
+                      text(800, { width: 22, color: isYou ? color.ember : color.t4 }),
+                    ]}
+                  >
+                    {index + 1}
+                  </Text>
+                  <View
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 999,
+                      backgroundColor: color.surface3,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={text(800, { fontSize: 11, color: color.t2 })}>
+                      {name.slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={text(700, { color: isYou ? color.t1 : color.t2 })}
+                    >
+                      {name}
+                    </Text>
+                    <View
+                      style={{
+                        marginTop: 5,
+                        height: 3,
+                        borderRadius: 2,
+                        backgroundColor: color.surface3,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: `${Math.round((row.earnedBlocks / top) * 100)}%`,
+                          height: 3,
+                          borderRadius: 2,
+                          backgroundColor: isYou ? color.ember : color.t4,
+                        }}
+                      />
+                    </View>
+                  </View>
+                  <Text style={[tabular, text(800, { fontSize: 20, color: color.t1 })]}>
+                    {row.earnedBlocks}
+                  </Text>
+                </View>
+              );
+            })
           )}
         </Section>
         <Section title={`Friends · ${accepted.length}/12`}>
@@ -165,6 +187,7 @@ export function Crew() {
               placeholderTextColor={color.t4}
               autoCapitalize="none"
               keyboardType="email-address"
+              accessibilityLabel="Friend email"
               style={inputStyle}
             />
             <Action label="Invite" disabled={busy || !invite.trim()} onPress={inviteFriend} />
@@ -172,7 +195,7 @@ export function Crew() {
           {friends === null ? (
             <Muted>Loading friends…</Muted>
           ) : friends.length === 0 ? (
-            <Muted>Your Crew is empty. Invite someone to make progress visible together.</Muted>
+            <Muted>Your Crew is empty. Invite someone by email.</Muted>
           ) : (
             friends.map((friend) => (
               <View key={friend.id} style={rowStyle}>
@@ -224,31 +247,10 @@ export function Crew() {
             </Text>
           )}
         </Section>
-        <Text
-          style={text(600, {
-            paddingHorizontal: 20,
-            paddingTop: 20,
-            fontSize: 12,
-            lineHeight: 18,
-            color: color.t5,
-          })}
-        >
-          Only names and earned blocks appear here. Tasks, reflections, and day details stay
-          private.
-        </Text>
       </Enter>
     </Screen>
   );
 }
-const card = {
-  marginTop: 24,
-  marginHorizontal: 16,
-  padding: 16,
-  backgroundColor: color.surface2,
-  borderWidth: 1,
-  borderColor: color.lineSoft,
-  borderRadius: 16,
-} as const;
 const rowStyle = {
   flexDirection: 'row',
   alignItems: 'center',
@@ -312,11 +314,14 @@ function Action({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => ({
         paddingHorizontal: 12,
         paddingVertical: 9,
         borderRadius: 10,
-        backgroundColor: muted ? 'transparent' : 'rgba(240,138,62,0.14)',
+        backgroundColor: muted ? 'transparent' : color.emberWash,
         opacity: pressed || disabled ? 0.5 : 1,
       })}
     >
@@ -352,12 +357,11 @@ function Forgiveness({
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={{ width: 8, height: 8, borderRadius: 3, backgroundColor: color.green }} />
-        <View style={{ flex: 1 }}>
-          <Text style={text(700, { fontSize: 14, color: color.t2 })}>Forgiveness token</Text>
-          <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 2 })}>
-            {applied ? 'Used this week.' : 'One per week. Protects one missed day.'}
-          </Text>
-        </View>
+        <Text style={text(700, { flex: 1, fontSize: 13, color: color.t2 })}>
+          {applied
+            ? 'Forgiveness token · used this week.'
+            : 'Forgiveness token · one per week, protects one missed day.'}
+        </Text>
         {!applied && <Action label="Use" disabled={busy} onPress={onApply} muted />}
       </View>
       {error && (

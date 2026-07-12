@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GoalMark } from '../components/GoalMark';
 import { CheckIcon } from '../components/icons';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
@@ -53,14 +54,14 @@ export function MorningCommit() {
     }
   }
 
-  // The server contract requires 1–3 tasks; never offer a commit it will reject.
-  const canCommit = selected.length >= 1 && selected.length <= 3;
+  // The server contract requires 1–3 tasks; toggle() already caps the upper bound at 3.
+  const canCommit = selected.length >= 1;
 
   return (
     <Screen scroll={false}>
       <ScreenHeader
         title="Morning Commit"
-        sub="Pick up to 3. Small and true beats big and false."
+        sub="Pick 1–3. Small and true beats big and false."
         onBack={() => nav.goBack()}
         topInset={insets.top}
       />
@@ -94,6 +95,8 @@ export function MorningCommit() {
             return (
               <Pressable
                 key={task.id}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked }}
                 onPress={() => toggle(task.id)}
                 style={{
                   flexDirection: 'row',
@@ -101,7 +104,7 @@ export function MorningCommit() {
                   gap: 14,
                   backgroundColor: checked ? color.surface3 : color.surface,
                   borderWidth: 1,
-                  borderColor: checked ? 'rgba(240,138,62,0.45)' : color.line,
+                  borderColor: checked ? color.emberLine : color.line,
                   borderRadius: 16,
                   padding: 16,
                 }}
@@ -121,20 +124,13 @@ export function MorningCommit() {
                   {checked && <CheckIcon tint={color.bg} size={12} />}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View
-                      style={{ width: 3, height: 12, borderRadius: 2, backgroundColor: gColor }}
-                    />
-                    <Text style={text(700, { fontSize: 12, color: gColor })}>
-                      {goalName(task.goalId, goals)}
-                    </Text>
-                  </View>
+                  <GoalMark color={gColor} name={goalName(task.goalId, goals)} />
                   <Text style={text(700, { fontSize: 16, color: color.t1, marginTop: 6 })}>
                     {task.title}
                   </Text>
                 </View>
                 <Text style={[tabular, text(600, { fontSize: 12, color: color.t4 })]}>
-                  est {est}
+                  {est} block{est === 1 ? '' : 's'}
                 </Text>
               </Pressable>
             );
@@ -169,7 +165,7 @@ export function MorningCommit() {
         >
           <Text style={text(800, { fontSize: 16, color: canCommit ? color.bg : color.t4 })}>
             {selected.length === 0
-              ? 'Select at least one task'
+              ? 'Pick 1–3 tasks'
               : `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`}
           </Text>
         </Pressable>

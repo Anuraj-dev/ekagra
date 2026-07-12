@@ -1,7 +1,8 @@
 import type { DistractionTag, Session } from '@ekagra/core';
 import { DISTRACTION_TAGS, remainingMs } from '@ekagra/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeftIcon, PauseIcon, ResumeGlyph } from '../components/icons';
+import { GoalMark } from '../components/GoalMark';
+import { ChevronLeftIcon, PauseIcon, ResumeIcon } from '../components/icons';
 import { TimerRing } from '../components/TimerRing';
 import { useData } from '../data/DataProvider';
 import { devicesApi } from '../lib/api';
@@ -9,9 +10,13 @@ import { blockLabel, formatClock } from '../lib/format';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { timerStateFromSession } from '../lib/timer';
 import { useNav } from '../nav/navigation';
-import { color as tokens } from '../theme/tokens';
+import { shadow, space, color as tokens, withAlpha } from '../theme/tokens';
 
 type EndChoice = DistractionTag | 'done-early';
+
+// Bottom clearance under the ghost "End session" — intentionally off the 4px
+// scale (tuned to the FAB's optical weight).
+const CONTROLS_BOTTOM = 46;
 
 const TAG_COPY: Record<EndChoice, string> = {
   distraction: 'Distraction',
@@ -202,12 +207,12 @@ export function Focus() {
           style={{
             position: 'absolute',
             left: '50%',
-            top: '38%',
+            // Anchored ~70% down the screen per DESIGN-SPEC §8.
+            top: '60%',
             width: 600,
             height: 600,
             transform: 'translate(-50%,-50%)',
-            background:
-              'radial-gradient(circle at center, rgba(240,138,62,.08) 0%, rgba(240,138,62,0) 58%)',
+            background: `radial-gradient(circle at center, ${tokens.emberWash} 0%, ${withAlpha(tokens.ember, 0)} 58%)`,
             pointerEvents: 'none',
             zIndex: 0,
           }}
@@ -261,28 +266,20 @@ export function Focus() {
                   {session.status === 'completed' ? 'Block earned' : 'Session ended'}
                 </span>
               </div>
-            ) : running ? (
+            ) : (
+              // Overline stays a static "Focus" running or paused — paused reads quiet
+              // up top; the ring sub-label and FAB carry the state (DESIGN-SPEC §8).
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 6, height: 6, borderRadius: 2, background: tokens.ember }} />
+                <span
+                  style={{
+                    width: 3,
+                    height: 12,
+                    borderRadius: 2,
+                    background: running ? tokens.ember : tokens.t4,
+                  }}
+                />
                 <span className="overline" style={{ color: tokens.t2 }}>
                   Focus
-                </span>
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  background: tokens.surface,
-                  border: `1px solid ${tokens.line}`,
-                  borderRadius: 999,
-                  padding: '6px 14px',
-                }}
-              >
-                <span style={{ width: 6, height: 6, borderRadius: 2, background: tokens.ember }} />
-                <span className="overline" style={{ color: tokens.ember }}>
-                  Paused
                 </span>
               </div>
             )}
@@ -338,11 +335,8 @@ export function Focus() {
             >
               {task.title}
             </div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <span style={{ width: 3, height: 13, borderRadius: 2, background: gColor }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: gColor }}>
-                {goalName(task.goalId, goals)}
-              </span>
+            <div style={{ marginTop: 12 }}>
+              <GoalMark color={gColor} name={goalName(task.goalId, goals)} />
             </div>
             <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 14 }}>
               {Array.from({ length: total }, (_, i) => (
@@ -354,7 +348,7 @@ export function Focus() {
                     height: 6,
                     borderRadius: 3,
                     background:
-                      i < earned ? (running ? gColor : 'rgba(196,143,191,.45)') : tokens.lineSoft,
+                      i < earned ? (running ? gColor : withAlpha(gColor, 0.45)) : tokens.lineSoft,
                   }}
                 />
               ))}
@@ -369,8 +363,8 @@ export function Focus() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 22,
-          marginBottom: 46,
+          gap: space[6],
+          marginBottom: CONTROLS_BOTTOM,
           zIndex: 1,
           visibility: terminal ? 'hidden' : 'visible',
         }}
@@ -400,12 +394,12 @@ export function Focus() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: tokens.ember,
-                  border: '1px solid rgba(255,178,94,.34)',
-                  boxShadow: '0 10px 30px rgba(240,138,62,.30)',
+                  border: `1px solid ${withAlpha(tokens.emberHi, 0.34)}`,
+                  boxShadow: shadow.fab,
                 }
           }
         >
-          {running ? <PauseIcon /> : <ResumeGlyph />}
+          {running ? <PauseIcon /> : <ResumeIcon />}
         </button>
         <button
           type="button"
@@ -417,7 +411,7 @@ export function Focus() {
             color: running ? tokens.t4 : tokens.t3,
           }}
         >
-          End session — minutes are kept
+          End session
         </button>
       </div>
 
@@ -435,7 +429,7 @@ export function Focus() {
             zIndex: 1,
           }}
         >
-          {running ? 'Desk light mirrors this timer' : 'Paused · desk light dimmed'}
+          {running ? 'Desk light: mirroring' : 'Desk light: dimmed'}
         </div>
       )}
 
@@ -443,8 +437,6 @@ export function Focus() {
       {dismissNote && <DismissToast running={running} />}
       {ending && (
         <EndSheet
-          running={running}
-          timeLabel={formatClock(Math.ceil(remaining / 1000))}
           onCancel={() => {
             setEnding(false);
             // Scrim-dismiss used to silently return to the session — make the
@@ -471,8 +463,8 @@ function EarnedToast() {
         left: 20,
         right: 20,
         bottom: 140,
-        background: 'rgba(91,191,138,.12)',
-        border: '1px solid rgba(91,191,138,.40)',
+        background: tokens.greenWash,
+        border: `1px solid ${tokens.greenLine}`,
         borderRadius: 999,
         padding: '12px 18px',
         textAlign: 'center',
@@ -483,7 +475,7 @@ function EarnedToast() {
         animation: 'toastRise 400ms var(--ease) both',
       }}
     >
-      Block earned. Banked.
+      Block banked.
     </div>
   );
 }
@@ -509,19 +501,15 @@ function DismissToast({ running }: { running: boolean }) {
         animation: 'toastRise 400ms var(--ease) both',
       }}
     >
-      {running ? 'Session continues — timer never stopped' : 'Session continues — still paused'}
+      {running ? 'Still running.' : 'Still paused.'}
     </div>
   );
 }
 
 function EndSheet({
-  running,
-  timeLabel,
   onCancel,
   onPick,
 }: {
-  running: boolean;
-  timeLabel: string;
   onCancel: () => void;
   onPick: (choice: EndChoice) => void;
 }) {
@@ -611,47 +599,9 @@ function EndSheet({
           padding: '22px 20px 32px',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div className="overline" style={{ color: tokens.t3 }}>
-            What ended it?
-          </div>
-          {/* Honest state: the block behind this sheet has not stopped. */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              background: tokens.surface2,
-              border: `1px solid ${tokens.lineSoft}`,
-              borderRadius: 999,
-              padding: '5px 11px',
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 2,
-                background: running ? tokens.ember : tokens.t4,
-              }}
-            />
-            <span className="tabular" style={{ fontSize: 12, fontWeight: 700, color: tokens.t3 }}>
-              {timeLabel}
-            </span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: tokens.t4 }}>
-              {running ? 'still counting' : 'paused'}
-            </span>
-          </div>
+        <div className="overline" style={{ color: tokens.t3 }}>
+          What ended it?
         </div>
-        <p style={{ fontSize: 13, fontWeight: 600, color: tokens.t4, marginTop: 6 }}>
-          Minutes are kept either way. Click outside to keep going.
-        </p>
         <button
           type="button"
           onClick={() => onPick('done-early')}

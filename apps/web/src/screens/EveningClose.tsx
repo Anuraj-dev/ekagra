@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CheckIcon } from '../components/icons';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useData } from '../data/DataProvider';
+import { motivationApi } from '../lib/api';
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
 
@@ -26,18 +27,37 @@ export function EveningClose() {
     [tasks],
   );
 
-  const [planMatch, setPlanMatch] = useState(true);
   const [tag, setTag] = useState<(typeof WENT_WRONG_TAGS)[number]>('on-plan');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
+  const [weekRate, setWeekRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    motivationApi
+      .status()
+      .then((m) => {
+        const seven = m.rates.find((r) => r.windowDays === 7);
+        if (active && seven) setWeekRate(seven.completionRate);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
-      await closeEvening({ planMatch, wentWrongTag: tag, note: note.trim() || null });
+      // The API still requires the planMatch boolean; derive it from the single tag input.
+      await closeEvening({
+        planMatch: tag === 'on-plan',
+        wentWrongTag: tag,
+        note: note.trim() || null,
+      });
       setClosed(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not close the day.');
@@ -56,7 +76,7 @@ export function EveningClose() {
             <div
               style={{
                 background: tokens.surface,
-                border: '1px solid rgba(91,191,138,.35)',
+                border: `1px solid ${tokens.greenLine}`,
                 borderRadius: 18,
                 padding: '26px 22px',
                 textAlign: 'center',
@@ -67,8 +87,8 @@ export function EveningClose() {
                   width: 46,
                   height: 46,
                   borderRadius: 999,
-                  background: 'rgba(91,191,138,.14)',
-                  border: '1px solid rgba(91,191,138,.18)',
+                  background: tokens.greenWash,
+                  border: `1px solid ${tokens.greenLine}`,
                   margin: '0 auto',
                   display: 'flex',
                   alignItems: 'center',
@@ -91,9 +111,9 @@ export function EveningClose() {
                   “{note.trim()}”
                 </div>
               )}
-              <div style={{ fontSize: 12, fontWeight: 600, color: tokens.t4, marginTop: 14 }}>
-                {todayEarnedBlocks} block{todayEarnedBlocks === 1 ? '' : 's'} banked ·{' '}
-                {todayHonestMinutes} honest minute{todayHonestMinutes === 1 ? '' : 's'}
+              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                <Stat value={`${todayEarnedBlocks}`} label="Blocks banked" color={tokens.ember} />
+                <Stat value={`${todayHonestMinutes}`} label="Honest minutes" color={tokens.green} />
               </div>
             </div>
             <button
@@ -108,7 +128,7 @@ export function EveningClose() {
                 color: tokens.t3,
               }}
             >
-              Back to Today
+              ‹ Back to Today
             </button>
           </div>
         ) : (
@@ -124,39 +144,28 @@ export function EveningClose() {
               <Stat value={`${todayHonestMinutes}`} label="Honest minutes" color={tokens.green} />
             </div>
 
-            {/* Plan match */}
-            <div style={{ padding: '24px 16px 0' }}>
-              <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
-                Did the day match the plan?
+            {/* Rate nudge — only when the 7-day rate slips */}
+            {weekRate !== null && weekRate < 0.7 && (
+              <div
+                style={{
+                  margin: '16px 16px 0',
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  background: tokens.emberWash,
+                  border: `1px solid ${tokens.emberLine}`,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.55,
+                  color: tokens.t2,
+                }}
+              >
+                7-day rate is at {Math.round(weekRate * 100)}%. Tomorrow, commit one task fewer and
+                finish it.
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[
-                  { key: true, label: 'Yes' },
-                  { key: false, label: 'No' },
-                ].map(({ key, label }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setPlanMatch(key)}
-                    style={{
-                      flex: 1,
-                      borderRadius: 12,
-                      padding: '12px',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      background: planMatch === key ? tokens.surface3 : tokens.surface,
-                      border: `1px solid ${planMatch === key ? 'rgba(240,138,62,.45)' : tokens.line}`,
-                      color: planMatch === key ? tokens.t1 : tokens.t3,
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
-            {/* What got in the way */}
-            <div style={{ padding: '20px 16px 0' }}>
+            {/* What shaped the day */}
+            <div style={{ padding: '24px 16px 0' }}>
               <div className="overline" style={{ color: tokens.t3, marginBottom: 10 }}>
                 What shaped the day
               </div>
@@ -166,13 +175,14 @@ export function EveningClose() {
                     key={t}
                     type="button"
                     onClick={() => setTag(t)}
+                    aria-pressed={tag === t}
                     style={{
                       borderRadius: 999,
                       padding: '8px 14px',
                       fontSize: 13,
                       fontWeight: 700,
-                      background: tag === t ? 'rgba(240,138,62,.10)' : tokens.surface,
-                      border: `1px solid ${tag === t ? 'rgba(240,138,62,.45)' : tokens.line}`,
+                      background: tag === t ? tokens.emberWash : tokens.surface,
+                      border: `1px solid ${tag === t ? tokens.emberLine : tokens.line}`,
                       color: tag === t ? tokens.ember : tokens.t3,
                     }}
                   >
@@ -191,7 +201,7 @@ export function EveningClose() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={1000}
-                placeholder="What did today teach you?"
+                placeholder="One line on today."
                 style={{
                   width: '100%',
                   height: 104,

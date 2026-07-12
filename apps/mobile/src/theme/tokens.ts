@@ -16,4 +16,5 @@ export {
   ring,
   shadow,
   space,
+  withAlpha,
 } from '../../../web/src/theme/tokens';

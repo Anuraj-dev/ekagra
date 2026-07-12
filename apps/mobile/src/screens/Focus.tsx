@@ -11,7 +11,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeftIcon, PauseIcon, ResumeGlyph } from '../components/icons';
+import { GoalMark } from '../components/GoalMark';
+import { ChevronLeftIcon, PauseIcon, ResumeIcon } from '../components/icons';
 import { TimerRing } from '../components/TimerRing';
 import { useData } from '../data/DataProvider';
 import { devicesApi } from '../lib/api';
@@ -20,10 +21,14 @@ import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { nudgeBlockComplete } from '../lib/notifications';
 import { timerStateFromSession } from '../lib/timer';
 import type { RootNav } from '../nav/types';
-import { color } from '../theme/tokens';
-import { overline, tabular, text } from '../theme/typography';
+import { color, shadow, space, withAlpha } from '../theme/tokens';
+import { overline, text } from '../theme/typography';
 
 type EndChoice = DistractionTag | 'done-early';
+
+// Bottom clearance under the ghost "End session" — intentionally off the 4px
+// scale (tuned to the FAB's optical weight against the home indicator).
+const CONTROLS_BOTTOM = 46;
 
 const TAG_COPY: Record<EndChoice, string> = {
   distraction: 'Distraction',
@@ -189,19 +194,20 @@ export function Focus() {
   return (
     <View style={{ flex: 1, backgroundColor: color.bgFocus }}>
       {running && (
-        // Vignette: solid low-opacity ember radial approximation (DESIGN-SPEC §11).
+        // Vignette: solid ember-wash radial approximation, anchored ~70% down
+        // the screen (DESIGN-SPEC §8/§11).
         <View
           pointerEvents="none"
           style={{
             position: 'absolute',
             left: '50%',
-            top: '32%',
+            top: '60%',
             width: 600,
             height: 600,
             marginLeft: -300,
             marginTop: -300,
             borderRadius: 300,
-            backgroundColor: 'rgba(240,138,62,0.05)',
+            backgroundColor: color.emberWash,
           }}
         />
       )}
@@ -235,33 +241,19 @@ export function Focus() {
             <ChevronLeftIcon tint={color.t2} />
           </Pressable>
           <View style={{ alignItems: 'center', gap: 6 }}>
-            {running ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View
-                  style={{ width: 6, height: 6, borderRadius: 2, backgroundColor: color.ember }}
-                />
-                <Text style={[overline, { color: color.t2 }]}>Focus</Text>
-              </View>
-            ) : (
+            {/* Overline stays a static "FOCUS" in both states — paused reads quiet up
+                top; the ring sub-label and FAB carry the state (DESIGN-SPEC §8). */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  backgroundColor: color.surface,
-                  borderWidth: 1,
-                  borderColor: color.line,
-                  borderRadius: 999,
-                  paddingVertical: 6,
-                  paddingHorizontal: 14,
+                  width: 3,
+                  height: 12,
+                  borderRadius: 2,
+                  backgroundColor: running ? color.ember : color.t4,
                 }}
-              >
-                <View
-                  style={{ width: 6, height: 6, borderRadius: 2, backgroundColor: color.ember }}
-                />
-                <Text style={[overline, { color: color.ember }]}>Paused</Text>
-              </View>
-            )}
+              />
+              <Text style={[overline, { color: color.t2 }]}>Focus</Text>
+            </View>
             <Text style={[overline, { fontSize: 11, letterSpacing: 1.2, color: color.t4 }]}>
               {blockLabel(earned + 1, total)}
             </Text>
@@ -295,11 +287,8 @@ export function Focus() {
             >
               {task.title}
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: gColor }} />
-              <Text style={text(700, { fontSize: 12, color: gColor })}>
-                {goalName(task.goalId, goals)}
-              </Text>
+            <View style={{ marginTop: 12 }}>
+              <GoalMark color={gColor} name={goalName(task.goalId, goals)} />
             </View>
             <View style={{ flexDirection: 'row', gap: 4, marginTop: 14 }}>
               {Array.from({ length: total }, (_, i) => (
@@ -311,7 +300,7 @@ export function Focus() {
                     height: 6,
                     borderRadius: 3,
                     backgroundColor:
-                      i < earned ? (running ? gColor : 'rgba(196,143,191,0.45)') : color.lineSoft,
+                      i < earned ? (running ? gColor : withAlpha(gColor, 0.45)) : color.lineSoft,
                   }}
                 />
               ))}
@@ -321,7 +310,13 @@ export function Focus() {
       </View>
 
       {/* Controls */}
-      <View style={{ alignItems: 'center', gap: 22, marginBottom: 46 + insets.bottom }}>
+      <View
+        style={{
+          alignItems: 'center',
+          gap: space[6],
+          marginBottom: CONTROLS_BOTTOM + insets.bottom,
+        }}
+      >
         <Pressable
           accessibilityLabel={running ? 'Pause timer' : 'Resume timer'}
           onPress={togglePause}
@@ -346,22 +341,18 @@ export function Focus() {
                   justifyContent: 'center',
                   backgroundColor: color.ember,
                   borderWidth: 1,
-                  borderColor: 'rgba(255,178,94,0.34)',
-                  shadowColor: color.ember,
-                  shadowOpacity: 0.3,
-                  shadowRadius: 15,
-                  shadowOffset: { width: 0, height: 10 },
-                  elevation: 8,
+                  borderColor: withAlpha(color.emberHi, 0.34),
+                  ...shadow.fabNative,
                 }
           }
         >
-          {running ? <PauseIcon /> : <ResumeGlyph />}
+          {running ? <PauseIcon /> : <ResumeIcon />}
         </Pressable>
         <Pressable onPress={() => setEnding(true)}>
           <Text
             style={text(700, { fontSize: running ? 13 : 14, color: running ? color.t4 : color.t3 })}
           >
-            End session — minutes are kept
+            End session
           </Text>
         </Pressable>
       </View>
@@ -377,7 +368,7 @@ export function Focus() {
           }}
         >
           <Text style={text(600, { fontSize: 11, color: color.t5 })}>
-            {running ? 'Desk light mirrors this timer' : 'Paused · desk light dimmed'}
+            {running ? 'Desk light: mirroring' : 'Desk light: dimmed'}
           </Text>
         </View>
       )}
@@ -386,8 +377,6 @@ export function Focus() {
       {dismissNote && <DismissToast bottom={140 + insets.bottom} running={running} />}
       {ending && (
         <EndSheet
-          running={running}
-          timeLabel={formatClock(Math.ceil(remaining / 1000))}
           onCancel={() => {
             setEnding(false);
             // Scrim-dismiss used to silently return to the session — make the
@@ -414,16 +403,16 @@ function EarnedToast({ bottom }: { bottom: number }) {
         left: 20,
         right: 20,
         bottom,
-        backgroundColor: 'rgba(91,191,138,0.12)',
+        backgroundColor: color.greenWash,
         borderWidth: 1,
-        borderColor: 'rgba(91,191,138,0.40)',
+        borderColor: color.greenLine,
         borderRadius: 999,
         paddingVertical: 12,
         paddingHorizontal: 18,
         alignItems: 'center',
       }}
     >
-      <Text style={text(700, { fontSize: 13, color: color.green })}>Block earned. Banked.</Text>
+      <Text style={text(700, { fontSize: 13, color: color.green })}>Block banked.</Text>
     </View>
   );
 }
@@ -447,20 +436,16 @@ function DismissToast({ bottom, running }: { bottom: number; running: boolean })
       }}
     >
       <Text style={text(700, { fontSize: 13, color: color.t2 })}>
-        {running ? 'Session continues — timer never stopped' : 'Session continues — still paused'}
+        {running ? 'Still running.' : 'Still paused.'}
       </Text>
     </View>
   );
 }
 
 function EndSheet({
-  running,
-  timeLabel,
   onCancel,
   onPick,
 }: {
-  running: boolean;
-  timeLabel: string;
   onCancel: () => void;
   onPick: (choice: EndChoice) => void;
 }) {
@@ -469,6 +454,7 @@ function EndSheet({
     <Modal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Dismiss"
           onPress={onCancel}
           style={{
@@ -492,47 +478,7 @@ function EndSheet({
             paddingBottom: 32 + insets.bottom,
           }}
         >
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Text style={[overline, { color: color.t3 }]}>What ended it?</Text>
-            {/* Honest state: the block behind this sheet has not stopped. */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 7,
-                backgroundColor: color.surface2,
-                borderWidth: 1,
-                borderColor: color.lineSoft,
-                borderRadius: 999,
-                paddingVertical: 5,
-                paddingHorizontal: 11,
-              }}
-            >
-              <View
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 2,
-                  backgroundColor: running ? color.ember : color.t4,
-                }}
-              />
-              <Text style={[tabular, text(700, { fontSize: 12, color: color.t3 })]}>
-                {timeLabel}
-              </Text>
-              <Text style={text(600, { fontSize: 11, color: color.t4 })}>
-                {running ? 'still counting' : 'paused'}
-              </Text>
-            </View>
-          </View>
-          <Text style={text(600, { fontSize: 13, color: color.t4, marginTop: 6 })}>
-            Minutes are kept either way. Tap outside to keep going.
-          </Text>
+          <Text style={[overline, { color: color.t3 }]}>What ended it?</Text>
           <Pressable
             onPress={() => onPick('done-early')}
             style={({ pressed }) => ({

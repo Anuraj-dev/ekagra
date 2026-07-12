@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
 import { DayLedger } from '../components/DayLedger';
 import { PlayIcon, SettingsIcon } from '../components/icons';
-import { MotivationPanel, RateRings } from '../components/Motivation';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
 import { TaskCard } from '../components/TaskCard';
@@ -119,27 +118,17 @@ export function Today() {
       </Enter>
 
       <Enter delay={60}>
-        {visibleMotivation && (
-          <MotivationPanel
-            status={visibleMotivation}
-            onPlan={() => nav.navigate('MorningCommit')}
-          />
-        )}
-        {visibleMotivation && (
-          <View
-            style={{
-              marginTop: 18,
+        {visibleMotivation?.daysSilent != null && visibleMotivation.daysSilent >= 2 && (
+          <Text
+            style={text(600, {
+              fontSize: 13,
+              color: color.t3,
+              marginTop: 16,
               marginHorizontal: 16,
-              padding: 14,
-              borderRadius: 16,
-              backgroundColor: color.surface2,
-              borderWidth: 1,
-              borderColor: color.lineSoft,
-            }}
+            })}
           >
-            <Text style={[overline, { color: color.t3, marginBottom: 10 }]}>Your rhythm</Text>
-            <RateRings rates={visibleMotivation.rates} />
-          </View>
+            {visibleMotivation.daysSilent} days since last block
+          </Text>
         )}
         <DayLedger planned={plannedBlocks} earned={todayEarnedBlocks} />
 
@@ -150,6 +139,7 @@ export function Today() {
             <SectionRow
               label={`Committed · ${committed.length} task${committed.length === 1 ? '' : 's'}`}
               action={<GhostButton onPress={() => nav.navigate('MorningCommit')}>Edit</GhostButton>}
+              paddingHorizontal={16}
             />
             <View style={{ gap: 10, paddingHorizontal: 16 }}>
               {committed.map((task) => (
@@ -174,6 +164,8 @@ export function Today() {
               />
               {error && (
                 <Text
+                  accessibilityLiveRegion="polite"
+                  accessibilityRole="alert"
                   style={text(600, {
                     fontSize: 12,
                     color: color.danger,
@@ -204,9 +196,6 @@ export function Today() {
             >
               <View>
                 <Text style={text(700, { fontSize: 14, color: color.t2 })}>Close the day</Text>
-                <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 2 })}>
-                  {todayHonestMinutes} honest minute{todayHonestMinutes === 1 ? '' : 's'} so far
-                </Text>
               </View>
               <Text style={{ color: color.t4, fontSize: 18 }}>›</Text>
             </Pressable>
@@ -254,12 +243,7 @@ function StartBar({
           <PlayIcon fill={color.t4} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={text(800, { fontSize: 16, color: color.t3 })}>
-            Select a task above to start
-          </Text>
-          <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 2 })}>
-            Tap a committed task — a focus block always belongs to one
-          </Text>
+          <Text style={text(800, { fontSize: 16, color: color.t3 })}>Select a task to start</Text>
         </View>
       </View>
     );
@@ -275,9 +259,9 @@ function StartBar({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
-        backgroundColor: 'rgba(240,138,62,0.10)',
+        backgroundColor: color.emberWash,
         borderWidth: 1,
-        borderColor: 'rgba(240,138,62,0.45)',
+        borderColor: color.emberLine,
         opacity: disabled ? 0.6 : 1,
       }}
     >
@@ -294,15 +278,15 @@ function StartBar({
         <PlayIcon />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={text(800, { fontSize: 16, letterSpacing: -0.1, color: color.t1 })}>
-          Start focus
-        </Text>
-        <Text style={text(600, { fontSize: 12, color: color.t3, marginTop: 2 })}>
+        <Text
+          numberOfLines={1}
+          style={text(800, { fontSize: 16, letterSpacing: -0.1, color: color.t1 })}
+        >
           {selectedTitle}
         </Text>
       </View>
-      <Text style={[tabular, text(800, { fontSize: 20, color: color.ember, letterSpacing: -0.5 })]}>
-        {formatClock(25 * 60)}
+      <Text style={[tabular, text(800, { fontSize: 15, color: color.ember, letterSpacing: -0.2 })]}>
+        Start · {formatClock(25 * 60)}
       </Text>
     </Pressable>
   );
@@ -314,7 +298,7 @@ function EmptyCommit({ onCommit }: { onCommit: () => void }) {
       <SectionRow label="No plan yet" />
       <View style={{ paddingHorizontal: 16 }}>
         <Text style={text(600, { fontSize: 14, color: color.t3, lineHeight: 21 })}>
-          Commit 1–3 tasks to start the day. You can't start a focus block without a plan.
+          Commit 1–3 tasks to start the day.
         </Text>
         <Pressable
           onPress={onCommit}

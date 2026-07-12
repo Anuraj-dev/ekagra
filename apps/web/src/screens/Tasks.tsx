@@ -1,6 +1,7 @@
 import type { Goal, Task } from '@ekagra/core';
 import { type FormEvent, useMemo, useRef, useState } from 'react';
-import { SectionRow } from '../components/ui';
+import { TaskCard } from '../components/TaskCard';
+import { Chip, GhostButton, SectionRow } from '../components/ui';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { color as tokens } from '../theme/tokens';
@@ -41,12 +42,15 @@ export function Tasks() {
     }
   }
 
+  function confirmDelete(task: Task) {
+    if (window.confirm(`Delete "${task.title}"?`)) void deleteTask(task.id);
+  }
+
   return (
     <div className="scroll" style={{ paddingBottom: 24 }}>
       <div className="enter" style={{ padding: '58px 20px 0' }}>
-        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.4px' }}>Inbox</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 6 }}>
-          {inbox.length} task{inbox.length === 1 ? '' : 's'} waiting
+        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.4px' }}>
+          Inbox · {inbox.length}
         </div>
       </div>
 
@@ -56,7 +60,7 @@ export function Tasks() {
           ref={inputRef}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="+ New task — Enter saves and stays"
+          placeholder="New task"
           aria-label="New task title"
           style={{
             width: '100%',
@@ -74,24 +78,14 @@ export function Tasks() {
         >
           {goals.map((goal) => {
             const active = captureGoalId === goal.id;
-            const gColor = goalColor(goal.id, colorMap);
             return (
-              <button
+              <Chip
                 key={goal.id}
-                type="button"
+                label={goal.title}
+                active={active}
+                tint={goalColor(goal.id, colorMap)}
                 onClick={() => setCaptureGoalId(active ? null : goal.id)}
-                style={{
-                  borderRadius: 999,
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  border: `1px solid ${active ? gColor : tokens.line}`,
-                  background: active ? tokens.surface3 : 'transparent',
-                  color: active ? gColor : tokens.t4,
-                }}
-              >
-                {goal.title}
-              </button>
+              />
             );
           })}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -102,13 +96,15 @@ export function Tasks() {
                 type="button"
                 onClick={() => setEstimate(n)}
                 className="tabular"
+                aria-label={`Estimate ${n} block${n === 1 ? '' : 's'}`}
+                aria-pressed={estimate === n}
                 style={{
                   width: 28,
                   height: 28,
                   borderRadius: 8,
                   fontSize: 12,
                   fontWeight: 700,
-                  border: `1px solid ${estimate === n ? 'rgba(240,138,62,.45)' : tokens.line}`,
+                  border: `1px solid ${estimate === n ? tokens.emberLine : tokens.line}`,
                   background: estimate === n ? tokens.surface3 : 'transparent',
                   color: estimate === n ? tokens.ember : tokens.t4,
                 }}
@@ -129,16 +125,25 @@ export function Tasks() {
       <div className="enter-delay">
         {grouped.map(({ goalId, items }) => (
           <div key={goalId ?? 'unassigned'}>
-            <SectionRow label={goalName(goalId, goals)} />
+            <SectionRow label={goalName(goalId, goals)} paddingHorizontal={16} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
               {items.map((task) => (
-                <InboxRow
+                <TaskCard
                   key={task.id}
                   task={task}
-                  color={goalColor(task.goalId, colorMap)}
-                  goalTitle={goalName(task.goalId, goals)}
-                  onCommit={() => void updateTask(task.id, { status: 'planned' })}
-                  onDelete={() => void deleteTask(task.id)}
+                  goalColor={goalColor(task.goalId, colorMap)}
+                  goalName={goalName(task.goalId, goals)}
+                  showMeter={false}
+                  footer={
+                    <>
+                      <GhostButton onClick={() => void updateTask(task.id, { status: 'planned' })}>
+                        Commit to today
+                      </GhostButton>
+                      <GhostButton onClick={() => confirmDelete(task)} style={{ color: tokens.t4 }}>
+                        Delete
+                      </GhostButton>
+                    </>
+                  }
                 />
               ))}
             </div>
@@ -154,65 +159,9 @@ export function Tasks() {
               lineHeight: 1.5,
             }}
           >
-            Inbox zero. Capture the next task above.
+            Inbox is empty.
           </p>
         )}
-      </div>
-    </div>
-  );
-}
-
-function InboxRow({
-  task,
-  color,
-  goalTitle,
-  onCommit,
-  onDelete,
-}: {
-  task: Task;
-  color: string;
-  goalTitle: string;
-  onCommit: () => void;
-  onDelete: () => void;
-}) {
-  const est = task.estimatedBlocks ?? 1;
-  return (
-    <div
-      style={{
-        background: tokens.surface,
-        border: `1px solid ${tokens.line}`,
-        borderRadius: 16,
-        padding: 16,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 3, height: 13, borderRadius: 2, background: color }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color }}>{goalTitle}</span>
-        <span
-          className="tabular"
-          style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: tokens.t4 }}
-        >
-          est {est} block{est === 1 ? '' : 's'}
-        </span>
-      </div>
-      <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-.1px', marginTop: 9 }}>
-        {task.title}
-      </div>
-      <div style={{ display: 'flex', gap: 14, marginTop: 12 }}>
-        <button
-          type="button"
-          onClick={onCommit}
-          style={{ fontSize: 13, fontWeight: 700, color: tokens.ember }}
-        >
-          Commit to today
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          style={{ fontSize: 13, fontWeight: 700, color: tokens.t4 }}
-        >
-          Delete
-        </button>
       </div>
     </div>
   );

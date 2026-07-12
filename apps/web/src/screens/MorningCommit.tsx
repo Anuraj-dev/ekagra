@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { GoalMark } from '../components/GoalMark';
 import { ChevronLeftIcon } from '../components/icons';
 import { CircleButton } from '../components/ui';
 import { useData } from '../data/DataProvider';
@@ -6,7 +7,7 @@ import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { useNav } from '../nav/navigation';
 import { color as tokens } from '../theme/tokens';
 
-/** Morning Commit flow — save up to three tasks, or clear today's plan. */
+/** Morning Commit flow — save one to three tasks (the server contract's range). */
 export function MorningCommit() {
   const { close } = useNav();
   const { tasks, goals, commitMorning } = useData();
@@ -46,8 +47,8 @@ export function MorningCommit() {
     }
   }
 
-  // The server contract requires 1–3 tasks; never offer a commit it will reject.
-  const canCommit = selected.length >= 1 && selected.length <= 3;
+  // The server contract requires 1–3 tasks; toggle() already caps the upper bound at 3.
+  const canCommit = selected.length >= 1;
 
   return (
     <div className="app-frame">
@@ -64,7 +65,7 @@ export function MorningCommit() {
               Morning Commit
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 3 }}>
-              Pick up to 3. Small and true beats big and false.
+              Pick 1–3. Small and true beats big and false.
             </div>
           </div>
         </div>
@@ -91,21 +92,34 @@ export function MorningCommit() {
             const gColor = goalColor(task.goalId, colorMap);
             const est = task.estimatedBlocks ?? 1;
             return (
-              <button
+              <label
                 key={task.id}
-                type="button"
-                onClick={() => toggle(task.id)}
                 style={{
+                  position: 'relative',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
                   textAlign: 'left',
+                  cursor: 'pointer',
                   background: checked ? tokens.surface3 : tokens.surface,
-                  border: `1px solid ${checked ? 'rgba(240,138,62,.45)' : tokens.line}`,
+                  border: `1px solid ${checked ? tokens.emberLine : tokens.line}`,
                   borderRadius: 16,
                   padding: 16,
                 }}
               >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggle(task.id)}
+                  style={{
+                    position: 'absolute',
+                    opacity: 0,
+                    width: 1,
+                    height: 1,
+                    margin: 0,
+                    pointerEvents: 'none',
+                  }}
+                />
                 <span
                   aria-hidden="true"
                   style={{
@@ -134,12 +148,7 @@ export function MorningCommit() {
                   )}
                 </span>
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 3, height: 12, borderRadius: 2, background: gColor }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: gColor }}>
-                      {goalName(task.goalId, goals)}
-                    </span>
-                  </span>
+                  <GoalMark color={gColor} name={goalName(task.goalId, goals)} />
                   <span style={{ display: 'block', fontSize: 16, fontWeight: 700, marginTop: 6 }}>
                     {task.title}
                   </span>
@@ -148,9 +157,9 @@ export function MorningCommit() {
                   className="tabular"
                   style={{ fontSize: 12, fontWeight: 600, color: tokens.t4 }}
                 >
-                  est {est}
+                  {est} block{est === 1 ? '' : 's'}
                 </span>
-              </button>
+              </label>
             );
           })}
           {error && (
@@ -188,7 +197,7 @@ export function MorningCommit() {
           }}
         >
           {selected.length === 0
-            ? 'Select at least one task'
+            ? 'Pick 1–3 tasks'
             : `Commit ${selected.length} task${selected.length === 1 ? '' : 's'}`}
         </button>
       </div>

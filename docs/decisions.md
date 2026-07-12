@@ -65,3 +65,9 @@
 
 ## 2026-07-11 — Daily totals server-derived from auth.uid()-scoped daily_activity view
 **Why:** Client-accumulated honest minutes/earned blocks were lost on re-login. A UTC-day RLS view keeps analytics in SQL (issue #8 rule) and clients merely overlay optimistic updates. Alternative rejected: persisting totals in client storage — drifts from server truth.
+
+## 2026-07-12 — No fabricated data in the UI (audit execution)
+**Why:** Goals' 30-day meter was the 7-day number rescaled /20 — a second signal that didn't exist; collapsed to one 7-day meter rather than adding data plumbing mid-audit. Insights' 10-week grid has no dated per-day source (focus_hours_heatmap is dow×hour all-time), so it projects weekday intensity onto every week — documented in-code instead of faking history; a dated daily-earned view is the follow-up.
+
+## 2026-07-12 — planMatch derived from evening tag
+**Why:** The Yes/No "did today match the plan" control was cut per the audit; `parseEveningCloseRequest` hard-requires `planMatch`, so it's now `tag === 'on-plan'`. Alternative (API change to drop the field) rejected to keep the audit UI-scoped. planMatch and the tag are now coupled by design.

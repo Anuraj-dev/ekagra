@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { MotivationPanel, RateRings } from '../components/Motivation';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
+import { ScreenHeader } from '../components/ScreenHeader';
 import {
   ApiError,
   forgivenessApi,
@@ -16,7 +17,7 @@ import {
   type WeeklyLeaderboardRow,
 } from '../lib/api';
 import type { RootNav } from '../nav/types';
-import { color } from '../theme/tokens';
+import { color, withAlpha } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 export function Crew() {
@@ -87,12 +88,11 @@ export function Crew() {
   );
   return (
     <Screen>
-      <Enter style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-        <Text style={text(800, { fontSize: 26, letterSpacing: -0.4, color: color.t1 })}>Crew</Text>
-        <Text style={text(600, { fontSize: 13, color: color.t3, marginTop: 6 })}>
-          A little visible momentum. Nothing personal is shared.
-        </Text>
-      </Enter>
+      <ScreenHeader
+        title="Crew"
+        sub="A little visible momentum. Nothing personal is shared."
+        topInset={insets.top}
+      />
       <Enter delay={60}>
         {motivation && (
           <View style={card}>
@@ -316,7 +316,7 @@ function Action({
         paddingHorizontal: 12,
         paddingVertical: 9,
         borderRadius: 10,
-        backgroundColor: muted ? 'transparent' : 'rgba(240,138,62,0.14)',
+        backgroundColor: muted ? 'transparent' : withAlpha(color.ember, 0.14),
         opacity: pressed || disabled ? 0.5 : 1,
       })}
     >

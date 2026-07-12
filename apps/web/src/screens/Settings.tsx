@@ -179,8 +179,8 @@ export function Settings() {
               <div
                 style={{
                   marginTop: 10,
-                  background: 'rgba(91,191,138,.12)',
-                  border: '1px solid rgba(91,191,138,.40)',
+                  background: tokens.greenWash,
+                  border: `1px solid ${tokens.greenLine}`,
                   borderRadius: 12,
                   padding: '13px 16px',
                 }}

@@ -196,6 +196,7 @@ export function Today() {
             <SectionRow
               label={`Committed · ${committed.length} task${committed.length === 1 ? '' : 's'}`}
               action={<GhostButton onClick={() => open('morning-commit')}>Edit</GhostButton>}
+              paddingHorizontal={16}
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
               {committed.map((task) => (
@@ -336,8 +337,8 @@ function StartBar({
         alignItems: 'center',
         gap: 14,
         textAlign: 'left',
-        background: 'rgba(240,138,62,.10)',
-        border: '1px solid rgba(240,138,62,.45)',
+        background: tokens.emberWash,
+        border: `1px solid ${tokens.emberLine}`,
         opacity: disabled ? 0.6 : 1,
       }}
     >
@@ -406,8 +407,8 @@ function CueBanner({
     <div style={{ padding: '16px 16px 0' }}>
       <div
         style={{
-          background: 'rgba(240,138,62,.10)',
-          border: '1px solid rgba(240,138,62,.45)',
+          background: tokens.emberWash,
+          border: `1px solid ${tokens.emberLine}`,
           borderRadius: 16,
           padding: '14px 16px',
           display: 'flex',

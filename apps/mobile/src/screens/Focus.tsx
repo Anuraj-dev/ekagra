@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GoalMark } from '../components/GoalMark';
 import { ChevronLeftIcon, PauseIcon, ResumeGlyph } from '../components/icons';
 import { TimerRing } from '../components/TimerRing';
 import { useData } from '../data/DataProvider';
@@ -20,7 +21,7 @@ import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import { nudgeBlockComplete } from '../lib/notifications';
 import { timerStateFromSession } from '../lib/timer';
 import type { RootNav } from '../nav/types';
-import { color } from '../theme/tokens';
+import { color, withAlpha } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 type EndChoice = DistractionTag | 'done-early';
@@ -201,7 +202,7 @@ export function Focus() {
             marginLeft: -300,
             marginTop: -300,
             borderRadius: 300,
-            backgroundColor: 'rgba(240,138,62,0.05)',
+            backgroundColor: withAlpha(color.ember, 0.05),
           }}
         />
       )}
@@ -295,11 +296,8 @@ export function Focus() {
             >
               {task.title}
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: gColor }} />
-              <Text style={text(700, { fontSize: 12, color: gColor })}>
-                {goalName(task.goalId, goals)}
-              </Text>
+            <View style={{ marginTop: 12 }}>
+              <GoalMark color={gColor} name={goalName(task.goalId, goals)} />
             </View>
             <View style={{ flexDirection: 'row', gap: 4, marginTop: 14 }}>
               {Array.from({ length: total }, (_, i) => (
@@ -414,9 +412,9 @@ function EarnedToast({ bottom }: { bottom: number }) {
         left: 20,
         right: 20,
         bottom,
-        backgroundColor: 'rgba(91,191,138,0.12)',
+        backgroundColor: color.greenWash,
         borderWidth: 1,
-        borderColor: 'rgba(91,191,138,0.40)',
+        borderColor: color.greenLine,
         borderRadius: 999,
         paddingVertical: 12,
         paddingHorizontal: 18,

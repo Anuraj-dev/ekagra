@@ -2,6 +2,7 @@ import type { Goal, Task } from '@ekagra/core';
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GoalMark } from '../components/GoalMark';
 import { Enter } from '../components/motion';
 import { Screen } from '../components/Screen';
 import { SectionRow } from '../components/ui';
@@ -127,7 +128,7 @@ export function Tasks() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderWidth: 1,
-                    borderColor: active ? 'rgba(240,138,62,0.45)' : color.line,
+                    borderColor: active ? color.emberLine : color.line,
                     backgroundColor: active ? color.surface3 : 'transparent',
                   }}
                 >
@@ -155,7 +156,7 @@ export function Tasks() {
       <Enter delay={60}>
         {grouped.map(({ goalId, items }) => (
           <View key={goalId ?? 'unassigned'}>
-            <SectionRow label={goalName(goalId, goals)} />
+            <SectionRow label={goalName(goalId, goals)} paddingHorizontal={16} />
             <View style={{ gap: 10, paddingHorizontal: 16 }}>
               {items.map((task) => (
                 <InboxRow
@@ -213,8 +214,7 @@ function InboxRow({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: tint }} />
-        <Text style={text(700, { fontSize: 12, color: tint })}>{goalTitle}</Text>
+        <GoalMark color={tint} name={goalTitle} />
         <Text style={[tabular, text(600, { marginLeft: 'auto', fontSize: 12, color: color.t4 })]}>
           est {est} block{est === 1 ? '' : 's'}
         </Text>

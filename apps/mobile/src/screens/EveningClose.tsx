@@ -8,7 +8,7 @@ import { Screen } from '../components/Screen';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useData } from '../data/DataProvider';
 import type { RootNav } from '../nav/types';
-import { color } from '../theme/tokens';
+import { color, withAlpha } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 const WENT_WRONG_TAGS = ['on-plan', 'scope-creep', 'interruptions', 'low-energy', 'other'] as const;
@@ -69,7 +69,7 @@ export function EveningClose() {
             style={{
               backgroundColor: color.surface,
               borderWidth: 1,
-              borderColor: 'rgba(91,191,138,0.35)',
+              borderColor: withAlpha(color.green, 0.35),
               borderRadius: 18,
               paddingVertical: 26,
               paddingHorizontal: 22,
@@ -81,9 +81,9 @@ export function EveningClose() {
                 width: 46,
                 height: 46,
                 borderRadius: 999,
-                backgroundColor: 'rgba(91,191,138,0.14)',
+                backgroundColor: withAlpha(color.green, 0.14),
                 borderWidth: 1,
-                borderColor: 'rgba(91,191,138,0.18)',
+                borderColor: withAlpha(color.green, 0.18),
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -151,7 +151,7 @@ export function EveningClose() {
                       alignItems: 'center',
                       backgroundColor: active ? color.surface3 : color.surface,
                       borderWidth: 1,
-                      borderColor: active ? 'rgba(240,138,62,0.45)' : color.line,
+                      borderColor: active ? color.emberLine : color.line,
                     }}
                   >
                     <Text style={text(700, { fontSize: 14, color: active ? color.t1 : color.t3 })}>
@@ -179,9 +179,9 @@ export function EveningClose() {
                       borderRadius: 999,
                       paddingVertical: 8,
                       paddingHorizontal: 14,
-                      backgroundColor: active ? 'rgba(240,138,62,0.10)' : color.surface,
+                      backgroundColor: active ? color.emberWash : color.surface,
                       borderWidth: 1,
-                      borderColor: active ? 'rgba(240,138,62,0.45)' : color.line,
+                      borderColor: active ? color.emberLine : color.line,
                     }}
                   >
                     <Text

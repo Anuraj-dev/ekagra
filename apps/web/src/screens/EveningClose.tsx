@@ -3,7 +3,7 @@ import { CheckIcon } from '../components/icons';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useData } from '../data/DataProvider';
 import { useNav } from '../nav/navigation';
-import { color as tokens } from '../theme/tokens';
+import { color as tokens, withAlpha } from '../theme/tokens';
 
 const WENT_WRONG_TAGS = ['on-plan', 'scope-creep', 'interruptions', 'low-energy', 'other'] as const;
 const TAG_LABEL: Record<(typeof WENT_WRONG_TAGS)[number], string> = {
@@ -56,7 +56,7 @@ export function EveningClose() {
             <div
               style={{
                 background: tokens.surface,
-                border: '1px solid rgba(91,191,138,.35)',
+                border: `1px solid ${withAlpha(tokens.green, 0.35)}`,
                 borderRadius: 18,
                 padding: '26px 22px',
                 textAlign: 'center',
@@ -67,8 +67,8 @@ export function EveningClose() {
                   width: 46,
                   height: 46,
                   borderRadius: 999,
-                  background: 'rgba(91,191,138,.14)',
-                  border: '1px solid rgba(91,191,138,.18)',
+                  background: withAlpha(tokens.green, 0.14),
+                  border: `1px solid ${withAlpha(tokens.green, 0.18)}`,
                   margin: '0 auto',
                   display: 'flex',
                   alignItems: 'center',
@@ -145,7 +145,7 @@ export function EveningClose() {
                       fontSize: 14,
                       fontWeight: 700,
                       background: planMatch === key ? tokens.surface3 : tokens.surface,
-                      border: `1px solid ${planMatch === key ? 'rgba(240,138,62,.45)' : tokens.line}`,
+                      border: `1px solid ${planMatch === key ? tokens.emberLine : tokens.line}`,
                       color: planMatch === key ? tokens.t1 : tokens.t3,
                     }}
                   >
@@ -171,8 +171,8 @@ export function EveningClose() {
                       padding: '8px 14px',
                       fontSize: 13,
                       fontWeight: 700,
-                      background: tag === t ? 'rgba(240,138,62,.10)' : tokens.surface,
-                      border: `1px solid ${tag === t ? 'rgba(240,138,62,.45)' : tokens.line}`,
+                      background: tag === t ? tokens.emberWash : tokens.surface,
+                      border: `1px solid ${tag === t ? tokens.emberLine : tokens.line}`,
                       color: tag === t ? tokens.ember : tokens.t3,
                     }}
                   >

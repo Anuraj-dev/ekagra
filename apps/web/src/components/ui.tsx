@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
 import { color as tokens } from '../theme/tokens';
 
 /** Filled ember pill; disabled → the hard-block "well" treatment. */
@@ -15,6 +15,7 @@ export function PrimaryButton({
       style={{
         borderRadius: 999,
         padding: 17,
+        minHeight: 52,
         width: '100%',
         textAlign: 'center',
         fontSize: 16,
@@ -29,6 +30,85 @@ export function PrimaryButton({
     >
       {children}
     </button>
+  );
+}
+
+/** Outline pill: transparent bg, 1px `line` border, text `t2` (DESIGN-SPEC §6). Mirrors PrimaryButton. */
+export function SecondaryButton({
+  children,
+  disabled,
+  style,
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      style={{
+        borderRadius: 999,
+        padding: 17,
+        minHeight: 52,
+        width: '100%',
+        textAlign: 'center',
+        fontSize: 16,
+        fontWeight: 700,
+        background: 'transparent',
+        border: `1px solid ${tokens.line}`,
+        color: disabled ? tokens.t4 : tokens.t2,
+        cursor: disabled ? 'default' : 'pointer',
+        transition: 'border-color .18s var(--ease)',
+        ...style,
+      }}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Compact selectable chip; ember tint by default when active (DESIGN-SPEC §6). */
+export function Chip({
+  label,
+  active = false,
+  tint = tokens.ember,
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; active?: boolean; tint?: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      style={{
+        padding: '8px 14px',
+        borderRadius: 8,
+        fontSize: 13,
+        fontWeight: 600,
+        background: active ? tokens.emberWash : tokens.surface,
+        border: `1px solid ${active ? tokens.emberLine : tokens.line}`,
+        color: active ? tint : tokens.t3,
+        cursor: 'pointer',
+        transition: 'border-color .18s var(--ease), background .18s var(--ease)',
+      }}
+      {...rest}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** Recessed row shell: surface2 bg, 1px lineSoft border, r-md (settings-style rows, DESIGN-SPEC §6). */
+export function EntryRow({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div
+      style={{
+        background: tokens.surface2,
+        border: `1px solid ${tokens.lineSoft}`,
+        borderRadius: 16,
+        padding: 16,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -76,14 +156,22 @@ export function CircleButton({
 }
 
 /** Section overline row with an optional right-aligned action. */
-export function SectionRow({ label, action }: { label: string; action?: ReactNode }) {
+export function SectionRow({
+  label,
+  action,
+  paddingHorizontal = 20,
+}: {
+  label: string;
+  action?: ReactNode;
+  paddingHorizontal?: number;
+}) {
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '24px 20px 12px',
+        padding: `24px ${paddingHorizontal}px 12px`,
       }}
     >
       <span className="overline" style={{ color: tokens.t3 }}>

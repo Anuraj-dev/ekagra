@@ -200,9 +200,9 @@ export function Settings() {
             <View
               style={{
                 marginTop: 10,
-                backgroundColor: 'rgba(91,191,138,0.12)',
+                backgroundColor: color.greenWash,
                 borderWidth: 1,
-                borderColor: 'rgba(91,191,138,0.40)',
+                borderColor: color.greenLine,
                 borderRadius: 12,
                 paddingVertical: 13,
                 paddingHorizontal: 16,

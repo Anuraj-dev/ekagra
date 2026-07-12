@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { color } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 import { BlockMeter } from './BlockMeter';
+import { GoalMark } from './GoalMark';
 
 /**
  * Committed task card (DESIGN-SPEC §6/§9-Today): goal mark row, title, block meter.
@@ -38,14 +39,13 @@ export function TaskCard({
       style={({ pressed }) => ({
         backgroundColor: selected ? color.surface3 : pressed ? color.surface3 : color.surface,
         borderWidth: 1,
-        borderColor: selected ? 'rgba(240,138,62,0.45)' : pressed ? color.lineHi : color.line,
+        borderColor: selected ? color.emberLine : pressed ? color.lineHi : color.line,
         borderRadius: 16,
         padding: 16,
       })}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: goalColor }} />
-        <Text style={text(700, { fontSize: 12, color: goalColor })}>{goalName}</Text>
+        <GoalMark color={goalColor} name={goalName} />
         <Text style={[tabular, text(600, { fontSize: 12, color: color.t4, marginLeft: 'auto' })]}>
           {showMeter
             ? `${earnedBlocks} / ${total} block${total === 1 ? '' : 's'}`

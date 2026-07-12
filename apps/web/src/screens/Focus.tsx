@@ -1,6 +1,7 @@
 import type { DistractionTag, Session } from '@ekagra/core';
 import { DISTRACTION_TAGS, remainingMs } from '@ekagra/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { GoalMark } from '../components/GoalMark';
 import { ChevronLeftIcon, PauseIcon, ResumeGlyph } from '../components/icons';
 import { TimerRing } from '../components/TimerRing';
 import { useData } from '../data/DataProvider';
@@ -338,11 +339,8 @@ export function Focus() {
             >
               {task.title}
             </div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <span style={{ width: 3, height: 13, borderRadius: 2, background: gColor }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: gColor }}>
-                {goalName(task.goalId, goals)}
-              </span>
+            <div style={{ marginTop: 12 }}>
+              <GoalMark color={gColor} name={goalName(task.goalId, goals)} />
             </div>
             <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 14 }}>
               {Array.from({ length: total }, (_, i) => (
@@ -471,8 +469,8 @@ function EarnedToast() {
         left: 20,
         right: 20,
         bottom: 140,
-        background: 'rgba(91,191,138,.12)',
-        border: '1px solid rgba(91,191,138,.40)',
+        background: tokens.greenWash,
+        border: `1px solid ${tokens.greenLine}`,
         borderRadius: 999,
         padding: '12px 18px',
         textAlign: 'center',

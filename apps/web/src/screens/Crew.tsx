@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { MotivationPanel, RateRings } from '../components/Motivation';
+import { ScreenHeader } from '../components/ScreenHeader';
 import {
   ApiError,
   forgivenessApi,
@@ -11,7 +12,7 @@ import {
   motivationApi,
   type WeeklyLeaderboardRow,
 } from '../lib/api';
-import { color as tokens } from '../theme/tokens';
+import { color as tokens, withAlpha } from '../theme/tokens';
 
 export function Crew() {
   const { session } = useAuth();
@@ -82,12 +83,7 @@ export function Crew() {
 
   return (
     <div className="scroll" style={{ paddingBottom: 32 }}>
-      <div className="enter" style={{ padding: '58px 20px 0' }}>
-        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.4px' }}>Crew</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 6 }}>
-          A little visible momentum. Nothing personal is shared.
-        </div>
-      </div>
+      <ScreenHeader title="Crew" sub="A little visible momentum. Nothing personal is shared." />
       <div className="enter-delay">
         {motivation && (
           <div
@@ -350,7 +346,7 @@ const buttonStyle = {
   border: 0,
   borderRadius: 10,
   padding: '9px 12px',
-  background: 'rgba(240,138,62,.14)',
+  background: withAlpha(tokens.ember, 0.14),
   color: tokens.ember,
   font: '800 12px Manrope, sans-serif',
   whiteSpace: 'nowrap' as const,

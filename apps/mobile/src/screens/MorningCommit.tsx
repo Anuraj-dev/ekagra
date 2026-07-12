@@ -101,7 +101,7 @@ export function MorningCommit() {
                   gap: 14,
                   backgroundColor: checked ? color.surface3 : color.surface,
                   borderWidth: 1,
-                  borderColor: checked ? 'rgba(240,138,62,0.45)' : color.line,
+                  borderColor: checked ? color.emberLine : color.line,
                   borderRadius: 16,
                   padding: 16,
                 }}

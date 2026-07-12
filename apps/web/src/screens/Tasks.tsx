@@ -1,5 +1,6 @@
 import type { Goal, Task } from '@ekagra/core';
 import { type FormEvent, useMemo, useRef, useState } from 'react';
+import { GoalMark } from '../components/GoalMark';
 import { SectionRow } from '../components/ui';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
@@ -108,7 +109,7 @@ export function Tasks() {
                   borderRadius: 8,
                   fontSize: 12,
                   fontWeight: 700,
-                  border: `1px solid ${estimate === n ? 'rgba(240,138,62,.45)' : tokens.line}`,
+                  border: `1px solid ${estimate === n ? tokens.emberLine : tokens.line}`,
                   background: estimate === n ? tokens.surface3 : 'transparent',
                   color: estimate === n ? tokens.ember : tokens.t4,
                 }}
@@ -129,7 +130,7 @@ export function Tasks() {
       <div className="enter-delay">
         {grouped.map(({ goalId, items }) => (
           <div key={goalId ?? 'unassigned'}>
-            <SectionRow label={goalName(goalId, goals)} />
+            <SectionRow label={goalName(goalId, goals)} paddingHorizontal={16} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
               {items.map((task) => (
                 <InboxRow
@@ -186,8 +187,7 @@ function InboxRow({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 3, height: 13, borderRadius: 2, background: color }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color }}>{goalTitle}</span>
+        <GoalMark color={color} name={goalTitle} />
         <span
           className="tabular"
           style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: tokens.t4 }}

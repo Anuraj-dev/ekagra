@@ -150,6 +150,7 @@ export function Today() {
             <SectionRow
               label={`Committed · ${committed.length} task${committed.length === 1 ? '' : 's'}`}
               action={<GhostButton onPress={() => nav.navigate('MorningCommit')}>Edit</GhostButton>}
+              paddingHorizontal={16}
             />
             <View style={{ gap: 10, paddingHorizontal: 16 }}>
               {committed.map((task) => (
@@ -275,9 +276,9 @@ function StartBar({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
-        backgroundColor: 'rgba(240,138,62,0.10)',
+        backgroundColor: color.emberWash,
         borderWidth: 1,
-        borderColor: 'rgba(240,138,62,0.45)',
+        borderColor: color.emberLine,
         opacity: disabled ? 0.6 : 1,
       }}
     >

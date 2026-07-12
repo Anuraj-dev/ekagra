@@ -26,7 +26,18 @@ export function ScreenHeader({
         </CircleButton>
       )}
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.3px' }}>{title}</div>
+        <h1
+          style={{
+            fontSize: 26,
+            fontWeight: 800,
+            letterSpacing: '-.4px',
+            margin: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {title}
+        </h1>
         {sub && (
           <div style={{ fontSize: 13, fontWeight: 600, color: tokens.t3, marginTop: 3 }}>{sub}</div>
         )}

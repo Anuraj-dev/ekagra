@@ -1,6 +1,7 @@
 import type { Task } from '@ekagra/core';
 import { color as tokens } from '../theme/tokens';
 import { BlockMeter } from './BlockMeter';
+import { GoalMark } from './GoalMark';
 
 /**
  * Committed task card (DESIGN-SPEC §6/§9-Today): goal mark row, title, block meter.
@@ -38,15 +39,14 @@ export function TaskCard({
         width: '100%',
         textAlign: 'left',
         background: selected ? tokens.surface3 : tokens.surface,
-        border: `1px solid ${selected ? 'rgba(240,138,62,.45)' : tokens.line}`,
+        border: `1px solid ${selected ? tokens.emberLine : tokens.line}`,
         borderRadius: 16,
         padding: 16,
         transition: 'border-color .18s var(--ease), background .18s var(--ease)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 3, height: 13, borderRadius: 2, background: goalColor }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color: goalColor }}>{goalName}</span>
+        <GoalMark color={goalColor} name={goalName} />
         <span
           className="tabular"
           style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: tokens.t4 }}

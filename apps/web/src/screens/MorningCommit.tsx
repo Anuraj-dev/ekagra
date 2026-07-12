@@ -101,7 +101,7 @@ export function MorningCommit() {
                   gap: 14,
                   textAlign: 'left',
                   background: checked ? tokens.surface3 : tokens.surface,
-                  border: `1px solid ${checked ? 'rgba(240,138,62,.45)' : tokens.line}`,
+                  border: `1px solid ${checked ? tokens.emberLine : tokens.line}`,
                   borderRadius: 16,
                   padding: 16,
                 }}

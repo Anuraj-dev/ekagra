@@ -36,7 +36,11 @@ export function ScreenHeader({
         </CircleButton>
       )}
       <View style={{ flex: 1 }}>
-        <Text style={text(800, { fontSize: 24, letterSpacing: -0.3, color: color.t1 })}>
+        <Text
+          accessibilityRole="header"
+          numberOfLines={2}
+          style={text(800, { fontSize: 26, letterSpacing: -0.4, color: color.t1 })}
+        >
           {title}
         </Text>
         {sub && (

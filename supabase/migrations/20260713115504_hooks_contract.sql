@@ -31,6 +31,32 @@ create unique index if not exists sessions_owner_client_op_id_idx
 create index if not exists tasks_owner_scheduled_for_idx
   on public.tasks (owner_id, scheduled_for);
 
+-- Scheduling is the server-authoritative source of planning status. Keep done tasks
+-- immutable under schedule-only edits, and respect a status explicitly changed in
+-- the same PATCH.
+create or replace function public.sync_task_status_with_schedule()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.status = 'inbox' and new.scheduled_for is not null then
+      new.status = 'planned';
+    end if;
+  elsif new.scheduled_for is distinct from old.scheduled_for
+        and new.status is not distinct from old.status
+        and old.status <> 'done' then
+    new.status = case when new.scheduled_for is null then 'inbox' else 'planned' end;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger tasks_sync_status_with_schedule
+  before insert or update of scheduled_for on public.tasks
+  for each row execute function public.sync_task_status_with_schedule();
+
 -- Defense in depth: the edge-fn parser bounds notes at 2000 chars, but a client using the
 -- table API directly bypasses it. Enforce the limit at the DB boundary too (idempotent).
 do $$ begin

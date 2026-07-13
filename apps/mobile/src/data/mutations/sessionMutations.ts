@@ -9,10 +9,10 @@ import {
 } from '@ekagra/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { sessionsApi } from '../../lib/api';
 import { qk } from '../keys';
-import type { MutationResult } from './types';
+import type { MutationResult, RetryableMutationResult } from './types';
 
 type StartInput = { taskId: string };
 type StartVariables = StartInput & { clientOpId: string };
@@ -40,8 +40,9 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   });
 }
 
-export function useStartSession(): MutationResult<StartInput> {
+export function useStartSession(): RetryableMutationResult<StartInput> {
   const client = useQueryClient();
+  const currentOperation = useRef<StartVariables | null>(null);
   const mutation = useMutation({
     mutationFn: ({ taskId, clientOpId }: StartVariables) =>
       withTimeout(
@@ -75,18 +76,38 @@ export function useStartSession(): MutationResult<StartInput> {
       return { previous };
     },
     onError: (_error, _variables, context) => client.setQueryData(qk.session, context?.previous),
-    onSuccess: (response) => client.setQueryData(qk.session, response),
-    onSettled: () => client.invalidateQueries({ queryKey: qk.session, refetchType: 'none' }),
+    onSuccess: (response, variables) => {
+      client.setQueryData(qk.session, response);
+      if (currentOperation.current?.clientOpId === variables.clientOpId) {
+        currentOperation.current = null;
+      }
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: qk.session, refetchType: 'all' }),
   });
   const mutate = useCallback(
-    (input: StartInput) => mutation.mutate({ ...input, clientOpId: Crypto.randomUUID() }),
+    (input: StartInput) => {
+      const variables = currentOperation.current ?? {
+        ...input,
+        clientOpId: Crypto.randomUUID(),
+      };
+      currentOperation.current = variables;
+      mutation.mutate(variables);
+    },
     [mutation.mutate],
   );
+  const retry = useCallback(() => {
+    if (currentOperation.current) mutation.mutate(currentOperation.current);
+  }, [mutation.mutate]);
+  const reset = useCallback(() => {
+    currentOperation.current = null;
+    mutation.reset();
+  }, [mutation.reset]);
   return {
     mutate,
+    retry,
     isPending: mutation.isPending,
     isError: mutation.isError,
-    reset: mutation.reset,
+    reset,
   };
 }
 
@@ -123,6 +144,7 @@ export function useSessionCommand(): MutationResult<CommandInput> {
   const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: (input: CommandInput) => sessionsApi.command(commandPayload(input)),
+    retry: false,
     onMutate: async (input) => {
       await client.cancelQueries({ queryKey: qk.session });
       const previous = client.getQueryData<CurrentSessionResponse>(qk.session);
@@ -139,7 +161,7 @@ export function useSessionCommand(): MutationResult<CommandInput> {
       });
       if (ended) void client.invalidateQueries({ queryKey: qk.tasks });
     },
-    onSettled: () => client.invalidateQueries({ queryKey: qk.session, refetchType: 'none' }),
+    onSettled: () => client.invalidateQueries({ queryKey: qk.session, refetchType: 'all' }),
   });
   return {
     mutate: mutation.mutate,

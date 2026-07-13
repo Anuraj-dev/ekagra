@@ -27,6 +27,28 @@ export const queryPersister = createAsyncStoragePersister({
   throttleTime: 1_000,
 });
 
+/**
+ * Records which account the persisted cache belongs to, so a same-user cold boot
+ * can keep its cache (offline/instant start) while any identity change wipes it.
+ */
+const CACHE_OWNER_KEY = 'ekagra-cache-owner-v2';
+
+export async function readCacheOwner(): Promise<string | null> {
+  return AsyncStorage.getItem(CACHE_OWNER_KEY);
+}
+
+export async function rememberCacheOwner(ownerId: string | null): Promise<void> {
+  if (ownerId === null) await AsyncStorage.removeItem(CACHE_OWNER_KEY);
+  else await AsyncStorage.setItem(CACHE_OWNER_KEY, ownerId);
+}
+
+/** Erase all owner-scoped server state before a different auth identity can render. */
+export async function clearUserQueryState(): Promise<void> {
+  queryClient.clear();
+  await queryPersister.removeClient();
+  await AsyncStorage.removeItem(CACHE_OWNER_KEY);
+}
+
 function RestoreGate({ children }: { children: ReactNode }) {
   return useIsRestoring() ? null : children;
 }

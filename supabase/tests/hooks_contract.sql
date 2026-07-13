@@ -1,6 +1,6 @@
 begin;
 
-select plan(24);
+select plan(34);
 
 select has_column('public', 'tasks', 'priority', 'tasks have priority');
 select col_type_is('public', 'tasks', 'priority', 'text', 'task priority is text');
@@ -25,6 +25,8 @@ select has_column('public', 'goals', 'priority', 'goals have priority');
 select col_type_is('public', 'goals', 'priority', 'text', 'goal priority is text');
 select has_column('public', 'goals', 'client_op_id', 'goals have a client operation id');
 select col_type_is('public', 'goals', 'client_op_id', 'uuid', 'goal client operation id is uuid');
+select has_column('public', 'sessions', 'client_op_id', 'sessions have a client operation id');
+select col_type_is('public', 'sessions', 'client_op_id', 'uuid', 'session client operation id is uuid');
 
 -- Fixtures and constraint checks run as the transaction's superuser. Keep them
 -- before any authenticated role switch so RLS cannot hide setup failures.
@@ -114,6 +116,104 @@ select lives_ok(
             'Builder',
             null)$$,
   'multiple null goal client operations succeed for one owner'
+);
+
+insert into public.tasks (id, owner_id, title, scheduled_for)
+values
+  ('61000000-0000-0000-0000-000000000006'::uuid,
+   '00000000-0000-0000-0000-000000000001'::uuid,
+   'Scheduled task status',
+   '2026-07-14'::date),
+  ('61000000-0000-0000-0000-000000000007'::uuid,
+   '00000000-0000-0000-0000-000000000001'::uuid,
+   'Inbox task status',
+   null),
+  ('61000000-0000-0000-0000-000000000008'::uuid,
+   '00000000-0000-0000-0000-000000000001'::uuid,
+   'Done task status',
+   '2026-07-14'::date);
+
+update public.tasks
+set status = 'done'
+where id = '61000000-0000-0000-0000-000000000008'::uuid;
+
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000006'::uuid),
+  'planned',
+  'creating a task with a schedule makes it planned'
+);
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000007'::uuid),
+  'inbox',
+  'creating a task without a schedule keeps it in inbox'
+);
+
+update public.tasks
+set scheduled_for = '2026-07-15'::date
+where id = '61000000-0000-0000-0000-000000000007'::uuid;
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000007'::uuid),
+  'planned',
+  'scheduling an inbox task makes it planned'
+);
+
+update public.tasks
+set scheduled_for = null
+where id = '61000000-0000-0000-0000-000000000007'::uuid;
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000007'::uuid),
+  'inbox',
+  'unscheduling a planned task returns it to inbox'
+);
+
+update public.tasks
+set scheduled_for = null
+where id = '61000000-0000-0000-0000-000000000008'::uuid;
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000008'::uuid),
+  'done',
+  'schedule changes never override a done task'
+);
+
+select lives_ok(
+  $$insert into public.sessions (
+      id, owner_id, task_id, client_op_id, started_at, ended_at, outcome, honest_minutes
+    ) values (
+      '65000000-0000-0000-0000-000000000001'::uuid,
+      '00000000-0000-0000-0000-000000000001'::uuid,
+      '61000000-0000-0000-0000-000000000006'::uuid,
+      '66000000-0000-0000-0000-000000000001'::uuid,
+      now() - interval '25 minutes', now(), 'completed', 25
+    )$$,
+  'first session client operation succeeds'
+);
+select throws_ok(
+  $$insert into public.sessions (
+      id, owner_id, task_id, client_op_id, started_at, ended_at, outcome, honest_minutes
+    ) values (
+      '65000000-0000-0000-0000-000000000002'::uuid,
+      '00000000-0000-0000-0000-000000000001'::uuid,
+      '61000000-0000-0000-0000-000000000006'::uuid,
+      '66000000-0000-0000-0000-000000000001'::uuid,
+      now() - interval '20 minutes', now(), 'completed', 20
+    )$$,
+  '23505',
+  null,
+  'duplicate session client operation is rejected for one owner'
+);
+select lives_ok(
+  $$insert into public.sessions (
+      id, owner_id, task_id, client_op_id, started_at, ended_at, outcome, honest_minutes
+    ) values
+      ('65000000-0000-0000-0000-000000000003'::uuid,
+       '00000000-0000-0000-0000-000000000001'::uuid,
+       '61000000-0000-0000-0000-000000000006'::uuid,
+       null, now() - interval '15 minutes', now(), 'completed', 15),
+      ('65000000-0000-0000-0000-000000000004'::uuid,
+       '00000000-0000-0000-0000-000000000001'::uuid,
+       '61000000-0000-0000-0000-000000000006'::uuid,
+       null, now() - interval '10 minutes', now(), 'completed', 10)$$,
+  'multiple null session client operations succeed for one owner'
 );
 
 select * from finish();

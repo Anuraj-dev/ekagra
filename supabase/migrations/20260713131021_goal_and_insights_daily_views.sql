@@ -1,7 +1,8 @@
 -- Seven-day UTC focus rollups for goal meters and the v2 Insights trend.
 -- Both views are scoped directly to auth.uid() and preserve empty calendar days.
 
-create or replace view public.goal_daily_focus as
+create or replace view public.goal_daily_focus
+with (security_invoker = true) as
 with params as (
   select auth.uid() as user_id, (now() at time zone 'UTC')::date as utc_today
   where auth.uid() is not null
@@ -40,7 +41,8 @@ left join public.sessions
  and sessions.ended_at is not null
 group by calendar_days.user_id, owned_goals.goal_id, calendar_days.focus_date;
 
-create or replace view public.daily_focus_trend as
+create or replace view public.daily_focus_trend
+with (security_invoker = true) as
 with params as (
   select auth.uid() as user_id, (now() at time zone 'UTC')::date as utc_today
   where auth.uid() is not null

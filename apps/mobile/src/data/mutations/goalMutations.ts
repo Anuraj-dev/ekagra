@@ -1,16 +1,17 @@
 import type { Goal, GoalCreateRequest, GoalUpdateRequest, Task } from '@ekagra/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { goalsApi } from '../../lib/api';
 import { qk } from '../keys';
-import type { MutationResult } from './types';
+import type { MutationResult, RetryableMutationResult } from './types';
 
 type CachedGoal = Goal & { syncing?: boolean };
 type CreateVariables = GoalCreateRequest & { clientOpId: string; optimisticId: string };
 
-export function useCreateGoal(): MutationResult<GoalCreateRequest> {
+export function useCreateGoal(): RetryableMutationResult<GoalCreateRequest> {
   const client = useQueryClient();
+  const currentOperation = useRef<CreateVariables | null>(null);
   const mutation = useMutation({
     mutationFn: ({ optimisticId: _optimisticId, ...payload }: CreateVariables) =>
       goalsApi.create(payload),
@@ -37,21 +38,38 @@ export function useCreateGoal(): MutationResult<GoalCreateRequest> {
       client.setQueryData<CachedGoal[]>(qk.goals, (goals = []) =>
         goals.map((item) => (item.id === variables.optimisticId ? goal : item)),
       );
+      if (currentOperation.current?.clientOpId === variables.clientOpId) {
+        currentOperation.current = null;
+      }
     },
     onSettled: () => client.invalidateQueries({ queryKey: qk.goals }),
   });
   const mutate = useCallback(
     (input: GoalCreateRequest) => {
-      const clientOpId = Crypto.randomUUID();
-      mutation.mutate({ ...input, clientOpId, optimisticId: `syncing-goal-${clientOpId}` });
+      const variables =
+        currentOperation.current ??
+        (() => {
+          const clientOpId = input.clientOpId ?? Crypto.randomUUID();
+          return { ...input, clientOpId, optimisticId: `syncing-goal-${clientOpId}` };
+        })();
+      currentOperation.current = variables;
+      mutation.mutate(variables);
     },
     [mutation.mutate],
   );
+  const retry = useCallback(() => {
+    if (currentOperation.current) mutation.mutate(currentOperation.current);
+  }, [mutation.mutate]);
+  const reset = useCallback(() => {
+    currentOperation.current = null;
+    mutation.reset();
+  }, [mutation.reset]);
   return {
     mutate,
+    retry,
     isPending: mutation.isPending,
     isError: mutation.isError,
-    reset: mutation.reset,
+    reset,
   };
 }
 

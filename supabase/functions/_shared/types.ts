@@ -43,6 +43,7 @@ export type SessionRow = {
   id: string;
   owner_id: string;
   task_id: string;
+  client_op_id: string | null;
   started_at: string;
   running_since: string | null;
   paused_at: string | null;
@@ -72,9 +73,11 @@ export type SessionPatch = Partial<
 export interface SessionRepository {
   getTask(ownerId: string, taskId: string): Promise<TaskRow | null>;
   getActiveSession(ownerId: string): Promise<SessionRow | null>;
+  getSessionByClientOpId(ownerId: string, clientOpId: string): Promise<SessionRow | null>;
   insertSession(input: {
     ownerId: string;
     taskId: string;
+    clientOpId: string | null;
     plannedMinutes: number;
     startedAt: string;
   }): Promise<SessionRow>;
@@ -95,7 +98,7 @@ export type HandlerContext = {
 export type StartSessionHandler = (
   context: HandlerContext,
   input: SessionStartRequest,
-) => Promise<Session>;
+) => Promise<{ session: Session; created: boolean }>;
 
 export type SessionCommandHandler = (
   context: HandlerContext,

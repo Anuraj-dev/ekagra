@@ -16,8 +16,11 @@ Deno.serve((request) =>
     }
     if (request.method === 'POST') {
       const input = parseSessionStartRequest(await body(request));
-      const session = await handlers.start({ ownerId, now }, input);
-      return json({ session, serverNow: new Date(now).toISOString() }, 201);
+      const result = await handlers.start({ ownerId, now }, input);
+      return json(
+        { session: result.session, serverNow: new Date(now).toISOString() },
+        result.created ? 201 : 200,
+      );
     }
 
     method(request, ['PATCH']);

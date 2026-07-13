@@ -1,5 +1,14 @@
 import type { Session as AuthSession } from '@supabase/supabase-js';
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { clearUserQueryState, readCacheOwner, rememberCacheOwner } from '../data/queryClient';
 import { supabase } from '../lib/supabase';
 
 type AuthContextValue = {
@@ -15,16 +24,40 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const ownerId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      setLoading(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    let transition = 0;
+    const applySession = async (next: AuthSession | null) => {
+      const currentTransition = ++transition;
+      const nextOwnerId = next?.user.id ?? null;
+      // On cold boot the ref is unknown, so fall back to the persisted cache owner:
+      // a same-user boot keeps its cache (offline/instant start); any real identity
+      // change still wipes it before the new account renders.
+      const previousOwnerId =
+        ownerId.current === undefined ? await readCacheOwner() : ownerId.current;
+      if (!active || currentTransition !== transition) return;
+      if (previousOwnerId !== nextOwnerId) {
+        setLoading(true);
+        try {
+          await clearUserQueryState();
+        } catch (error) {
+          // Do not render a new account if its predecessor's persisted cache could not be erased.
+          console.error('Could not clear the account query cache.', error);
+          return;
+        }
+      }
+      if (!active || currentTransition !== transition) return;
+      ownerId.current = nextOwnerId;
+      await rememberCacheOwner(nextOwnerId);
+      if (!active || currentTransition !== transition) return;
       setSession(next);
+      setLoading(false);
+    };
+    void supabase.auth.getSession().then(({ data }) => applySession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+      void applySession(next);
     });
     return () => {
       active = false;
@@ -45,7 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
       signOut: async () => {
-        await supabase.auth.signOut();
+        await clearUserQueryState();
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
       },
     }),
     [session, loading],

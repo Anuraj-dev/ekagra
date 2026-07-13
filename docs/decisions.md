@@ -80,3 +80,13 @@ and full from-scratch rewrite (backend is sound). Kairo, Gmail/Calendar, Crew, N
 **Why:** Sol consult: TanStack fits Supabase server-state with optimistic rollback + idempotency keys
 (Legend-State rejected — local-first DB not required yet). Timer correctness stays server-anchored,
 timestamp-based; Notifee gives the ongoing notification + actions but never owns truth. Requires dev build.
+
+## 2026-07-13 — Scheduling owns non-done task planning status
+**Why:** Timeline visibility and focus eligibility both depend on `planned`; allowing `scheduled_for` and
+status to drift strands scheduled tasks in Inbox. Postgres now atomically derives `planned` when scheduled
+and `inbox` when unscheduled, while schedule-only edits preserve `done`.
+
+## 2026-07-13 — Create retry replays one operation; auth changes erase server-state cache
+**Why:** Re-minting operation IDs creates duplicates after lost responses, while restoring one global
+persisted query cache can disclose the previous account's data. Create/start hooks retain one ID until
+success or explicit reset, and account transitions clear memory plus persistence before rendering.

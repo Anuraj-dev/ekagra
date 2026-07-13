@@ -1,4 +1,4 @@
-import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { type ReactNode, useEffect } from 'react';
@@ -8,33 +8,22 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
 import { UpdateBanner } from './src/components/UpdateBanner';
 import { DataProvider } from './src/data/DataProvider';
+import { QueryProvider } from './src/data/queryClient';
 import { loadCuePrefs } from './src/lib/cuePrefs';
 import { scheduleDailyCues } from './src/lib/notifications';
 import { isSupabaseConfigured } from './src/lib/supabase';
 import { RootNavigator } from './src/nav/RootNavigator';
 import { SignIn } from './src/screens/SignIn';
-import { color } from './src/theme/tokens';
+import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { fontAssets, text } from './src/theme/typography';
 
-const navTheme: Theme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: color.bg,
-    card: color.bg,
-    text: color.t1,
-    border: color.line,
-    primary: color.ember,
-    notification: color.ember,
-  },
-};
-
 function Centered({ children }: { children: ReactNode }) {
+  const t = useTheme();
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor: color.bg,
+        backgroundColor: t.canvas,
         alignItems: 'center',
         justifyContent: 'center',
         padding: 32,
@@ -47,15 +36,16 @@ function Centered({ children }: { children: ReactNode }) {
 
 /** Shown when Supabase env is missing — the app can't talk to its backend. */
 function ConfigNotice() {
+  const t = useTheme();
   return (
     <Centered>
-      <Text style={text(800, { fontSize: 20, color: color.t1, textAlign: 'center' })}>
+      <Text style={text(800, { fontSize: 20, color: t.ink, textAlign: 'center' })}>
         Configuration needed
       </Text>
       <Text
         style={text(600, {
           fontSize: 14,
-          color: color.t3,
+          color: t.textSecondary,
           marginTop: 12,
           textAlign: 'center',
           lineHeight: 21,
@@ -70,6 +60,20 @@ function ConfigNotice() {
 
 function Gate() {
   const { session, loading } = useAuth();
+  const t = useTheme();
+  const navBase = t.appearance === 'dark' ? DarkTheme : DefaultTheme;
+  const navTheme: Theme = {
+    ...navBase,
+    colors: {
+      ...navBase.colors,
+      background: t.canvas,
+      card: t.canvas,
+      text: t.ink,
+      border: t.line,
+      primary: t.accent,
+      notification: t.accent,
+    },
+  };
 
   // Local daily cues are scheduled once the user is authenticated, using the
   // user's chosen cue times (defaults until they change them in Settings).
@@ -84,7 +88,7 @@ function Gate() {
   if (loading) {
     return (
       <Centered>
-        <ActivityIndicator color={color.ember} />
+        <ActivityIndicator color={t.accent} />
       </Centered>
     );
   }
@@ -92,35 +96,48 @@ function Gate() {
   if (!session) return <SignIn />;
 
   return (
-    <DataProvider>
-      <View style={{ flex: 1 }}>
-        <NavigationContainer theme={navTheme}>
-          <RootNavigator />
-        </NavigationContainer>
-        <UpdateBanner />
-      </View>
-    </DataProvider>
+    <QueryProvider>
+      <DataProvider>
+        <View style={{ flex: 1 }}>
+          <NavigationContainer theme={navTheme}>
+            <RootNavigator />
+          </NavigationContainer>
+          <UpdateBanner />
+        </View>
+      </DataProvider>
+    </QueryProvider>
+  );
+}
+
+function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const { appearance, accent } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={appearance === 'dark' ? 'light' : 'dark'} />
+      {!fontsLoaded ? (
+        <Centered>
+          <ActivityIndicator color={accent} />
+        </Centered>
+      ) : !isSupabaseConfigured ? (
+        <ConfigNotice />
+      ) : (
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      )}
+    </>
   );
 }
 
 export default function App() {
   const [fontsLoaded] = useFonts(fontAssets);
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
-        {!fontsLoaded ? (
-          <Centered>
-            <ActivityIndicator color={color.ember} />
-          </Centered>
-        ) : !isSupabaseConfigured ? (
-          <ConfigNotice />
-        ) : (
-          <AuthProvider>
-            <Gate />
-          </AuthProvider>
-        )}
+        <ThemeProvider>
+          <AppContent fontsLoaded={fontsLoaded} />
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

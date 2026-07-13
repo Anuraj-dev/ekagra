@@ -111,11 +111,16 @@ export function PlayIcon({ size = 16, fill = color.bg }: { size?: number; fill?:
   );
 }
 
-export function PauseIcon({ tint = color.t1 }: { tint?: string }) {
+export function PauseIcon({ size = 22, tint = color.t1 }: { size?: number; tint?: string }) {
   return (
-    <Svg width={22} height={22} viewBox="0 0 22 22">
-      <Rect x={4} y={3} width={5} height={16} rx={2} fill={tint} />
-      <Rect x={13} y={3} width={5} height={16} rx={2} fill={tint} />
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      <Path
+        d="M7 4 L7 18 M15 4 L15 18"
+        fill="none"
+        stroke={tint}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
     </Svg>
   );
 }

@@ -1,10 +1,21 @@
 import {
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+  InstrumentSans_700Bold,
+} from '@expo-google-fonts/instrument-sans';
+import {
+  JetBrainsMono_500Medium,
+  JetBrainsMono_600SemiBold,
+} from '@expo-google-fonts/jetbrains-mono';
+import {
   Manrope_400Regular,
   Manrope_500Medium,
   Manrope_600SemiBold,
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
+import { SourceSerif4_600SemiBold, SourceSerif4_700Bold } from '@expo-google-fonts/source-serif-4';
 import type { TextStyle } from 'react-native';
 
 /**
@@ -18,6 +29,14 @@ export const fontAssets = {
   Manrope_600SemiBold,
   Manrope_700Bold,
   Manrope_800ExtraBold,
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+  InstrumentSans_700Bold,
+  SourceSerif4_600SemiBold,
+  SourceSerif4_700Bold,
+  JetBrainsMono_500Medium,
+  JetBrainsMono_600SemiBold,
 };
 
 export type Weight = 400 | 500 | 600 | 700 | 800;
@@ -38,6 +57,30 @@ export function family(weight: Weight): string {
 /** Builds a text style with the correct Manrope family for the given weight. */
 export function text(weight: Weight, extra?: TextStyle): TextStyle {
   return { fontFamily: FAMILY[weight], ...extra };
+}
+
+const UI_FAMILY: Record<400 | 500 | 600 | 700, string> = {
+  400: 'InstrumentSans_400Regular',
+  500: 'InstrumentSans_500Medium',
+  600: 'InstrumentSans_600SemiBold',
+  700: 'InstrumentSans_700Bold',
+};
+
+const DISPLAY_FAMILY: Record<600 | 700, string> = {
+  600: 'SourceSerif4_600SemiBold',
+  700: 'SourceSerif4_700Bold',
+};
+
+export function ui(weight: 400 | 500 | 600 | 700, extra?: TextStyle): TextStyle {
+  return { fontFamily: UI_FAMILY[weight], ...extra };
+}
+
+export function display(weight: 600 | 700, extra?: TextStyle): TextStyle {
+  return { fontFamily: DISPLAY_FAMILY[weight], ...extra };
+}
+
+export function mono(extra?: TextStyle): TextStyle {
+  return { fontFamily: 'JetBrainsMono_500Medium', ...extra };
 }
 
 /** The uppercase, tracked overline label style (DESIGN-SPEC §3). */

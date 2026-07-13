@@ -11,27 +11,27 @@ const config: ExpoConfig = {
   version: '0.1.6',
   orientation: 'portrait',
   scheme: 'ekagra',
-  userInterfaceStyle: 'dark',
-  backgroundColor: '#0E0F12',
+  userInterfaceStyle: 'light',
+  backgroundColor: '#f7f1e8',
   icon: './assets/icon.png',
   splash: {
     image: './assets/splash.png',
-    backgroundColor: '#0A0B0E',
+    backgroundColor: '#efe9dd',
     resizeMode: 'contain',
   },
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
-    backgroundColor: '#0E0F12',
+    backgroundColor: '#f7f1e8',
   },
   android: {
     package: 'dev.anuraj.ekagra',
     // Lets the in-app updater hand a downloaded APK to the system installer.
     permissions: ['REQUEST_INSTALL_PACKAGES'],
-    backgroundColor: '#0E0F12',
+    backgroundColor: '#f7f1e8',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#0A0B0E',
+      backgroundColor: '#efe9dd',
     },
   },
   plugins: ['expo-font', 'expo-notifications'],

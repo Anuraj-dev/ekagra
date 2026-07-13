@@ -47,16 +47,14 @@
 ## 2026-07-10 — Sub-agent model routing updated (Raja)
 **Why:** GPT Sol (medium) for heavy/architectural backend, Sol (low) for reviews, GPT-5.6 Luna for heavy frontend with Opus fallback. Codex ChatGPT account 400-rejects explicit -m ids → use account default at the same effort levels.
 
-<<<<<<< HEAD
 ## 2026-07-10 — Phase 6 motivation calendar uses UTC and targeted forgiveness
 **Why:** V1 needs one deterministic day/week boundary across Postgres views and edge callers before user timezone storage exists. A weekly token targets the latest explicit miss, or a missing pre-today date after the user's first non-empty morning commitment in that UTC ISO week; this preserves a real consecutive-day streak without forgiving unfinished today or pre-tracking gaps. Per-user timezone boundaries are deferred.
-=======
+
 ## 2026-07-10 — Codex model ids corrected + usage window
 **Why:** Fully-qualified ids (`-m gpt-5.6-sol|terra|luna`) DO work on the ChatGPT account — only short ids (`gpt-sol`) 400-reject (verified via frontend-ai-model-benchmark runs). Supersedes the earlier "use account default" note. Raja: use codex extensively only through ~2026-07-11 (quota reset window), then strategic-only (Codex Plus).
 
 ## 2026-07-10 — Subagent fix-cycle cap (Raja)
 **Why:** Resumed agents replay ever-growing transcripts — cost rises, quality plateaus. Max ~2 cycles (build + one fix round) per agent; repeat mistakes → fresh spawn with distilled findings, or higher effort. Same-agent continuation only when its in-context knowledge is genuinely load-bearing.
->>>>>>> origin/main
 ## 2026-07-10 — Insights analytics are auth.uid()-scoped SQL views, read directly by clients
 **Why:** Issue #8 hard rule "all analytics are SQL views"; avoids new edge fns, RLS stays in the view predicate. Rejected: insights edge function aggregating in TS.
 
@@ -71,3 +69,30 @@
 
 ## 2026-07-12 — planMatch derived from evening tag
 **Why:** The Yes/No "did today match the plan" control was cut per the audit; `parseEveningCloseRequest` hard-requires `planMatch`, so it's now `tag === 'on-plan'`. Alternative (API change to drop the field) rejected to keep the audit UI-scoped. planMatch and the tag are now coupled by design.
+
+## 2026-07-13 — v2 full UI rebuild on existing backend (spec 001, issue #42)
+**Why:** Raja rejected the current UX outright (dead-feeling timer start, laggy creates, dark-ember design).
+Rebuild all mobile screens to Pravah's core planner + pomo's timer UX under "Warm Planning Desk" language;
+keep Supabase/data model/timer engine. Rejected alternatives: restyle-only (wouldn't fix data-layer lag)
+and full from-scratch rewrite (backend is sound). Kairo, Gmail/Calendar, Crew, NodeMCU/CLI explicitly parked.
+
+## 2026-07-13 — TanStack Query + Notifee foreground service for the v2 client
+**Why:** Sol consult: TanStack fits Supabase server-state with optimistic rollback + idempotency keys
+(Legend-State rejected — local-first DB not required yet). Timer correctness stays server-anchored,
+timestamp-based; Notifee gives the ongoing notification + actions but never owns truth. Requires dev build.
+
+## 2026-07-13 — Scheduling owns non-done task planning status
+**Why:** Timeline visibility and focus eligibility both depend on `planned`; allowing `scheduled_for` and
+status to drift strands scheduled tasks in Inbox. Postgres now atomically derives `planned` when scheduled
+and `inbox` when unscheduled, while schedule-only edits preserve `done`.
+
+## 2026-07-13 — Create retry replays one operation; auth changes erase server-state cache
+**Why:** Re-minting operation IDs creates duplicates after lost responses, while restoring one global
+persisted query cache can disclose the previous account's data. Create/start hooks retain one ID until
+success or explicit reset, and account transitions clear memory plus persistence before rendering.
+
+## 2026-07-13 — Task-edit schedule normalization exempts morning commit explicitly
+**Why:** Task PATCHes need one atomic database invariant across independent `status`/`scheduled_for` fields,
+but morning commit intentionally means planned for today without a calendar date. The trigger now normalizes
+both edited columns and preserves `done`/`cancelled`; `commit_morning_plan` alone uses a scoped, restored GUC
+bypass. A handler read/merge was rejected because it adds a race and cannot be covered directly by pgTAP.

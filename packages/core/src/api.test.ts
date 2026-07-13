@@ -4,10 +4,14 @@ import {
   parseDayRecord,
   parseDeviceActionRequest,
   parseEveningCloseRequest,
+  parseGoalCreateRequest,
+  parseGoalUpdateRequest,
   parseMorningCommitRequest,
   parseSessionCommand,
   parseSessionStartRequest,
+  parseTaskCreateRequest,
   parseTaskStatus,
+  parseTaskUpdateRequest,
 } from './api';
 
 const taskId = '20000000-0000-0000-0000-000000000001';
@@ -48,6 +52,59 @@ describe('API contract validators', () => {
     expect(() => parseDeviceActionRequest({ action: 'resume' })).toThrow('start_next_planned');
     expect(parseTaskStatus('planned')).toBe('planned');
     expect(() => parseTaskStatus('running')).toThrow('invalid');
+  });
+
+  test('passes through v2 task, goal, and session fields', () => {
+    const clientOpId = '60000000-0000-0000-0000-000000000001';
+    expect(
+      parseTaskCreateRequest({
+        title: 'Plan launch',
+        priority: 'p1',
+        scheduledFor: '2026-07-14',
+        scheduledTime: '23:59',
+        deadline: '2026-07-20',
+        notes: 'Prepare the checklist.',
+        clientOpId,
+      }),
+    ).toMatchObject({
+      priority: 'p1',
+      scheduledFor: '2026-07-14',
+      scheduledTime: '23:59',
+      deadline: '2026-07-20',
+      notes: 'Prepare the checklist.',
+      clientOpId,
+    });
+    expect(parseTaskUpdateRequest({ priority: null, scheduledTime: null, notes: null })).toEqual({
+      priority: null,
+      scheduledTime: null,
+      notes: null,
+    });
+    expect(
+      parseGoalCreateRequest({
+        title: 'Ship v2',
+        identityRole: 'Builder',
+        priority: 'p2',
+        clientOpId,
+      }),
+    ).toMatchObject({ priority: 'p2', clientOpId });
+    expect(parseGoalUpdateRequest({ priority: null })).toEqual({ priority: null });
+    expect(parseSessionStartRequest({ taskId, clientOpId })).toEqual({
+      taskId,
+      durations: undefined,
+      clientOpId,
+    });
+  });
+
+  test('rejects invalid v2 task and goal fields', () => {
+    expect(() => parseTaskCreateRequest({ title: 'Bad priority', priority: 'p0' })).toThrow(
+      'priority',
+    );
+    expect(() => parseTaskCreateRequest({ title: 'Bad time', scheduledTime: '24:00' })).toThrow(
+      'scheduledTime',
+    );
+    expect(() => parseTaskUpdateRequest({ notes: 'x'.repeat(2001) })).toThrow('notes');
+    expect(() => parseGoalUpdateRequest({ priority: 'urgent' })).toThrow('priority');
+    expect(() => parseSessionStartRequest({ taskId, clientOpId: 'not-a-uuid' })).toThrow('UUID');
   });
 });
 

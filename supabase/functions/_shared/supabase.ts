@@ -15,7 +15,9 @@ export function databaseApiError(
   fallback = 'Database request failed.',
 ): ApiError {
   if (error.code === 'PGRST116') return new ApiError('not_found', 'Record not found.');
-  if (error.code === '23505') return new ApiError('conflict', 'That record already exists.');
+  if (error.code === '23505') {
+    return new ApiError('conflict', 'That record already exists.', { databaseCode: '23505' });
+  }
   if (error.code === '23514') {
     return new ApiError('bad_request', error.message ?? 'Database validation failed.');
   }
@@ -63,12 +65,22 @@ function sessionRepository(client: SupabaseClient): SessionRepository {
         .maybeSingle();
       return optionalRow(result.data as SessionRow | null, result.error);
     },
+    async getSessionByClientOpId(ownerId, clientOpId) {
+      const result = await client
+        .from('sessions')
+        .select(sessionSelect)
+        .eq('owner_id', ownerId)
+        .eq('client_op_id', clientOpId)
+        .maybeSingle();
+      return optionalRow(result.data as SessionRow | null, result.error);
+    },
     async insertSession(input) {
       const result = await client
         .from('sessions')
         .insert({
           owner_id: input.ownerId,
           task_id: input.taskId,
+          client_op_id: input.clientOpId,
           planned_minutes: input.plannedMinutes,
           started_at: input.startedAt,
           running_since: input.startedAt,

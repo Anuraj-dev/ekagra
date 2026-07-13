@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#efe9dd;font-family:'Instrument Sans',system-ui,sans-serif;color:#201914}
+a{color:#6753c7}a:hover{color:#52409f}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px 'JetBrains Mono',monospace;padding:3px 7px;background:#201914;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'Instrument Sans',sans-serif;color:#201914}
+.dv-opts{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px 'JetBrains Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#201914;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'Instrument Sans',sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:10px;box-shadow:0 2px 8px rgba(32,25,20,.08);overflow:hidden}
+.dv-opt:target .dv-oid{background:#6753c7;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 'Instrument Sans',sans-serif;color:rgba(0,0,0,.5)}
+.ph{width:412px;height:917px;background:#f7f1e8;color:#201914;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'Instrument Sans',sans-serif}
+.sb{display:flex;justify-content:space-between;align-items:center;padding:16px 24px 6px;font:600 13px 'Instrument Sans',sans-serif;color:#201914;flex:none}
+.disp{font-family:'Source Serif 4',serif;font-weight:600;letter-spacing:-.01em}
+.meta{font:500 11px 'Instrument Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8a7c6c}
+.gchip{font:500 11px 'Instrument Sans',sans-serif;padding:2px 8px;border:1px solid #ddd2bf;border-radius:99px;color:#6f6355;background:#f2ead9}
+.play{width:34px;height:34px;border-radius:99px;border:1.5px solid #c9bda8;display:flex;align-items:center;justify-content:center;font-size:11px;color:#201914;background:transparent;cursor:pointer;flex:none}
+.play:active{background:#e6dcc9;transform:scale(.94)}
+.trow{display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid #eae1d0}
+.pdot{width:8px;height:8px;border-radius:99px;flex:none}
+.nav{flex:none;height:84px;background:#f2ebdd;border-top:1px solid #e6dcc9;display:flex;align-items:center;justify-content:space-around;padding:0 8px}
+.navi{display:flex;flex-direction:column;align-items:center;gap:4px;font:500 11px 'Instrument Sans',sans-serif;color:#6f6355;width:72px;cursor:pointer}
+.navi:active{opacity:.6}
+.pill{width:56px;height:30px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.gbar{flex:none;height:22px;display:flex;align-items:center;justify-content:center}
+.gbar div{width:120px;height:4px;border-radius:99px;background:#c9bda8}
+.pip{width:11px;height:11px;border-radius:3px}
+.tog{width:48px;height:28px;border-radius:99px;position:relative;flex:none;cursor:pointer}
+.tog:active{opacity:.8}
+.btn:active{filter:brightness(.85);transform:scale(.98)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Warm Planning Desk — full flow · 6 screens, capture &amp; focus states, notification, interaction states</span></div>
+<div class="dv-opts">
+
+<!-- ============ 1a TASKS ============ -->
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Tasks (home) — idle, Inbox + Timeline</div>
+<div class="dv-card"><div class="ph" data-screen-label="Tasks — idle">
+<div class="sb"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="padding:18px 20px 8px">
+<div class="disp" style="font-size:32px">Tasks</div>
+<div class="meta" style="margin-top:5px">Mon Jul 13 · 3 in inbox · 4 scheduled</div>
+</div>
+<div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 20px 4px"><span class="meta">Inbox · 3</span><span class="meta" style="color:#b0a48f">Oldest 2 d</span></div>
+<div class="trow"><span class="pdot" style="background:#201914"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Email advisor re: draft</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Thesis</span><span class="meta" style="text-transform:none;letter-spacing:.02em">added 2 d ago</span></div></div><button class="play">▶</button></div>
+<div class="trow"><span class="pdot" style="background:#a4977f"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Book dentist appointment</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="meta" style="text-transform:none;letter-spacing:.02em">no goal · added 1 d ago</span></div></div><button class="play">▶</button></div>
+<div class="trow"><span class="pdot" style="background:transparent;border:1.5px solid #a4977f"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Compare standing desks</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Apartment</span><span class="meta" style="text-transform:none;letter-spacing:.02em">added 5 h ago</span></div></div><button class="play">▶</button></div>
+<div style="padding:18px 20px 6px"><span class="meta">Timeline</span></div>
+<div style="display:flex;gap:6px;padding:2px 20px 12px">
+<div style="flex:1;text-align:center;padding:8px 0;border-radius:12px;background:#201914;color:#f7f1e8;cursor:pointer"><div style="font:500 10px 'Instrument Sans';letter-spacing:.08em">MON</div><div style="font:600 15px 'Instrument Sans'">13</div><div style="font-size:9px;margin-top:1px;color:#cfc4ad">4</div></div>
+<div style="flex:1;text-align:center;padding:8px 0;border-radius:12px;border:1px solid #e6dcc9;cursor:pointer"><div class="meta" style="font-size:10px">TUE</div><div style="font:600 15px 'Instrument Sans'">14</div><div style="font-size:9px;margin-top:1px;color:#a4977f">2</div></div>
+<div style="flex:1;text-align:center;padding:8px 0;border-radius:12px;border:1px solid #e6dcc9;cursor:pointer"><div class="meta" style="font-size:10px">WED</div><div style="font:600 15px 'Instrument Sans'">15</div><div style="font-size:9px;margin-top:1px;color:#a4977f">1</div></div>
+<div style="flex:1;text-align:center;padding:8px 0;border-radius:12px;border:1px solid #e6dcc9;cursor:pointer"><div class="meta" style="font-size:10px">THU</div><div style="font:600 15px 'Instrument Sans'">16</div><div style="font-size:9px;margin-top:1px;color:#a4977f">—</div></div>
+<div style="flex:1;text-align:center;padding:8px 0;border-radius:12px;border:1px solid #e6dcc9;cursor:pointer"><div class="meta" style="font-size:10px">FRI</div><div style="font:600 15px 'Instrument Sans'">17</div><div style="font-size:9px;margin-top:1px;color:#a4977f">2</div></div>
+<div style="flex:1;text-align:center;padding:8px 0;border-radius:12px;border:1px solid #e6dcc9;cursor:pointer"><div class="meta" style="font-size:10px">SAT</div><div style="font:600 15px 'Instrument Sans'">18</div><div style="font-size:9px;margin-top:1px;color:#a4977f">—</div></div>
+<div style="flex:1;text-align:center;padding:8px 0;border-radius:12px;border:1px solid #e6dcc9;cursor:pointer"><div class="meta" style="font-size:10px">SUN</div><div style="font:600 15px 'Instrument Sans'">19</div><div style="font-size:9px;margin-top:1px;color:#a4977f">1</div></div>
+</div>
+<div class="trow"><span class="pdot" style="background:#201914"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Write proposal</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Thesis</span><span class="meta" style="text-transform:none;letter-spacing:.02em">09:00 · 2 × 25 min</span></div></div><button class="play">▶</button></div>
+<div class="trow"><span class="pdot" style="background:#a4977f"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Revise chapter 2 notes</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Thesis</span><span class="meta" style="text-transform:none;letter-spacing:.02em">13:30 · 1 × 25 min</span></div></div><button class="play">▶</button></div>
+<div class="trow"><span class="pdot" style="background:#a4977f"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Run 5k</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Health</span><span class="meta" style="text-transform:none;letter-spacing:.02em">17:00 · 1 × 25 min</span></div></div><button class="play">▶</button></div>
+</div>
+<div class="nav">
+<div class="navi" style="color:#201914"><span class="pill" style="background:#e6dcc9">▤</span>Tasks</div>
+<div class="navi"><span class="pill">◎</span>Goals</div>
+<button class="btn" style="width:60px;height:60px;border-radius:20px;background:#6753c7;color:#fff;font-size:26px;border:none;box-shadow:0 3px 10px rgba(103,83,199,.35);cursor:pointer;margin-top:-26px">+</button>
+<div class="navi"><span class="pill">◔</span>Insights</div>
+<div class="navi"><span class="pill">⚙</span>Settings</div>
+</div>
+<div class="gbar"><div></div></div>
+</div></div></div>
+
+<!-- ============ 1b TASKS RUNNING ============ -->
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Tasks — session running · undo snackbar · mini-timer chip</div>
+<div class="dv-card"><div class="ph" data-screen-label="Tasks — running">
+<div class="sb"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="padding:18px 20px 8px">
+<div class="disp" style="font-size:32px">Tasks</div>
+<div class="meta" style="margin-top:5px">Mon Jul 13 · Session 1 of 2 running</div>
+</div>
+<div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 20px 4px"><span class="meta">Inbox · 2</span><span class="meta" style="color:#b0a48f">Oldest 2 d</span></div>
+<div class="trow"><span class="pdot" style="background:#201914"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Email advisor re: draft</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Thesis</span><span class="meta" style="text-transform:none;letter-spacing:.02em">added 2 d ago</span></div></div><button class="play">▶</button></div>
+<div class="trow" style="opacity:.55"><span style="width:8px;flex:none;font-size:12px;color:#6f6355">✓</span><div style="flex:1;min-width:0"><div style="font-size:15px;text-decoration:line-through;color:#6f6355">Book dentist appointment</div><div style="margin-top:4px"><span class="meta" style="text-transform:none;letter-spacing:.02em">completed just now</span></div></div></div>
+<div style="padding:18px 20px 6px"><span class="meta">Timeline · Mon 13</span></div>
+<div class="trow" style="background:#f2ead9;border-left:3px solid #201914;padding-left:17px"><span class="pdot" style="background:#201914"></span><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600">Write proposal</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Thesis</span><span class="meta" style="text-transform:none;letter-spacing:.02em">In focus · session 1 of 2</span></div></div><div class="meta" style="text-transform:none">18:42</div></div>
+<div class="trow"><span class="pdot" style="background:#a4977f"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Revise chapter 2 notes</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Thesis</span><span class="meta" style="text-transform:none;letter-spacing:.02em">13:30 · 1 × 25 min</span></div></div><button class="play">▶</button></div>
+<div class="trow"><span class="pdot" style="background:#a4977f"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Run 5k</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px"><span class="gchip">Health</span><span class="meta" style="text-transform:none;letter-spacing:.02em">17:00 · 1 × 25 min</span></div></div><button class="play">▶</button></div>
+<div style="flex:1"></div>
+<div style="margin:0 16px 10px;background:#2a2119;color:#f7f1e8;border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(32,25,20,.3)"><span style="flex:1;font-size:13.5px">Completed “Book dentist appointment”</span><button class="btn" style="background:none;border:none;color:#c3b6f5;font:600 12px 'Instrument Sans';letter-spacing:.08em;cursor:pointer;padding:4px">UNDO</button></div>
+<div style="margin:0 16px 10px;display:flex;justify-content:center"><div class="btn" style="display:flex;align-items:center;gap:10px;background:#201914;color:#f7f1e8;border-radius:99px;padding:9px 18px;cursor:pointer;box-shadow:0 3px 10px rgba(32,25,20,.25)"><span style="width:7px;height:7px;border-radius:99px;background:#c3b6f5;animation:pulse 1.6s infinite"></span><span style="font-size:13px">Write proposal</span><span style="font:600 13px 'JetBrains Mono',monospace">18:42</span></div></div>
+</div>
+<div class="nav">
+<div class="navi" style="color:#201914"><span class="pill" style="background:#e6dcc9">▤</span>Tasks</div>
+<div class="navi"><span class="pill">◎</span>Goals</div>
+<button class="btn" style="width:60px;height:60px;border-radius:20px;background:#6753c7;color:#fff;font-size:26px;border:none;box-shadow:0 3px 10px rgba(103,83,199,.35);cursor:pointer;margin-top:-26px">+</button>
+<div class="navi"><span class="pill">◔</span>Insights</div>
+<div class="navi"><span class="pill">⚙</span>Settings</div>
+</div>
+<div class="gbar"><div></div></div>
+</div></div></div>
+
+<!-- ============ 1c CAPTURE TASK ============ -->
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Capture sheet — new task, More expanded, keyboard up</div>
+<div class="dv-card"><div class="ph" data-screen-label="Capture — task" style="background:#8d8172">
+<div style="position:absolute;inset:0;background:linear-gradient(#f7f1e8,#efe6d8);filter:blur(7px);opacity:.5"></div>
+<div style="position:absolute;inset:0;background:rgba(32,25,20,.35)"></div>
+<div class="sb" style="position:relative;color:#f7f1e8"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="flex:1"></div>
+<div style="position:relative;background:#f7f1e8;border-radius:28px 28px 0 0;max-height:92%;display:flex;flex-direction:column;box-shadow:0 -8px 30px rgba(32,25,20,.3)">
+<div style="display:flex;justify-content:center;padding:10px 0 2px"><div style="width:36px;height:4px;border-radius:99px;background:#c9bda8"></div></div>
+<div style="padding:8px 24px 0"><span class="meta">Capture</span></div>
+<div style="display:flex;gap:22px;padding:10px 24px 0;border-bottom:1px solid #eae1d0">
+<div style="font:600 14px 'Instrument Sans';padding:8px 2px;border-bottom:2.5px solid #201914;cursor:pointer">New task</div>
+<div style="font:500 14px 'Instrument Sans';color:#8a7c6c;padding:8px 2px;border-bottom:2.5px solid transparent;cursor:pointer">New goal</div>
+</div>
+<div style="padding:20px 24px 0">
+<div style="display:flex;align-items:baseline"><span style="font-size:19px">Draft outline for chapter 3</span><span style="width:2px;height:22px;background:#6753c7;margin-left:2px;animation:pulse 1.1s infinite"></span></div>
+<div style="height:2px;background:#201914;margin-top:8px;border-radius:2px"></div>
+<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;background:#201914;color:#f7f1e8;cursor:pointer">Inbox</span>
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8;color:#201914;cursor:pointer">Today</span>
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8;color:#201914;cursor:pointer">Tomorrow</span>
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8;color:#201914;cursor:pointer">Later · Sat</span>
+</div>
+<div style="margin-top:16px"><span class="meta">Goal</span>
+<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1.5px solid #201914;color:#201914;cursor:pointer">✓ Thesis</span>
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8;color:#6f6355;cursor:pointer">Health</span>
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8;color:#6f6355;cursor:pointer">Apartment</span>
+<span class="btn" style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8;color:#6f6355;cursor:pointer">No goal</span>
+</div></div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:16px;cursor:pointer"><span class="meta" style="color:#201914">More</span><span style="font-size:10px;color:#6f6355">▲</span></div>
+<div style="margin-top:10px;display:flex;flex-direction:column;gap:12px">
+<div><div class="meta" style="font-size:10px">Notes</div><div style="font-size:14px;color:#a4977f;border-bottom:1px solid #ddd2bf;padding:6px 0">Add context…</div></div>
+<div style="display:flex;gap:20px">
+<div style="flex:1"><div class="meta" style="font-size:10px">Deadline</div><div style="font-size:14px;border-bottom:1px solid #ddd2bf;padding:6px 0">None</div></div>
+<div style="flex:1"><div class="meta" style="font-size:10px">Time</div><div style="font-size:14px;border-bottom:1px solid #ddd2bf;padding:6px 0">None</div></div>
+<div><div class="meta" style="font-size:10px">Priority</div><div style="display:flex;gap:6px;padding-top:5px"><span class="btn" style="font:600 11px 'Instrument Sans';padding:4px 9px;border-radius:8px;background:#201914;color:#f7f1e8;cursor:pointer">P1</span><span class="btn" style="font:600 11px 'Instrument Sans';padding:4px 9px;border-radius:8px;border:1px solid #c9bda8;color:#6f6355;cursor:pointer">P2</span><span class="btn" style="font:600 11px 'Instrument Sans';padding:4px 9px;border-radius:8px;border:1px solid #c9bda8;color:#6f6355;cursor:pointer">P3</span></div></div>
+</div>
+</div>
+</div>
+<div style="padding:16px 24px 12px;border-top:1px solid #eae1d0;margin-top:18px">
+<button class="btn" style="width:100%;padding:15px 0;border-radius:99px;background:#6753c7;color:#fff;font:600 15px 'Instrument Sans';border:none;cursor:pointer">Save &amp; close</button>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><button class="btn" style="background:none;border:none;font:500 13px 'Instrument Sans';color:#6f6355;cursor:pointer;padding:4px 0">Discard</button><span style="font-size:11.5px;color:#8a7c6c">Saves to Inbox for later triage.</span></div>
+</div>
+<div style="background:#e9e0d0;padding:8px 6px 10px;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;gap:5px;justify-content:center"><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:30px;height:34px;background:#f7f1e8;border-radius:5px"></div></div>
+<div style="display:flex;gap:5px;justify-content:center;padding:0 18px"><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div></div>
+<div style="display:flex;gap:5px;justify-content:center;padding:0 44px"><div style="width:44px;height:34px;background:#ddd2bf;border-radius:5px"></div><div style="flex:1;height:34px;background:#f7f1e8;border-radius:5px"></div><div style="width:44px;height:34px;background:#ddd2bf;border-radius:5px"></div></div>
+</div>
+</div>
+</div></div></div>
+
+<!-- ============ 1d CAPTURE GOAL + BURST ============ -->
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Capture — goal variant · burst “✓ Saved · 3 captured” flash</div>
+<div class="dv-card"><div class="ph" data-screen-label="Capture — goal" style="background:#8d8172;height:760px">
+<div style="position:absolute;inset:0;background:linear-gradient(#f7f1e8,#efe6d8);filter:blur(7px);opacity:.5"></div>
+<div style="position:absolute;inset:0;background:rgba(32,25,20,.35)"></div>
+<div class="sb" style="position:relative;color:#f7f1e8"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="position:relative;display:flex;justify-content:center;margin-top:14px"><div style="display:flex;align-items:center;gap:8px;background:#2a2119;color:#f7f1e8;border-radius:99px;padding:8px 16px;font-size:13px;box-shadow:0 4px 14px rgba(32,25,20,.3)"><span>✓</span><span>Saved · 3 captured</span></div></div>
+<div style="flex:1"></div>
+<div style="position:relative;background:#f7f1e8;border-radius:28px 28px 0 0;display:flex;flex-direction:column;box-shadow:0 -8px 30px rgba(32,25,20,.3)">
+<div style="display:flex;justify-content:center;padding:10px 0 2px"><div style="width:36px;height:4px;border-radius:99px;background:#c9bda8"></div></div>
+<div style="padding:8px 24px 0"><span class="meta">Capture</span></div>
+<div style="display:flex;gap:22px;padding:10px 24px 0;border-bottom:1px solid #eae1d0">
+<div style="font:500 14px 'Instrument Sans';color:#8a7c6c;padding:8px 2px;border-bottom:2.5px solid transparent;cursor:pointer">New task</div>
+<div style="font:600 14px 'Instrument Sans';padding:8px 2px;border-bottom:2.5px solid #201914;cursor:pointer">New goal</div>
+</div>
+<div style="padding:20px 24px 0">
+<div style="display:flex;align-items:baseline"><span style="font-size:19px">Learn Rust fundamentals</span><span style="width:2px;height:22px;background:#6753c7;margin-left:2px;animation:pulse 1.1s infinite"></span></div>
+<div style="height:2px;background:#201914;margin-top:8px;border-radius:2px"></div>
+<div style="margin-top:18px"><div class="meta" style="font-size:10px">First task (optional)</div><div style="font-size:15px;color:#a4977f;border-bottom:1px solid #ddd2bf;padding:8px 0">e.g. Read the ownership chapter</div></div>
+<div style="margin-top:16px;display:flex;align-items:center;gap:14px"><span class="meta" style="font-size:10px">Priority</span><div style="display:flex;gap:6px"><span class="btn" style="font:600 11px 'Instrument Sans';padding:4px 9px;border-radius:8px;border:1px solid #c9bda8;color:#6f6355;cursor:pointer">P1</span><span class="btn" style="font:600 11px 'Instrument Sans';padding:4px 9px;border-radius:8px;background:#201914;color:#f7f1e8;cursor:pointer">P2</span><span class="btn" style="font:600 11px 'Instrument Sans';padding:4px 9px;border-radius:8px;border:1px solid #c9bda8;color:#6f6355;cursor:pointer">P3</span></div></div>
+</div>
+<div style="padding:16px 24px 22px;border-top:1px solid #eae1d0;margin-top:20px">
+<button class="btn" style="width:100%;padding:15px 0;border-radius:99px;background:#6753c7;color:#fff;font:600 15px 'Instrument Sans';border:none;cursor:pointer">Save &amp; close</button>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><button class="btn" style="background:none;border:none;font:500 13px 'Instrument Sans';color:#6f6355;cursor:pointer;padding:4px 0">Discard</button><span style="font-size:11.5px;color:#8a7c6c">Creates goal · appears in Goals.</span></div>
+</div>
+</div>
+</div></div></div>
+
+<!-- ============ 1e FOCUS LIGHT ============ -->
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Focus — running, light (primary)</div>
+<div class="dv-card"><div class="ph" data-screen-label="Focus — running light">
+<div class="sb"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 24px 0;text-align:center">
+<div class="disp" style="font-size:16px;color:#6f6355">tempo</div>
+<div class="meta" style="margin-top:34px;font-size:12px;letter-spacing:.22em">Focus</div>
+<div style="font:500 92px/1 'JetBrains Mono',monospace;letter-spacing:-.02em;margin-top:14px">18:42</div>
+<div style="display:flex;align-items:center;gap:7px;margin-top:14px"><span style="width:8px;height:8px;border-radius:99px;background:#201914;animation:pulse 1.6s infinite"></span><span class="meta" style="color:#201914">Live</span></div>
+<div style="margin-top:22px;font-size:15px">Write proposal</div>
+<div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.03em">Thesis · session 4 of 8 today</div>
+<div style="width:280px;height:3px;border-radius:99px;background:#e6dcc9;margin-top:24px;overflow:hidden"><div style="width:26%;height:100%;background:#201914;border-radius:99px"></div></div>
+<div style="display:flex;gap:9px;margin-top:26px">
+<span class="pip" style="background:#201914"></span><span class="pip" style="background:#201914"></span><span class="pip" style="background:#201914"></span><span class="pip" style="background:#6753c7"></span><span class="pip" style="border:1.5px solid #c9bda8"></span><span class="pip" style="border:1.5px solid #c9bda8"></span><span class="pip" style="border:1.5px solid #c9bda8"></span><span class="pip" style="border:1.5px solid #c9bda8"></span>
+</div>
+<div style="display:flex;gap:34px;margin-top:30px">
+<div><div class="meta" style="font-size:10px">Today</div><div style="font:600 15px 'Instrument Sans';margin-top:3px">1 h 35 m</div></div>
+<div><div class="meta" style="font-size:10px">Sessions</div><div style="font:600 15px 'Instrument Sans';margin-top:3px">3 of 8</div></div>
+<div><div class="meta" style="font-size:10px">Streak</div><div style="font:600 15px 'Instrument Sans';margin-top:3px">4 days</div></div>
+</div>
+<div style="display:flex;gap:10px;margin-top:32px;align-items:center"><span class="meta" style="font-size:10px">Extend</span>
+<span class="btn" style="font:600 12.5px 'Instrument Sans';padding:8px 16px;border-radius:99px;border:1.5px solid #c9bda8;cursor:pointer">+1 min</span>
+<span class="btn" style="font:600 12.5px 'Instrument Sans';padding:8px 16px;border-radius:99px;border:1.5px solid #c9bda8;cursor:pointer">+5 min</span>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:36px;margin-bottom:44px">
+<button class="play" style="width:52px;height:52px;font-size:19px">↺</button>
+<button class="btn" style="width:72px;height:72px;border-radius:26px;background:#6753c7;color:#fff;border:none;font-size:20px;letter-spacing:2px;box-shadow:0 5px 16px rgba(103,83,199,.4);cursor:pointer">❚❚</button>
+<button class="play" style="width:52px;height:52px;font-size:17px">≫</button>
+</div>
+</div>
+<div class="gbar"><div></div></div>
+</div></div></div>
+
+<!-- ============ 1f FOCUS DARK ============ -->
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Focus — paused, dark variant</div>
+<div class="dv-card"><div class="ph" data-screen-label="Focus — dark paused" style="background:#1c1712;color:#ede4d6">
+<div class="sb" style="color:#ede4d6"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 24px 0;text-align:center">
+<div class="disp" style="font-size:16px;color:#a4977f">tempo</div>
+<div class="meta" style="margin-top:34px;font-size:12px;letter-spacing:.22em;color:#a4977f">Focus</div>
+<div style="font:500 92px/1 'JetBrains Mono',monospace;letter-spacing:-.02em;margin-top:14px;color:#ede4d6">18:42</div>
+<div style="margin-top:14px"><span class="meta" style="color:#a4977f;letter-spacing:.18em">[ Paused ]</span></div>
+<div style="margin-top:22px;font-size:15px">Write proposal</div>
+<div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.03em;color:#8a7c6c">Thesis · session 4 of 8 today</div>
+<div style="width:280px;height:3px;border-radius:99px;background:#3a3128;margin-top:24px;overflow:hidden"><div style="width:26%;height:100%;background:#ede4d6;border-radius:99px"></div></div>
+<div style="display:flex;gap:9px;margin-top:26px">
+<span class="pip" style="background:#ede4d6"></span><span class="pip" style="background:#ede4d6"></span><span class="pip" style="background:#ede4d6"></span><span class="pip" style="background:#6753c7"></span><span class="pip" style="border:1.5px solid #4d4236"></span><span class="pip" style="border:1.5px solid #4d4236"></span><span class="pip" style="border:1.5px solid #4d4236"></span><span class="pip" style="border:1.5px solid #4d4236"></span>
+</div>
+<div style="display:flex;gap:34px;margin-top:30px">
+<div><div class="meta" style="font-size:10px;color:#8a7c6c">Today</div><div style="font:600 15px 'Instrument Sans';margin-top:3px">1 h 35 m</div></div>
+<div><div class="meta" style="font-size:10px;color:#8a7c6c">Sessions</div><div style="font:600 15px 'Instrument Sans';margin-top:3px">3 of 8</div></div>
+<div><div class="meta" style="font-size:10px;color:#8a7c6c">Streak</div><div style="font:600 15px 'Instrument Sans';margin-top:3px">4 days</div></div>
+</div>
+<div class="meta" style="margin-top:32px;text-transform:none;letter-spacing:.03em;color:#8a7c6c">Timer holds until you resume.</div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:36px;margin-bottom:44px">
+<button class="play" style="width:52px;height:52px;font-size:19px;border-color:#4d4236;color:#ede4d6">↺</button>
+<button class="btn" style="width:72px;height:72px;border-radius:26px;background:#6753c7;color:#fff;border:none;font-size:24px;box-shadow:0 5px 16px rgba(103,83,199,.4);cursor:pointer">▶</button>
+<button class="play" style="width:52px;height:52px;font-size:17px;border-color:#4d4236;color:#ede4d6">≫</button>
+</div>
+</div>
+<div class="gbar"><div style="background:#4d4236"></div></div>
+</div></div></div>
+
+<!-- ============ 1g SESSION END SHEET ============ -->
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Session-end sheet — rate 1–5, note, one confirm</div>
+<div class="dv-card"><div class="ph" data-screen-label="Session end" style="height:700px;background:#8d8172">
+<div style="position:absolute;inset:0;background:linear-gradient(#f7f1e8,#efe6d8);filter:blur(7px);opacity:.5"></div>
+<div style="position:absolute;inset:0;background:rgba(32,25,20,.35)"></div>
+<div class="sb" style="position:relative;color:#f7f1e8"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="flex:1"></div>
+<div style="position:relative;background:#f7f1e8;border-radius:28px 28px 0 0;padding:0 24px 26px;box-shadow:0 -8px 30px rgba(32,25,20,.3)">
+<div style="display:flex;justify-content:center;padding:10px 0 2px"><div style="width:36px;height:4px;border-radius:99px;background:#c9bda8"></div></div>
+<div class="disp" style="font-size:24px;margin-top:12px">Session 4 of 8 complete</div>
+<div class="meta" style="margin-top:6px;text-transform:none;letter-spacing:.03em">Write proposal · 25:00 focused · Thesis</div>
+<div style="margin-top:24px;font-size:14.5px">How was your focus?</div>
+<div style="display:flex;gap:10px;margin-top:12px">
+<span class="btn" style="width:48px;height:48px;border-radius:14px;border:1.5px solid #c9bda8;display:flex;align-items:center;justify-content:center;font:600 15px 'Instrument Sans';color:#6f6355;cursor:pointer">1</span>
+<span class="btn" style="width:48px;height:48px;border-radius:14px;border:1.5px solid #c9bda8;display:flex;align-items:center;justify-content:center;font:600 15px 'Instrument Sans';color:#6f6355;cursor:pointer">2</span>
+<span class="btn" style="width:48px;height:48px;border-radius:14px;border:1.5px solid #c9bda8;display:flex;align-items:center;justify-content:center;font:600 15px 'Instrument Sans';color:#6f6355;cursor:pointer">3</span>
+<span class="btn" style="width:48px;height:48px;border-radius:14px;background:#201914;color:#f7f1e8;display:flex;align-items:center;justify-content:center;font:600 15px 'Instrument Sans';cursor:pointer">4</span>
+<span class="btn" style="width:48px;height:48px;border-radius:14px;border:1.5px solid #c9bda8;display:flex;align-items:center;justify-content:center;font:600 15px 'Instrument Sans';color:#6f6355;cursor:pointer">5</span>
+</div>
+<div style="margin-top:22px"><div class="meta" style="font-size:10px">Note (optional)</div><div style="font-size:14.5px;color:#a4977f;border-bottom:1px solid #ddd2bf;padding:8px 0">What helped or got in the way?</div></div>
+<button class="btn" style="width:100%;margin-top:26px;padding:15px 0;border-radius:99px;background:#6753c7;color:#fff;font:600 15px 'Instrument Sans';border:none;cursor:pointer">Log session · start break</button>
+<div style="text-align:center;margin-top:12px;font-size:11.5px;color:#8a7c6c">Break starts automatically in 0:24.</div>
+</div>
+</div></div></div>
+
+<!-- ============ 1h NOTIFICATION ============ -->
+<div class="dv-opt" id="1h"><div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Ongoing Android notification</div>
+<div class="dv-card" style="width:400px;background:#efe9dd;padding:22px">
+<div style="background:#fdfaf4;border-radius:20px;padding:16px 18px;box-shadow:0 2px 10px rgba(32,25,20,.12)">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border-radius:5px;background:#6753c7"></span><span style="font:500 12px 'Instrument Sans';color:#6f6355">Tempo · Focus · now</span><span style="flex:1"></span><span style="font-size:10px;color:#a4977f">⌄</span></div>
+<div style="margin-top:10px;font:600 14.5px 'Instrument Sans';color:#201914">Focus · Write proposal</div>
+<div style="margin-top:3px;display:flex;align-items:baseline;gap:8px"><span style="font:600 14px 'JetBrains Mono',monospace;color:#201914">18:42</span><span style="font:400 12.5px 'Instrument Sans';color:#6f6355">remaining · session 4 of 8</span></div>
+<div style="height:3px;border-radius:99px;background:#eae1d0;margin-top:10px;overflow:hidden"><div style="width:26%;height:100%;background:#6753c7"></div></div>
+<div style="display:flex;gap:26px;margin-top:14px"><button class="btn" style="background:none;border:none;font:600 13px 'Instrument Sans';color:#6753c7;cursor:pointer;padding:2px 0">Pause</button><button class="btn" style="background:none;border:none;font:600 13px 'Instrument Sans';color:#6753c7;cursor:pointer;padding:2px 0">Stop</button></div>
+</div>
+<div style="margin-top:10px;font:400 11px 'Instrument Sans';color:rgba(0,0,0,.45)">Live countdown updates each second; tapping the body reopens the Focus screen (<a class="dv-oid" href="#1e">1e</a>).</div>
+</div></div>
+
+<!-- ============ 1i GOALS ============ -->
+<div class="dv-opt" id="1i"><div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Goals — list with honest 7-day meters</div>
+<div class="dv-card"><div class="ph" data-screen-label="Goals">
+<div class="sb"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="padding:18px 20px 8px">
+<div class="disp" style="font-size:32px">Goals</div>
+<div class="meta" style="margin-top:5px">3 active · 19 linked tasks</div>
+</div>
+<div style="flex:1;padding:8px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+<div class="btn" style="background:#fdfaf4;border:1px solid #eae1d0;border-radius:18px;padding:18px;cursor:pointer">
+<div style="display:flex;align-items:baseline;gap:10px"><span class="disp" style="font-size:20px">Thesis</span><span style="flex:1"></span><span class="meta" style="font-size:10px">P1</span></div>
+<div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.03em">12 linked tasks · 3 scheduled today</div>
+<div style="display:flex;gap:5px;margin-top:14px;align-items:flex-end;height:26px">
+<div style="flex:1;height:60%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:100%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:40%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:80%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:20%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:35%;background:#6753c7;border-radius:3px"></div>
+</div>
+<div class="meta" style="margin-top:8px;text-transform:none;letter-spacing:.03em;font-size:10.5px">9 of 14 planned sessions done, last 7 days</div>
+</div>
+<div class="btn" style="background:#fdfaf4;border:1px solid #eae1d0;border-radius:18px;padding:18px;cursor:pointer">
+<div style="display:flex;align-items:baseline;gap:10px"><span class="disp" style="font-size:20px">Health</span><span style="flex:1"></span><span class="meta" style="font-size:10px">P2</span></div>
+<div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.03em">4 linked tasks · 1 scheduled today</div>
+<div style="display:flex;gap:5px;margin-top:14px;align-items:flex-end;height:26px">
+<div style="flex:1;height:35%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:35%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:70%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div>
+</div>
+<div class="meta" style="margin-top:8px;text-transform:none;letter-spacing:.03em;font-size:10.5px">3 of 7 planned sessions done, last 7 days</div>
+</div>
+<div class="btn" style="background:#fdfaf4;border:1px solid #eae1d0;border-radius:18px;padding:18px;cursor:pointer">
+<div style="display:flex;align-items:baseline;gap:10px"><span class="disp" style="font-size:20px">Apartment</span><span style="flex:1"></span><span class="meta" style="font-size:10px">P3</span></div>
+<div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.03em">3 linked tasks · none scheduled</div>
+<div style="display:flex;gap:5px;margin-top:14px;align-items:flex-end;height:26px">
+<div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:30%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div>
+</div>
+<div class="meta" style="margin-top:8px;text-transform:none;letter-spacing:.03em;font-size:10.5px">1 of 2 planned sessions done, last 7 days</div>
+</div>
+</div>
+<div class="nav">
+<div class="navi"><span class="pill">▤</span>Tasks</div>
+<div class="navi" style="color:#201914"><span class="pill" style="background:#e6dcc9">◎</span>Goals</div>
+<button class="btn" style="width:60px;height:60px;border-radius:20px;background:#6753c7;color:#fff;font-size:26px;border:none;box-shadow:0 3px 10px rgba(103,83,199,.35);cursor:pointer;margin-top:-26px">+</button>
+<div class="navi"><span class="pill">◔</span>Insights</div>
+<div class="navi"><span class="pill">⚙</span>Settings</div>
+</div>
+<div class="gbar"><div></div></div>
+</div></div></div>
+
+<!-- ============ 1j GOAL DETAIL ============ -->
+<div class="dv-opt" id="1j"><div class="dv-olabel"><a class="dv-oid" href="#1j">1j</a>Goal detail — linked tasks, inline add, per-task focus</div>
+<div class="dv-card"><div class="ph" data-screen-label="Goal detail">
+<div class="sb"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px 20px 0"><button class="play" style="border:none;font-size:17px">←</button><span class="meta">Goal</span></div>
+<div style="padding:10px 20px 8px">
+<div class="disp" style="font-size:30px">Thesis</div>
+<div class="meta" style="margin-top:5px">12 tasks · 9 sessions this week · P1</div>
+<div style="display:flex;gap:5px;margin-top:16px;align-items:flex-end;height:30px">
+<div style="flex:1;height:60%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:100%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:40%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:80%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:20%;background:#6753c7;border-radius:3px"></div><div style="flex:1;height:4px;background:#e6dcc9;border-radius:3px"></div><div style="flex:1;height:35%;background:#6753c7;border-radius:3px"></div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:5px"><span class="meta" style="font-size:9.5px">Tue</span><span class="meta" style="font-size:9.5px">Wed</span><span class="meta" style="font-size:9.5px">Thu</span><span class="meta" style="font-size:9.5px">Fri</span><span class="meta" style="font-size:9.5px">Sat</span><span class="meta" style="font-size:9.5px">Sun</span><span class="meta" style="font-size:9.5px">Mon</span></div>
+</div>
+<div style="flex:1;overflow:hidden;display:flex;flex-direction:column;margin-top:8px">
+<div style="padding:10px 20px 4px"><span class="meta">Linked tasks · 12</span></div>
+<div class="trow"><span class="pdot" style="background:#201914"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Write proposal</div><div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.02em">Today 09:00 · 2 × 25 min</div></div><button class="play">▶</button></div>
+<div class="trow"><span class="pdot" style="background:#a4977f"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Revise chapter 2 notes</div><div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.02em">Today 13:30 · 1 × 25 min</div></div><button class="play">▶</button></div>
+<div class="trow"><span class="pdot" style="background:#201914"></span><div style="flex:1;min-width:0"><div style="font-size:15px">Email advisor re: draft</div><div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.02em">Inbox · added 2 d ago</div></div><button class="play">▶</button></div>
+<div class="trow" style="opacity:.55"><span style="width:8px;flex:none;font-size:12px;color:#6f6355">✓</span><div style="flex:1;min-width:0"><div style="font-size:15px;text-decoration:line-through;color:#6f6355">Collect citation list</div><div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:.02em">completed Sat</div></div></div>
+<div style="display:flex;align-items:center;gap:10px;padding:16px 20px"><span style="font-size:17px;color:#6f6355">+</span><div style="flex:1;font-size:14.5px;color:#a4977f;border-bottom:1px solid #ddd2bf;padding-bottom:7px">Add task to Thesis…</div></div>
+</div>
+<div class="gbar"><div></div></div>
+</div></div></div>
+
+<!-- ============ 1k INSIGHTS ============ -->
+<div class="dv-opt" id="1k"><div class="dv-olabel"><a class="dv-oid" href="#1k">1k</a>Insights — narrative first, max 3 blocks</div>
+<div class="dv-card"><div class="ph" data-screen-label="Insights">
+<div class="sb"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="padding:18px 20px 8px">
+<div class="disp" style="font-size:32px">Insights</div>
+<div class="meta" style="margin-top:5px">Week of Jul 7 – 13</div>
+</div>
+<div style="flex:1;padding:8px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+<div style="background:#f2ead9;border-radius:18px;padding:20px">
+<div class="disp" style="font-size:19px;line-height:1.35">You focused 6.5 h across 3 goals this week — most of it on Thesis (4.2 h).</div>
+<div class="meta" style="margin-top:10px;text-transform:none;letter-spacing:.03em">13 sessions · 9 completed as planned · median 25 min</div>
+</div>
+<div style="background:#fdfaf4;border:1px solid #eae1d0;border-radius:18px;padding:18px">
+<div class="meta">Completion trend</div>
+<div style="display:flex;gap:8px;margin-top:16px;align-items:flex-end;height:84px">
+<div style="flex:1;height:55%;background:#d9cdb6;border-radius:5px"></div><div style="flex:1;height:80%;background:#d9cdb6;border-radius:5px"></div><div style="flex:1;height:40%;background:#d9cdb6;border-radius:5px"></div><div style="flex:1;height:70%;background:#d9cdb6;border-radius:5px"></div><div style="flex:1;height:25%;background:#d9cdb6;border-radius:5px"></div><div style="flex:1;height:6px;background:#eae1d0;border-radius:5px"></div><div style="flex:1;height:60%;background:#6753c7;border-radius:5px"></div>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:6px"><span class="meta" style="font-size:9.5px">Tue</span><span class="meta" style="font-size:9.5px">Wed</span><span class="meta" style="font-size:9.5px">Thu</span><span class="meta" style="font-size:9.5px">Fri</span><span class="meta" style="font-size:9.5px">Sat</span><span class="meta" style="font-size:9.5px">Sun</span><span class="meta" style="font-size:9.5px;color:#201914">Mon</span></div>
+<div class="meta" style="margin-top:10px;text-transform:none;letter-spacing:.03em;font-size:10.5px">Sessions completed vs planned, last 7 days. Sunday had none planned.</div>
+</div>
+<div style="background:#fdfaf4;border:1px solid #eae1d0;border-radius:18px;padding:18px">
+<div class="meta">Focus hours by goal</div>
+<div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+<div><div style="display:flex;justify-content:space-between;font-size:13.5px"><span>Thesis</span><span style="color:#6f6355">4.2 h</span></div><div style="height:6px;border-radius:99px;background:#eae1d0;margin-top:6px"><div style="width:65%;height:100%;background:#201914;border-radius:99px"></div></div></div>
+<div><div style="display:flex;justify-content:space-between;font-size:13.5px"><span>Health</span><span style="color:#6f6355">1.5 h</span></div><div style="height:6px;border-radius:99px;background:#eae1d0;margin-top:6px"><div style="width:23%;height:100%;background:#201914;border-radius:99px"></div></div></div>
+<div><div style="display:flex;justify-content:space-between;font-size:13.5px"><span>Apartment</span><span style="color:#6f6355">0.8 h</span></div><div style="height:6px;border-radius:99px;background:#eae1d0;margin-top:6px"><div style="width:12%;height:100%;background:#201914;border-radius:99px"></div></div></div>
+</div>
+</div>
+</div>
+<div class="nav">
+<div class="navi"><span class="pill">▤</span>Tasks</div>
+<div class="navi"><span class="pill">◎</span>Goals</div>
+<button class="btn" style="width:60px;height:60px;border-radius:20px;background:#6753c7;color:#fff;font-size:26px;border:none;box-shadow:0 3px 10px rgba(103,83,199,.35);cursor:pointer;margin-top:-26px">+</button>
+<div class="navi" style="color:#201914"><span class="pill" style="background:#e6dcc9">◔</span>Insights</div>
+<div class="navi"><span class="pill">⚙</span>Settings</div>
+</div>
+<div class="gbar"><div></div></div>
+</div></div></div>
+
+<!-- ============ 1l SETTINGS ============ -->
+<div class="dv-opt" id="1l"><div class="dv-olabel"><a class="dv-oid" href="#1l">1l</a>Settings — sectioned rows</div>
+<div class="dv-card"><div class="ph" data-screen-label="Settings">
+<div class="sb"><span>9:30</span><span style="font-size:11px;letter-spacing:.05em">5G · ▮ 87%</span></div>
+<div style="padding:18px 20px 8px">
+<div class="disp" style="font-size:32px">Settings</div>
+</div>
+<div style="flex:1;overflow:hidden">
+<div style="padding:12px 20px 2px"><span class="meta">Timer</span></div>
+<div class="trow" style="cursor:pointer;padding:10px 20px"><div style="flex:1;font-size:15px">Focus duration</div><span style="font-size:14px;color:#6f6355">25 min</span><span style="color:#a4977f">›</span></div>
+<div class="trow" style="cursor:pointer;padding:10px 20px"><div style="flex:1;font-size:15px">Short break</div><span style="font-size:14px;color:#6f6355">5 min</span><span style="color:#a4977f">›</span></div>
+<div class="trow" style="cursor:pointer;padding:10px 20px"><div style="flex:1;font-size:15px">Long break</div><span style="font-size:14px;color:#6f6355">15 min · every 4</span><span style="color:#a4977f">›</span></div>
+<div class="trow" style="cursor:pointer;padding:10px 20px"><div style="flex:1;font-size:15px">Daily session goal</div><span style="font-size:14px;color:#6f6355">8 sessions</span><span style="color:#a4977f">›</span></div>
+<div class="trow"><div style="flex:1"><div style="font-size:15px">Auto-start next phase</div><div class="meta" style="margin-top:3px;text-transform:none;letter-spacing:.02em">Breaks begin without a tap</div></div><span class="tog" style="background:#6753c7"><span style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:99px;background:#fff"></span></span></div>
+<div style="padding:12px 20px 2px"><span class="meta">Sound &amp; haptics</span></div>
+<div class="trow" style="cursor:pointer;padding:10px 20px"><div style="flex:1;font-size:15px">Completion sound</div><span style="font-size:14px;color:#6f6355">Soft chime</span><span style="color:#a4977f">›</span></div>
+<div class="trow"><div style="flex:1"><div style="font-size:15px">Haptic on completion</div></div><span class="tog" style="background:#6753c7"><span style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:99px;background:#fff"></span></span></div>
+<div class="trow"><div style="flex:1;font-size:15px">Preview sound + haptic</div><button class="btn" style="font:600 12.5px 'Instrument Sans';padding:8px 16px;border-radius:99px;border:1.5px solid #c9bda8;background:none;cursor:pointer">Preview</button></div>
+<div style="padding:12px 20px 2px"><span class="meta">Appearance</span></div>
+<div class="trow" style="cursor:pointer;padding:10px 20px"><div style="flex:1;font-size:15px">Theme</div><span style="font-size:14px;color:#6f6355">Light</span><span style="color:#a4977f">›</span></div>
+<div class="trow"><div style="flex:1;font-size:15px">Reduced motion</div><span class="tog" style="background:#ddd2bf"><span style="position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:99px;background:#fdfaf4;border:1px solid #c9bda8;box-sizing:border-box"></span></span></div>
+<div style="padding:12px 20px 2px"><span class="meta">Account</span></div>
+<div class="trow" style="cursor:pointer;padding:10px 20px"><div style="flex:1"><div style="font-size:15px">maya@fastmail.com</div><div class="meta" style="margin-top:3px;text-transform:none;letter-spacing:.02em">Synced 2 min ago</div></div><span class="meta" style="color:#6753c7;cursor:pointer">Sign out</span></div>
+</div>
+<div class="nav">
+<div class="navi"><span class="pill">▤</span>Tasks</div>
+<div class="navi"><span class="pill">◎</span>Goals</div>
+<button class="btn" style="width:60px;height:60px;border-radius:20px;background:#6753c7;color:#fff;font-size:26px;border:none;box-shadow:0 3px 10px rgba(103,83,199,.35);cursor:pointer;margin-top:-26px">+</button>
+<div class="navi"><span class="pill">◔</span>Insights</div>
+<div class="navi" style="color:#201914"><span class="pill" style="background:#e6dcc9">⚙</span>Settings</div>
+</div>
+<div class="gbar"><div></div></div>
+</div></div></div>
+
+<!-- ============ 1m STATES ============ -->
+<div class="dv-opt" id="1m"><div class="dv-olabel"><a class="dv-oid" href="#1m">1m</a>Interaction states — pressed · pending · failure</div>
+<div class="dv-card" style="width:440px;background:#f7f1e8;padding:26px 24px;display:flex;flex-direction:column;gap:20px">
+<div><div class="meta" style="margin-bottom:10px">Primary button</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+<span style="padding:12px 22px;border-radius:99px;background:#6753c7;color:#fff;font:600 13.5px 'Instrument Sans'">Save &amp; close</span>
+<span style="padding:12px 22px;border-radius:99px;background:#52409f;color:#fff;font:600 13.5px 'Instrument Sans';transform:scale(.98)">Pressed</span>
+<span style="padding:12px 22px;border-radius:99px;background:#6753c7;color:#fff;font:600 13.5px 'Instrument Sans';opacity:.75;display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;border-radius:99px;background:#fff;animation:pulse 1s infinite"></span>Saving…</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px;margin-top:10px;background:#f6e2dc;border:1px solid #dcb2a4;border-radius:12px;padding:11px 14px"><span style="flex:1;font-size:13px;color:#5d2b1c">Couldn’t save task. It’s kept locally.</span><span style="font:600 12px 'Instrument Sans';letter-spacing:.06em;color:#5d2b1c;cursor:pointer">RETRY</span></div>
+</div>
+<div><div class="meta" style="margin-bottom:10px">Start focus</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+<span class="play">▶</span>
+<span class="play" style="background:#e6dcc9;transform:scale(.94)">▶</span>
+<span style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;border:1.5px solid #c9bda8;font:500 12.5px 'Instrument Sans';color:#6f6355"><span style="width:7px;height:7px;border-radius:99px;background:#6f6355;animation:pulse 1s infinite"></span>Starting…</span>
+<span style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;border:1.5px solid #dcb2a4;font:500 12.5px 'Instrument Sans';color:#5d2b1c">Couldn’t start · <b style="letter-spacing:.05em">RETRY</b></span>
+</div></div>
+<div><div class="meta" style="margin-bottom:10px">Snackbars</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="background:#2a2119;color:#f7f1e8;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px"><span style="flex:1;font-size:13px">Completed “Book dentist appointment”</span><span style="font:600 12px 'Instrument Sans';letter-spacing:.08em;color:#c3b6f5;cursor:pointer">UNDO</span></div>
+<div style="background:#2a2119;color:#f7f1e8;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px"><span style="flex:1;font-size:13px">Sync failed · last synced 09:12</span><span style="font:600 12px 'Instrument Sans';letter-spacing:.08em;color:#c3b6f5;cursor:pointer">RETRY</span></div>
+</div></div>
+<div><div class="meta" style="margin-bottom:10px">Chips &amp; toggles</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+<span style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8">Today</span>
+<span style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;border:1px solid #c9bda8;background:#e6dcc9;transform:scale(.97)">Pressed</span>
+<span style="font:500 12.5px 'Instrument Sans';padding:7px 14px;border-radius:99px;background:#201914;color:#f7f1e8">Selected</span>
+<span class="tog" style="background:#ddd2bf"><span style="position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:99px;background:#fdfaf4;border:1px solid #c9bda8;box-sizing:border-box"></span></span>
+<span class="tog" style="background:#6753c7"><span style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:99px;background:#fff"></span></span>
+</div>
+<div style="margin-top:10px;font-size:11px;color:rgba(0,0,0,.5)">Pending labels are factual (“Saving…”, “Starting…”); failures stay on-screen with Retry — no toasts that vanish.</div>
+</div>
+</div></div>
+
+</div>
+<p class="dv-next">Try next: “riff on <a class="dv-oid" href="#1a">1a</a> with the timeline above the inbox” · “make the Focus hero bigger in <a class="dv-oid" href="#1e">1e</a>” · “show a break-phase Focus variant” · “new directions for the tab bar”</p>
+</section>
+
+</x-dc>
+</body>
+</html>

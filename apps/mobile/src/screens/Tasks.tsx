@@ -1,203 +1,476 @@
-import type { Goal, Task } from '@ekagra/core';
-import { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import type { Task } from '@ekagra/core';
+import { useNavigation } from '@react-navigation/native';
+import { useRef } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Enter } from '../components/motion';
-import { Screen } from '../components/Screen';
-import { TaskCard } from '../components/TaskCard';
-import { Chip, GhostButton, SectionRow } from '../components/ui';
-import { useData } from '../data/DataProvider';
-import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
-import { color } from '../theme/tokens';
-import { tabular, text } from '../theme/typography';
+import { CheckIcon, PlayIcon } from '../components/icons';
+import {
+  useCompleteTask,
+  useCurrentSession,
+  useGoals,
+  useStartSession,
+  useTasks,
+  useTimer,
+} from '../data/hooks';
+import type { RootNav } from '../nav/types';
+import { useTheme } from '../theme/ThemeProvider';
+import { display, mono, ui } from '../theme/typography';
 
-/**
- * Tasks / Inbox — quick capture with the Enter-saves-and-stays burst pattern:
- * submitting saves the task and keeps focus in the input for the next one.
- */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
+
+function formatDuration(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatRelativeDay(value: string): string | null {
+  const completed = new Date(value);
+  if (Number.isNaN(completed.getTime())) return null;
+
+  const today = new Date();
+  const difference = Math.round(
+    (new Date(dateKey(today)).getTime() - new Date(dateKey(completed)).getTime()) / DAY_MS,
+  );
+  if (difference === 0) return 'today';
+  if (difference === 1) return 'yesterday';
+  if (difference > 1 && difference < 7) {
+    return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(completed);
+  }
+  if (difference > 0) return `${difference}d ago`;
+  if (difference === -1) return 'tomorrow';
+  if (difference < -1) return `in ${Math.abs(difference)}d`;
+  return 'today';
+}
+
+function taskMeta(task: Task): string | null {
+  if (task.status === 'done' && task.completedAt) {
+    const relative = formatRelativeDay(task.completedAt);
+    return relative ? `completed ${relative}` : 'completed';
+  }
+
+  const blocks = task.estimatedBlocks ? `${task.estimatedBlocks} × 25 min` : null;
+  if (task.scheduledFor || task.scheduledTime) {
+    const time = task.scheduledTime?.slice(0, 5);
+    return [time, blocks].filter(Boolean).join(' · ') || 'Scheduled';
+  }
+  return blocks;
+}
+
 export function Tasks() {
+  const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { tasks, goals, createTask, updateTask, deleteTask } = useData();
-  const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
-
-  const inbox = useMemo(() => tasks.filter((t) => t.status === 'inbox'), [tasks]);
-  const grouped = useMemo(() => groupByGoal(inbox, goals), [inbox, goals]);
-
-  const [title, setTitle] = useState('');
-  const [captureGoalId, setCaptureGoalId] = useState<string | null>(goals[0]?.id ?? null);
-  const [estimate, setEstimate] = useState(1);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [inputFocused, setInputFocused] = useState(false);
-  const inputRef = useRef<TextInput | null>(null);
-
-  async function capture() {
-    const trimmed = title.trim();
-    if (!trimmed || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await createTask({ title: trimmed, goalId: captureGoalId, estimatedBlocks: estimate });
-      setTitle('');
-      // Burst pattern: Enter saves and stays.
-      inputRef.current?.focus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the task.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function confirmDelete(task: Task) {
-    Alert.alert('Delete task?', task.title, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => void deleteTask(task.id) },
-    ]);
-  }
+  const nav = useNavigation<RootNav>();
+  const { data: tasks } = useTasks();
+  const { data: goals } = useGoals();
+  const { data: current } = useCurrentSession();
+  const timer = useTimer();
+  const start = useStartSession();
+  const complete = useCompleteTask();
+  const lastCompleteTaskId = useRef<string | null>(null);
+  const today = new Date();
+  const todayKey = dateKey(today);
+  const inbox = tasks.filter((task) => task.status === 'inbox');
+  const planned = tasks.filter((task) => task.status === 'planned' || task.status === 'done');
+  const scheduledToday = tasks.filter((task) => task.scheduledFor === todayKey).length;
+  const activeTaskId = current.session?.taskId ?? null;
+  const goalTitles = new Map(goals.map((goal) => [goal.id, goal.title]));
+  const startTask = (id: string) => {
+    start.mutate({ taskId: id });
+    nav.getParent()?.navigate('Focus' as never);
+  };
+  const completeTask = (id: string) => {
+    lastCompleteTaskId.current = id;
+    complete.mutate(id);
+  };
+  const retryComplete = () => {
+    if (lastCompleteTaskId.current) complete.mutate(lastCompleteTaskId.current);
+  };
 
   return (
-    <Screen>
-      <Enter style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-        <Text style={text(800, { fontSize: 26, letterSpacing: -0.4, color: color.t1 })}>
-          Inbox · {inbox.length}
+    <View style={{ flex: 1, backgroundColor: t.canvas }}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingTop: insets.top + 16,
+          paddingHorizontal: 20,
+          paddingBottom: 110,
+        }}
+      >
+        <Text style={display(600, { color: t.ink, fontSize: 32, lineHeight: 38 })}>Tasks</Text>
+        <Text style={ui(400, { color: t.textSecondary, fontSize: 13, marginTop: 4 })}>
+          {formatDate(today)} · {inbox.length} in inbox · {scheduledToday} scheduled
         </Text>
-      </Enter>
 
-      {/* Quick capture */}
-      <Enter delay={60} style={{ paddingHorizontal: 16, paddingTop: 20 }}>
-        <TextInput
-          ref={inputRef}
-          value={title}
-          onChangeText={setTitle}
-          onSubmitEditing={capture}
-          blurOnSubmit={false}
-          returnKeyType="done"
-          onFocus={() => setInputFocused(true)}
-          onBlur={() => setInputFocused(false)}
-          placeholder="New task"
-          placeholderTextColor={color.t4}
-          style={[
-            text(500, {
-              backgroundColor: color.surface,
-              borderWidth: 1.5,
-              borderColor: inputFocused ? color.ember : color.line,
-              borderRadius: 12,
-              padding: 16,
-              color: color.t1,
-              fontSize: 15,
-            }),
-          ]}
-        />
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: 8,
-            marginTop: 10,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}
-        >
-          {goals.map((goal) => {
-            const active = captureGoalId === goal.id;
-            return (
-              <Chip
-                key={goal.id}
-                label={goal.title}
-                active={active}
-                tint={goalColor(goal.id, colorMap)}
-                onPress={() => setCaptureGoalId(active ? null : goal.id)}
-              />
-            );
-          })}
-          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={text(600, { fontSize: 12, color: color.t4 })}>est</Text>
-            {[1, 2, 3, 4].map((n) => {
-              const active = estimate === n;
-              return (
-                <Pressable
-                  key={n}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Estimate ${n} block${n === 1 ? '' : 's'}`}
-                  accessibilityState={{ selected: active }}
-                  hitSlop={8}
-                  onPress={() => setEstimate(n)}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 1,
-                    borderColor: active ? color.emberLine : color.line,
-                    backgroundColor: active ? color.surface3 : 'transparent',
-                  }}
-                >
-                  <Text
-                    style={[
-                      tabular,
-                      text(700, { fontSize: 12, color: active ? color.ember : color.t4 }),
-                    ]}
-                  >
-                    {n}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-        {error && (
-          <Text style={text(600, { fontSize: 13, color: color.danger, marginTop: 8 })}>
-            {error}
-          </Text>
+        <Section title={`Inbox · ${inbox.length}`} t={t} />
+        {inbox.length > 0 ? (
+          inbox.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              goalTitle={task.goalId ? goalTitles.get(task.goalId) : undefined}
+              t={t}
+              onStart={() => startTask(task.id)}
+              onComplete={() => completeTask(task.id)}
+              pending={start.isPending || complete.isPending}
+            />
+          ))
+        ) : (
+          <EmptyState message="Inbox is clear." t={t} />
         )}
-      </Enter>
+        {start.isError && <Retry text="Couldn’t start session." onRetry={start.retry} t={t} />}
+        {complete.isError && <Retry text="Couldn’t complete task." onRetry={retryComplete} t={t} />}
 
-      {/* Grouped by goal */}
-      <Enter delay={60}>
-        {grouped.map(({ goalId, items }) => (
-          <View key={goalId ?? 'unassigned'}>
-            <SectionRow label={goalName(goalId, goals)} paddingHorizontal={16} />
-            <View style={{ gap: 10, paddingHorizontal: 16 }}>
-              {items.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  goalColor={goalColor(task.goalId, colorMap)}
-                  goalName={goalName(task.goalId, goals)}
-                  showMeter={false}
-                  onLongPress={() => confirmDelete(task)}
-                  accessibilityHint="Long press to delete"
-                  footer={
-                    <GhostButton onPress={() => void updateTask(task.id, { status: 'planned' })}>
-                      Commit to today
-                    </GhostButton>
-                  }
-                />
-              ))}
-            </View>
-          </View>
-        ))}
-        {inbox.length === 0 && (
-          <Text
-            style={text(600, {
-              paddingVertical: 32,
-              paddingHorizontal: 20,
-              fontSize: 14,
-              color: color.t4,
-              lineHeight: 21,
-            })}
-          >
-            Inbox is empty.
-          </Text>
+        <Section title="Timeline" t={t} />
+        <DayStrip tasks={tasks} today={today} t={t} />
+        {planned.length > 0 ? (
+          planned.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              running={task.id === activeTaskId}
+              remainingTime={
+                task.id === activeTaskId ? formatDuration(timer.remainingMs) : undefined
+              }
+              goalTitle={task.goalId ? goalTitles.get(task.goalId) : undefined}
+              t={t}
+              onStart={() => startTask(task.id)}
+              onComplete={() => completeTask(task.id)}
+              pending={start.isPending || complete.isPending}
+            />
+          ))
+        ) : (
+          <EmptyState message="No scheduled tasks yet." t={t} />
         )}
-      </Enter>
-    </Screen>
+      </ScrollView>
+    </View>
   );
 }
 
-function groupByGoal(tasks: Task[], goals: Goal[]): { goalId: string | null; items: Task[] }[] {
-  const order: (string | null)[] = [...goals.map((g) => g.id), null];
-  return order
-    .map((goalId) => ({ goalId, items: tasks.filter((t) => t.goalId === goalId) }))
-    .filter((group) => group.items.length > 0);
+function Section({ title, t }: { title: string; t: ReturnType<typeof useTheme> }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        marginTop: 28,
+        marginBottom: 8,
+      }}
+    >
+      <Text
+        style={ui(600, {
+          color: t.textSecondary,
+          fontSize: 11,
+          letterSpacing: 1.1,
+          textTransform: 'uppercase',
+        })}
+      >
+        {title}
+      </Text>
+    </View>
+  );
+}
+
+function EmptyState({ message, t }: { message: string; t: ReturnType<typeof useTheme> }) {
+  return (
+    <Text style={ui(400, { color: t.textSecondary, fontSize: 13, paddingVertical: 12 })}>
+      {message}
+    </Text>
+  );
+}
+
+function TaskRow({
+  task,
+  goalTitle,
+  running,
+  remainingTime,
+  t,
+  onStart,
+  onComplete,
+  pending,
+}: {
+  task: Task;
+  goalTitle?: string;
+  running?: boolean;
+  remainingTime?: string;
+  t: ReturnType<typeof useTheme>;
+  onStart: () => void;
+  onComplete: () => void;
+  pending: boolean;
+}) {
+  const done = task.status === 'done';
+  const meta = taskMeta(task);
+  const hasGoalAndMeta = Boolean(goalTitle && meta);
+  return (
+    <View
+      style={{
+        minHeight: 70,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: t.line,
+        paddingVertical: 13,
+        paddingLeft: running ? 14 : 0,
+        borderLeftWidth: running ? 3 : 0,
+        borderLeftColor: running ? t.ink : 'transparent',
+        backgroundColor: running ? t.surfaceSunk : 'transparent',
+        opacity: done ? 0.55 : 1,
+      }}
+    >
+      <View style={{ width: 22, alignItems: 'center' }}>
+        {done ? (
+          <CheckIcon tint={t.textSecondary} />
+        ) : (
+          <PriorityDots priority={task.priority} t={t} />
+        )}
+      </View>
+      <View style={{ flex: 1, marginLeft: 10 }}>
+        <Text
+          style={ui(running ? 600 : 400, {
+            color: t.ink,
+            fontSize: 15,
+            textDecorationLine: done ? 'line-through' : 'none',
+          })}
+        >
+          {task.title}
+        </Text>
+        {(goalTitle || meta) && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+            {goalTitle && <GoalChip t={t}>{goalTitle}</GoalChip>}
+            {meta && (
+              <Text
+                style={ui(400, {
+                  color: t.textSecondary,
+                  fontSize: 11,
+                  marginLeft: hasGoalAndMeta ? 7 : 0,
+                })}
+              >
+                {meta}
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+      {running ? (
+        <Text
+          accessibilityLabel={`${remainingTime ?? 'Time unavailable'} remaining`}
+          style={mono({ color: t.ink, fontSize: 14 })}
+        >
+          {remainingTime ?? '—'}
+        </Text>
+      ) : (
+        !done && (
+          <Pressable
+            accessibilityLabel="Start focus"
+            accessibilityRole="button"
+            onPress={onStart}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.65 : 1,
+            })}
+          >
+            {pending ? (
+              <Text style={ui(600, { color: t.textSecondary, fontSize: 11 })}>Starting…</Text>
+            ) : (
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  borderWidth: 1.5,
+                  borderColor: t.lineStrong,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <PlayIcon size={14} fill={t.ink} />
+              </View>
+            )}
+          </Pressable>
+        )
+      )}
+      {!done && (
+        <Pressable
+          accessibilityLabel="Complete task"
+          accessibilityRole="button"
+          onPress={onComplete}
+          hitSlop={8}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Text style={ui(600, { color: t.textSecondary, fontSize: 10 })}>DONE</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function PriorityDots({
+  priority,
+  t,
+}: {
+  priority?: string | null;
+  t: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View accessibilityLabel="Priority" style={{ flexDirection: 'row', gap: 2 }}>
+      {['p1', 'p2', 'p3'].map((item) => (
+        <View
+          key={item}
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: 3,
+            backgroundColor:
+              item === priority ? (item === 'p1' ? t.priHigh : t.priMid) : 'transparent',
+            borderWidth: item === priority && item === 'p3' ? 1 : 0,
+            borderColor: t.priMid,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+function GoalChip({ children, t }: { children: string; t: ReturnType<typeof useTheme> }) {
+  return (
+    <Text
+      style={ui(500, {
+        color: t.textSecondary,
+        backgroundColor: t.surfaceSunk,
+        borderWidth: 1,
+        borderColor: t.lineInput,
+        borderRadius: t.radii.pill,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        fontSize: 11,
+      })}
+    >
+      {children}
+    </Text>
+  );
+}
+
+function Retry({
+  text,
+  onRetry,
+  t,
+}: {
+  text: string;
+  onRetry: () => void;
+  t: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: t.dangerBg,
+        borderWidth: 1,
+        borderColor: t.dangerLine,
+        padding: 10,
+        marginTop: 8,
+        borderRadius: t.radii.sm,
+      }}
+    >
+      <Text style={ui(500, { color: t.dangerText, flex: 1, fontSize: 13 })}>{text}</Text>
+      <Pressable
+        onPress={onRetry}
+        accessibilityRole="button"
+        style={{ minHeight: 44, justifyContent: 'center' }}
+      >
+        <Text style={ui(700, { color: t.dangerText, fontSize: 12 })}>RETRY</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function DayStrip({
+  tasks,
+  today,
+  t,
+}: {
+  tasks: Task[];
+  today: Date;
+  t: ReturnType<typeof useTheme>;
+}) {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today.getTime() + (index - 3) * DAY_MS);
+    const key = dateKey(date);
+    return {
+      date,
+      key,
+      count: tasks.filter((task) => task.scheduledFor === key).length,
+    };
+  });
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: 6, paddingVertical: 4 }}
+    >
+      {days.map(({ date, key, count }) => {
+        const selected = key === dateKey(today);
+        const day = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
+          .format(date)
+          .toUpperCase();
+        const dateNumber = date.getDate();
+        return (
+          <Pressable
+            key={key}
+            accessibilityLabel={`${day} ${dateNumber}, ${count === 0 ? 'no' : count} scheduled tasks${selected ? ', today' : ''}`}
+            accessibilityRole="button"
+            style={{
+              width: 44,
+              height: 70,
+              borderRadius: 12,
+              backgroundColor: selected ? t.ink : 'transparent',
+              borderWidth: selected ? 0 : 1,
+              borderColor: t.lineSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={ui(600, { color: selected ? t.canvas : t.textSecondary, fontSize: 10 })}>
+              {day}
+            </Text>
+            <Text
+              style={ui(600, {
+                color: selected ? t.canvas : t.ink,
+                fontSize: 17,
+                marginVertical: 4,
+              })}
+            >
+              {dateNumber}
+            </Text>
+            <Text
+              style={ui(400, { color: selected ? t.inkOnDark : t.textSecondary, fontSize: 11 })}
+            >
+              {count === 0 ? '—' : count}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
 }

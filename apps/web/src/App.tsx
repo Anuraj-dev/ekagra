@@ -6,6 +6,7 @@ import { NavProvider, useNav } from './nav/navigation';
 import { Crew } from './screens/Crew';
 import { EveningClose } from './screens/EveningClose';
 import { Focus } from './screens/Focus';
+import { Gallery } from './screens/Gallery';
 import { Goals } from './screens/Goals';
 import { Insights } from './screens/Insights';
 import { MorningCommit } from './screens/MorningCommit';
@@ -16,6 +17,8 @@ import { Today } from './screens/Today';
 import { color as tokens } from './theme/tokens';
 
 export function App() {
+  if (window.location.pathname === '/gallery') return <Gallery />;
+
   if (!isSupabaseConfigured) {
     return (
       <div

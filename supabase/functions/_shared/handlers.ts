@@ -77,6 +77,14 @@ function coreError(error: unknown): never {
   throw new ApiError('bad_request', message);
 }
 
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.code === 'conflict' &&
+    error.details?.databaseCode === '23505'
+  );
+}
+
 export function createSessionHandlers(repository: SessionRepository): {
   start: StartSessionHandler;
   command: SessionCommandHandler;
@@ -96,13 +104,6 @@ export function createSessionHandlers(repository: SessionRepository): {
       if (task.status !== 'planned') {
         throw new ApiError('conflict', 'Only a planned task can start a focus session.');
       }
-      if (await repository.getActiveSession(ownerId)) {
-        throw new ApiError(
-          'conflict',
-          'Finish or pause the active session before starting another.',
-        );
-      }
-
       const initial = createTimerState();
       let result: ReturnType<typeof transition>;
       try {
@@ -114,14 +115,34 @@ export function createSessionHandlers(repository: SessionRepository): {
       } catch (error) {
         return coreError(error);
       }
-      const row = await repository.insertSession({
-        ownerId,
-        taskId: task.id,
-        plannedMinutes: result.state.durations?.workMinutes ?? 25,
-        startedAt: new Date(now).toISOString(),
-      });
+      let row: SessionRow;
+      let created = true;
+      try {
+        row = await repository.insertSession({
+          ownerId,
+          taskId: task.id,
+          clientOpId: input.clientOpId ?? null,
+          plannedMinutes: result.state.durations?.workMinutes ?? 25,
+          startedAt: new Date(now).toISOString(),
+        });
+      } catch (error) {
+        if (input.clientOpId && isUniqueViolation(error)) {
+          const existing = await repository.getSessionByClientOpId(ownerId, input.clientOpId);
+          if (existing) {
+            row = existing;
+            created = false;
+          } else {
+            throw new ApiError(
+              'conflict',
+              'Finish or pause the active session before starting another.',
+            );
+          }
+        } else {
+          throw error;
+        }
+      }
       await repository.ensureDayRecord(ownerId);
-      return sessionView(row, now);
+      return { session: sessionView(row, now), created };
     },
     command: async ({ ownerId, now }, command) => {
       const active = await repository.getActiveSession(ownerId);

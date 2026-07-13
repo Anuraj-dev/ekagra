@@ -1,460 +1,731 @@
-import type { Goal } from '@ekagra/core';
-import { useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View } from 'react-native';
+import type { Goal, GoalCreateRequest } from '@ekagra/core';
+import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Enter } from '../components/motion';
-import { Screen } from '../components/Screen';
-import { useData } from '../data/DataProvider';
-import { buildGoalColorMap, goalColor } from '../lib/goals';
-import { color, radius, space } from '../theme/tokens';
-import { overline, tabular, text } from '../theme/typography';
+import {
+  useCreateGoal,
+  useDeleteGoal,
+  useGoalDailyFocus,
+  useGoals,
+  useUpdateGoal,
+} from '../data/hooks';
+import { useTheme } from '../theme/ThemeProvider';
+import { display, ui } from '../theme/typography';
 
-/** Goals — goal cards with role overline and weekly-rate meters (session-local data for now). */
+type Theme = ReturnType<typeof useTheme>;
+type Priority = NonNullable<Goal['priority']>;
+type FeedbackPhase = 'pending' | 'success' | 'error';
+type Feedback = { phase: FeedbackPhase; message: string; retry?: () => void };
+type Mutation<T> = {
+  mutate: (input: T) => void;
+  isPending: boolean;
+  isError: boolean;
+  reset: () => void;
+  retry?: () => void;
+};
+
+const PRIORITIES: Array<Priority | null> = [null, 'p1', 'p2', 'p3'];
 export function Goals() {
+  const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { goals, tasks, earnedByTask, createGoal, updateGoal, deleteGoal } = useData();
-  const colorMap = useMemo(() => buildGoalColorMap(goals), [goals]);
-  const [editing, setEditing] = useState<Goal | null>(null);
+  const goalsQuery = useGoals();
+  const focusQuery = useGoalDailyFocus();
+  const activeGoals = useMemo(
+    () => goalsQuery.data.filter((goal) => goal.archivedAt === null),
+    [goalsQuery.data],
+  );
 
   return (
-    <Screen>
-      <Enter style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-        <Text style={text(800, { fontSize: 26, letterSpacing: -0.4, color: color.t1 })}>Goals</Text>
-        <Text style={text(600, { fontSize: 13, color: color.t3, marginTop: 6 })}>
-          What you're building, block by block
+    <View style={{ flex: 1, backgroundColor: t.canvas }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: insets.top + 18,
+          paddingHorizontal: 20,
+          paddingBottom: 112 + insets.bottom,
+        }}
+      >
+        <Text style={display(600, { color: t.ink, fontSize: 32, lineHeight: 38 })}>Goals</Text>
+        <Text style={ui(400, { color: t.textSecondary, fontSize: 13, marginTop: 4 })}>
+          {activeGoals.length === 0
+            ? 'Make space for what matters next.'
+            : `${activeGoals.length} active ${activeGoals.length === 1 ? 'goal' : 'goals'}`}
         </Text>
-      </Enter>
 
-      <Enter delay={60} style={{ gap: 10, paddingTop: 24, paddingHorizontal: 16 }}>
-        {goals.length === 0 && (
-          <Text
-            style={text(600, {
-              fontSize: 14,
-              color: color.t4,
-              lineHeight: 21,
-              paddingHorizontal: 4,
-            })}
-          >
-            No goals yet. Goals give tasks a color and a reason.
+        {goalsQuery.isLoading && goalsQuery.data.length === 0 ? (
+          <Status message="Loading goals…" t={t} />
+        ) : goalsQuery.isError ? (
+          <RetryBanner
+            message="Couldn’t load goals."
+            onRetry={() => void goalsQuery.refetch()}
+            t={t}
+          />
+        ) : null}
+
+        <View style={{ marginTop: 28 }}>
+          <SectionLabel title="Planning desk" t={t} />
+          <GoalComposer t={t} />
+        </View>
+
+        {focusQuery.isLoading && activeGoals.length > 0 && (
+          <Text style={ui(400, { color: t.textSecondary, fontSize: 13, marginTop: 18 })}>
+            Loading focus history…
           </Text>
         )}
-        <GoalComposer onCreate={createGoal} />
-        {goals.map((goal) => {
-          const gColor = goalColor(goal.id, colorMap);
-          const goalTasks = tasks.filter((t) => t.goalId === goal.id);
-          const weeklyBlocks = goalTasks.reduce((sum, t) => sum + (earnedByTask[t.id] ?? 0), 0);
-          return (
-            <Pressable
+        {focusQuery.isError && activeGoals.length > 0 && (
+          <Text style={ui(400, { color: t.textSecondary, fontSize: 13, marginTop: 18 })}>
+            Focus history is unavailable right now.
+          </Text>
+        )}
+
+        <View style={{ gap: 12, marginTop: 12 }}>
+          {activeGoals.map((goal) => (
+            <GoalCard
               key={goal.id}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={`${goal.title}, ${goal.identityRole}, ${weeklyBlocks} block${weeklyBlocks === 1 ? '' : 's'} per week. Edit goal`}
-              onPress={() => setEditing(goal)}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? color.surface3 : color.surface,
-                borderWidth: 1,
-                borderColor: pressed ? color.lineHi : color.line,
-                borderRadius: radius.md,
-                padding: space[4],
-              })}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: gColor }} />
-                <Text style={[overline, { color: color.t4 }]}>{goal.identityRole}</Text>
-                <Text
-                  style={[
-                    tabular,
-                    text(700, { marginLeft: 'auto', fontSize: 13, color: color.t3 }),
-                  ]}
-                >
-                  {weeklyBlocks} blocks/wk
-                </Text>
-              </View>
-              <Text
-                style={text(800, {
-                  fontSize: 18,
-                  letterSpacing: -0.2,
-                  color: color.t1,
-                  marginTop: 8,
-                })}
-              >
-                {goal.title}
-              </Text>
-              {goal.deadline && (
-                <Text style={text(600, { fontSize: 12, color: color.t4, marginTop: 4 })}>
-                  Deadline {goal.deadline}
-                </Text>
-              )}
-              {/* One 7-day rate meter. A second (30-day) bar is deliberately absent:
-                  only one session-local total exists client-side, and rescaling the
-                  same number twice would fake an independent signal. */}
-              <RateMeter color={gColor} value={Math.min(1, weeklyBlocks / 9)} />
-            </Pressable>
-          );
-        })}
-        {goals.length > 0 && (
+              goal={goal}
+              rows={focusQuery.data.filter((row) => row.goalId === goal.id)}
+              loading={focusQuery.isLoading}
+              t={t}
+            />
+          ))}
+        </View>
+
+        {!goalsQuery.isLoading && !goalsQuery.isError && activeGoals.length === 0 && (
           <Text
-            style={text(600, {
-              fontSize: 12,
-              color: color.t5,
-              paddingTop: 10,
-              paddingHorizontal: 4,
-              lineHeight: 18,
-            })}
+            style={ui(400, { color: t.textSecondary, fontSize: 14, lineHeight: 21, marginTop: 18 })}
           >
-            Rolling rates, not streaks. A slow week is data.
+            No active goals yet. Create one when you know what you are building toward.
           </Text>
         )}
-      </Enter>
-
-      {editing && (
-        <GoalSheet
-          key={editing.id}
-          goal={editing}
-          onClose={() => setEditing(null)}
-          onSave={updateGoal}
-          onDelete={deleteGoal}
-        />
-      )}
-    </Screen>
+      </ScrollView>
+    </View>
   );
 }
 
-/**
- * Inline create-goal flow: a "+ New goal" affordance that expands into a small
- * form (title + identity role), mirroring the quick-capture pattern on Tasks.
- */
-function GoalComposer({
-  onCreate,
-}: {
-  onCreate: (payload: { title: string; identityRole: string }) => Promise<unknown>;
-}) {
+function GoalComposer({ t }: { t: Theme }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [role, setRole] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // React state updates are async — a synchronous lock is needed so
-  // Enter + a fast button tap can't double-submit before `busy` re-renders.
-  const submitting = useRef(false);
+  const [identityRole, setIdentityRole] = useState('');
+  const [priority, setPriority] = useState<Priority | null>(null);
+  const mutation = useCreateGoal();
+  const feedback = useMutationFeedback(mutation, {
+    pending: 'Saving goal…',
+    success: 'Goal created · appears in Goals.',
+    error: 'Couldn’t create goal.',
+  });
 
-  const canSave = title.trim().length > 0 && role.trim().length > 0 && !busy;
-
-  async function save() {
-    if (!canSave || submitting.current) return;
-    submitting.current = true;
-    setBusy(true);
-    setError(null);
-    try {
-      await onCreate({ title: title.trim(), identityRole: role.trim() });
+  useEffect(() => {
+    if (feedback.value?.phase === 'success') {
       setTitle('');
-      setRole('');
+      setIdentityRole('');
+      setPriority(null);
       setOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the goal.');
-    } finally {
-      submitting.current = false;
-      setBusy(false);
     }
-  }
+  }, [feedback.value?.phase]);
+
+  const canSave = title.trim().length > 0 && identityRole.trim().length > 0 && !mutation.isPending;
 
   if (!open) {
     return (
-      <Pressable
-        onPress={() => {
-          setTitle('');
-          setRole('');
-          setError(null);
-          setOpen(true);
-        }}
-        style={({ pressed }) => ({
-          opacity: pressed ? 0.6 : 1,
-          paddingVertical: 8,
-          paddingHorizontal: 4,
-        })}
-      >
-        <Text style={text(700, { fontSize: 13, color: color.t3 })}>+ New goal</Text>
-      </Pressable>
+      <View>
+        {feedback.value && <FeedbackLine feedback={feedback.value} t={t} />}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create a new goal"
+          onPress={() => {
+            feedback.clear();
+            setOpen(true);
+          }}
+          style={({ pressed }) => ({
+            minHeight: 44,
+            justifyContent: 'center',
+            alignSelf: 'flex-start',
+            opacity: pressed ? 0.65 : 1,
+          })}
+        >
+          <Text style={ui(600, { color: t.accent, fontSize: 14 })}>+ New goal</Text>
+        </Pressable>
+      </View>
     );
   }
 
   return (
     <View
       style={{
-        backgroundColor: color.surface,
+        ...t.elevationNative.low,
+        backgroundColor: t.surface,
         borderWidth: 1,
-        borderColor: color.line,
-        borderRadius: radius.md,
-        padding: space[4],
-        gap: 10,
+        borderColor: t.line,
+        borderRadius: t.radii.card,
+        padding: 18,
+        gap: 14,
       }}
     >
-      <TextInput
+      <Text style={ui(600, { color: t.textSecondary, fontSize: 11, letterSpacing: 1.1 })}>
+        NEW GOAL
+      </Text>
+      <LabeledInput
+        label="Goal title"
         value={title}
         onChangeText={setTitle}
-        placeholder="Goal — what are you building?"
-        placeholderTextColor={color.t4}
+        placeholder="What are you building?"
         autoFocus
-        style={composerInput}
+        t={t}
       />
-      <TextInput
-        value={role}
-        onChangeText={setRole}
-        onSubmitEditing={() => void save()}
+      <LabeledInput
+        label="Identity role"
+        value={identityRole}
+        onChangeText={setIdentityRole}
+        placeholder="e.g. Engineer, Writer"
+        onSubmitEditing={() => {
+          if (canSave) feedback.run(buildCreatePayload(title, identityRole, priority));
+        }}
         returnKeyType="done"
-        placeholder="Identity role — e.g. Engineer, Writer"
-        placeholderTextColor={color.t4}
-        style={composerInput}
+        t={t}
       />
-      {error && <Text style={text(600, { fontSize: 13, color: color.danger })}>{error}</Text>}
-      <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-        <Pressable disabled={!canSave} onPress={() => void save()}>
-          <Text style={text(700, { fontSize: 13, color: canSave ? color.ember : color.t4 })}>
-            {busy ? 'Saving…' : 'Create goal'}
+      <PriorityPicker value={priority} onChange={setPriority} t={t} />
+      {feedback.value && <FeedbackLine feedback={feedback.value} t={t} />}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!canSave}
+          onPress={() => feedback.run(buildCreatePayload(title, identityRole, priority))}
+          style={({ pressed }) => ({
+            minHeight: 44,
+            flex: 1,
+            borderRadius: t.radii.pill,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: canSave ? (pressed ? t.accentPressed : t.accent) : t.lineSoft,
+          })}
+        >
+          <Text style={ui(600, { color: canSave ? t.inkOnDark : t.textSecondary, fontSize: 14 })}>
+            {mutation.isPending ? 'Saving…' : 'Create goal'}
           </Text>
         </Pressable>
         <Pressable
-          disabled={busy}
+          accessibilityRole="button"
+          disabled={mutation.isPending}
           onPress={() => {
+            feedback.clear();
             setOpen(false);
-            setError(null);
           }}
-          style={{ opacity: busy ? 0.5 : 1 }}
+          style={({ pressed }) => ({
+            minHeight: 44,
+            justifyContent: 'center',
+            opacity: pressed ? 0.65 : 1,
+          })}
         >
-          <Text style={text(700, { fontSize: 13, color: color.t4 })}>Cancel</Text>
+          <Text style={ui(600, { color: t.textSecondary, fontSize: 14 })}>Cancel</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-/**
- * Goal detail / edit sheet — the management surface reached by tapping a goal card.
- * Renames, re-roles, edits the deadline, and deletes (behind a two-step confirm so
- * a destructive action is never a single tap).
- */
-function GoalSheet({
+function GoalCard({
   goal,
-  onClose,
-  onSave,
-  onDelete,
+  rows,
+  loading,
+  t,
 }: {
   goal: Goal;
-  onClose: () => void;
-  onSave: (
-    id: string,
-    payload: { title?: string; identityRole?: string; deadline?: string | null },
-  ) => Promise<unknown>;
-  onDelete: (id: string) => Promise<void>;
+  rows: Array<{
+    focusDate: string;
+    honestMinutes: number;
+    earnedBlocks: number;
+    sessionsEnded: number;
+  }>;
+  loading: boolean;
+  t: Theme;
 }) {
-  const insets = useSafeAreaInsets();
-  const [title, setTitle] = useState(goal.title);
-  const [role, setRole] = useState(goal.identityRole);
-  const [deadline, setDeadline] = useState(goal.deadline ?? '');
-  const [busy, setBusy] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const submitting = useRef(false);
+  const [editing, setEditing] = useState(false);
+  const totalBlocks = rows.reduce((sum, row) => sum + row.earnedBlocks, 0);
+  const totalMinutes = rows.reduce((sum, row) => sum + row.honestMinutes, 0);
+  const priority = goal.priority ? goal.priority.toUpperCase() : null;
 
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${goal.title}, ${goal.identityRole}. ${totalBlocks} earned blocks and ${totalMinutes} honest minutes in the last 7 days. Edit goal`}
+        onPress={() => setEditing(true)}
+        style={({ pressed }) => ({
+          ...t.elevationNative.low,
+          backgroundColor: pressed ? t.surfaceSunk : t.surface,
+          borderWidth: 1,
+          borderColor: pressed ? t.lineStrong : t.line,
+          borderRadius: t.radii.card,
+          padding: 18,
+        })}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10 }}>
+          <Text style={display(600, { color: t.ink, fontSize: 20, lineHeight: 25, flex: 1 })}>
+            {goal.title}
+          </Text>
+          {priority && (
+            <Text style={ui(600, { color: t.textSecondary, fontSize: 11 })}>{priority}</Text>
+          )}
+        </View>
+        <Text
+          style={ui(600, {
+            color: t.textSecondary,
+            fontSize: 11,
+            letterSpacing: 1.1,
+            marginTop: 6,
+          })}
+        >
+          {goal.identityRole}
+        </Text>
+        {goal.deadline && (
+          <Text style={ui(400, { color: t.textSecondary, fontSize: 12, marginTop: 6 })}>
+            Deadline {goal.deadline}
+          </Text>
+        )}
+        <GoalFocusMeter rows={rows} loading={loading} t={t} />
+      </Pressable>
+      {editing && <GoalSheet goal={goal} onClose={() => setEditing(false)} t={t} />}
+    </>
+  );
+}
+
+function GoalFocusMeter({
+  rows,
+  loading,
+  t,
+}: {
+  rows: Array<{
+    focusDate: string;
+    honestMinutes: number;
+    earnedBlocks: number;
+    sessionsEnded: number;
+  }>;
+  loading: boolean;
+  t: Theme;
+}) {
+  if (loading) {
+    return (
+      <Text style={ui(400, { color: t.textSecondary, fontSize: 12, marginTop: 16 })}>Loading…</Text>
+    );
+  }
+
+  const orderedRows = [...rows].sort((a, b) => a.focusDate.localeCompare(b.focusDate));
+  const maxSessions = Math.max(...orderedRows.map((row) => row.sessionsEnded), 1);
+  const totalBlocks = orderedRows.reduce((sum, row) => sum + row.earnedBlocks, 0);
+  const totalMinutes = orderedRows.reduce((sum, row) => sum + row.honestMinutes, 0);
+  const summary = `This week: ${totalBlocks} earned blocks, ${totalMinutes} honest minutes across 7 days`;
+
+  return (
+    <View accessible accessibilityLabel={summary} style={{ marginTop: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 32, gap: 6 }}>
+        {orderedRows.map((row) => {
+          const today = row.focusDate === utcDateKey(new Date());
+          const barHeight =
+            row.sessionsEnded === 0 ? 4 : 4 + (row.sessionsEnded / maxSessions) * 24;
+          return (
+            <View
+              key={row.focusDate}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}
+            >
+              <View
+                style={{
+                  width: '100%',
+                  height: barHeight,
+                  minHeight: 4,
+                  borderRadius: t.radii.pill,
+                  backgroundColor: row.sessionsEnded > 0 ? t.accent : t.lineSoft,
+                  opacity: today ? 1 : 0.78,
+                }}
+              />
+            </View>
+          );
+        })}
+      </View>
+      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+        {orderedRows.map((row) => (
+          <Text
+            key={row.focusDate}
+            style={ui(500, {
+              color: row.focusDate === utcDateKey(new Date()) ? t.ink : t.textSecondary,
+              fontSize: 10,
+              textAlign: 'center',
+              flex: 1,
+            })}
+          >
+            {weekday(row.focusDate)}
+          </Text>
+        ))}
+      </View>
+      <Text style={ui(400, { color: t.textSecondary, fontSize: 12, marginTop: 10 })}>
+        {totalBlocks === 0 && totalMinutes === 0
+          ? 'No focus logged yet · last 7 days'
+          : `${totalBlocks} earned ${totalBlocks === 1 ? 'block' : 'blocks'} · ${totalMinutes} honest min · last 7 days`}
+      </Text>
+    </View>
+  );
+}
+
+function GoalSheet({ goal, onClose, t }: { goal: Goal; onClose: () => void; t: Theme }) {
+  const [title, setTitle] = useState(goal.title);
+  const [identityRole, setIdentityRole] = useState(goal.identityRole);
+  const [deadline, setDeadline] = useState(goal.deadline ?? '');
+  const [priority, setPriority] = useState<Priority | null>(goal.priority ?? null);
+  const update = useMutationFeedback(useUpdateGoal(), {
+    pending: 'Saving changes…',
+    success: 'Goal updated.',
+    error: 'Couldn’t update goal.',
+  });
+  const remove = useMutationFeedback(useDeleteGoal(), {
+    pending: 'Deleting goal…',
+    success: 'Goal deleted. Tasks stay, but no longer have this goal.',
+    error: 'Couldn’t delete goal.',
+  });
   const trimmedDeadline = deadline.trim();
   const dirty =
     title.trim() !== goal.title ||
-    role.trim() !== goal.identityRole ||
-    trimmedDeadline !== (goal.deadline ?? '');
-  const canSave = title.trim().length > 0 && role.trim().length > 0 && dirty && !busy;
-
-  async function save() {
-    if (!canSave || submitting.current) return;
-    submitting.current = true;
-    setBusy(true);
-    setError(null);
-    try {
-      await onSave(goal.id, {
-        title: title.trim(),
-        identityRole: role.trim(),
-        deadline: trimmedDeadline.length > 0 ? trimmedDeadline : null,
-      });
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the goal.');
-    } finally {
-      submitting.current = false;
-      setBusy(false);
-    }
-  }
-
-  async function remove() {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onDelete(goal.id);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete the goal.');
-      setBusy(false);
-    }
-  }
-
-  function dismiss() {
-    if (!busy) onClose();
-  }
+    identityRole.trim() !== goal.identityRole ||
+    trimmedDeadline !== (goal.deadline ?? '') ||
+    priority !== (goal.priority ?? null);
+  const canSave =
+    title.trim().length > 0 &&
+    identityRole.trim().length > 0 &&
+    dirty &&
+    !update.mutation.isPending;
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={dismiss}>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+    <Modal
+      transparent
+      animationType="fade"
+      onRequestClose={() => closeIfIdle(onClose, update.mutation, remove.mutation)}
+    >
+      <View style={{ flex: 1, justifyContent: 'flex-end' }} accessibilityViewIsModal>
         <Pressable
-          accessibilityLabel="Dismiss"
-          onPress={dismiss}
+          accessibilityLabel="Dismiss edit goal"
+          onPress={() => closeIfIdle(onClose, update.mutation, remove.mutation)}
           style={{
             position: 'absolute',
             top: 0,
-            left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(7,8,10,0.6)',
+            left: 0,
+            backgroundColor: t.ink,
+            opacity: 0.24,
           }}
         />
         <View
           style={{
-            backgroundColor: color.surface,
-            borderTopWidth: 1,
-            borderTopColor: color.line,
-            borderTopLeftRadius: radius.lg,
-            borderTopRightRadius: radius.lg,
+            ...t.elevationNative.sheet,
+            backgroundColor: t.surface,
+            borderTopLeftRadius: t.radii.sheet,
+            borderTopRightRadius: t.radii.sheet,
             paddingTop: 22,
-            paddingHorizontal: 20,
-            paddingBottom: 28 + insets.bottom,
-            gap: 12,
+            paddingHorizontal: 24,
+            paddingBottom: 28,
+            gap: 14,
           }}
         >
-          <Text style={[overline, { color: color.t3 }]}>Edit goal</Text>
-          <View style={{ gap: 6 }}>
-            <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Goal</Text>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="What are you building?"
-              placeholderTextColor={color.t4}
-              style={composerInput}
-            />
-          </View>
-          <View style={{ gap: 6 }}>
-            <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Identity role</Text>
-            <TextInput
-              value={role}
-              onChangeText={setRole}
-              placeholder="e.g. Engineer, Writer"
-              placeholderTextColor={color.t4}
-              style={composerInput}
-            />
-          </View>
-          <View style={{ gap: 6 }}>
-            <Text style={[overline, { color: color.t4, fontSize: 10 }]}>Deadline · optional</Text>
-            <TextInput
-              value={deadline}
-              onChangeText={setDeadline}
-              placeholder="e.g. 2026-09-01"
-              placeholderTextColor={color.t4}
-              autoCapitalize="none"
-              style={composerInput}
-            />
-          </View>
-          {error && <Text style={text(600, { fontSize: 13, color: color.danger })}>{error}</Text>}
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+          <Text style={ui(600, { color: t.textSecondary, fontSize: 11, letterSpacing: 1.1 })}>
+            EDIT GOAL
+          </Text>
+          <LabeledInput label="Goal title" value={title} onChangeText={setTitle} t={t} />
+          <LabeledInput
+            label="Identity role"
+            value={identityRole}
+            onChangeText={setIdentityRole}
+            t={t}
+          />
+          <LabeledInput
+            label="Deadline · optional"
+            value={deadline}
+            onChangeText={setDeadline}
+            placeholder="YYYY-MM-DD"
+            autoCapitalize="none"
+            t={t}
+          />
+          <PriorityPicker value={priority} onChange={setPriority} t={t} />
+          {update.value && <FeedbackLine feedback={update.value} t={t} />}
+          {remove.value && <FeedbackLine feedback={remove.value} t={t} />}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
+              accessibilityRole="button"
               disabled={!canSave}
-              onPress={() => void save()}
-              style={{
+              onPress={() =>
+                update.run({
+                  id: goal.id,
+                  patch: {
+                    title: title.trim(),
+                    identityRole: identityRole.trim(),
+                    deadline: trimmedDeadline.length > 0 ? trimmedDeadline : null,
+                    priority,
+                  },
+                })
+              }
+              style={({ pressed }) => ({
+                minHeight: 44,
                 flex: 1,
-                borderRadius: radius.sm,
-                paddingVertical: 15,
+                borderRadius: t.radii.pill,
                 alignItems: 'center',
-                backgroundColor: canSave ? color.ember : color.lineSoft,
-              }}
+                justifyContent: 'center',
+                backgroundColor: canSave ? (pressed ? t.accentPressed : t.accent) : t.lineSoft,
+              })}
             >
-              <Text style={text(800, { fontSize: 15, color: canSave ? color.bg : color.t4 })}>
-                {busy ? 'Saving…' : 'Save changes'}
+              <Text
+                style={ui(600, { color: canSave ? t.inkOnDark : t.textSecondary, fontSize: 14 })}
+              >
+                {update.mutation.isPending ? 'Saving…' : 'Save changes'}
               </Text>
             </Pressable>
-            <Pressable disabled={busy} onPress={onClose} style={{ paddingHorizontal: 8 }}>
-              <Text style={text(700, { fontSize: 14, color: color.t3 })}>Cancel</Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={update.mutation.isPending || remove.mutation.isPending}
+              onPress={onClose}
+              style={({ pressed }) => ({
+                minHeight: 44,
+                justifyContent: 'center',
+                opacity: pressed ? 0.65 : 1,
+              })}
+            >
+              <Text style={ui(600, { color: t.textSecondary, fontSize: 14 })}>Close</Text>
             </Pressable>
           </View>
-
-          {/* Two-step delete: the first tap arms, the second confirms. */}
-          {confirmDelete ? (
-            <View
-              style={{
-                borderRadius: radius.sm,
-                borderWidth: 1,
-                borderColor: 'rgba(228,121,107,0.4)',
-                backgroundColor: color.dangerDim,
-                padding: 14,
-                gap: 10,
-              }}
-            >
-              <Text style={text(600, { fontSize: 13, color: color.t2, lineHeight: 19 })}>
-                Delete “{goal.title}”? Tasks stay, lose the goal.
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-                <Pressable disabled={busy} onPress={() => void remove()}>
-                  <Text style={text(800, { fontSize: 14, color: color.danger })}>
-                    {busy ? 'Deleting…' : 'Delete goal'}
-                  </Text>
-                </Pressable>
-                <Pressable disabled={busy} onPress={() => setConfirmDelete(false)}>
-                  <Text style={text(700, { fontSize: 14, color: color.t4 })}>Keep</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <Pressable
-              disabled={busy}
-              onPress={() => setConfirmDelete(true)}
-              style={{ alignSelf: 'flex-start', paddingVertical: 6 }}
-            >
-              <Text style={text(700, { fontSize: 13, color: color.danger })}>Delete goal</Text>
-            </Pressable>
-          )}
+          <Pressable
+            accessibilityRole="button"
+            disabled={update.mutation.isPending || remove.mutation.isPending}
+            onPress={() =>
+              Alert.alert('Delete goal?', 'Tasks stay, but they will no longer have this goal.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => remove.run(goal.id) },
+              ])
+            }
+            style={({ pressed }) => ({
+              minHeight: 44,
+              justifyContent: 'center',
+              opacity: pressed ? 0.65 : 1,
+            })}
+          >
+            <Text style={ui(600, { color: t.dangerText, fontSize: 13 })}>Delete goal</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
   );
 }
 
-const composerInput = text(500, {
-  backgroundColor: color.surface2,
-  borderWidth: 1.5,
-  borderColor: color.line,
-  borderRadius: radius.sm,
-  padding: 14,
-  color: color.t1,
-  fontSize: 15,
-});
-
-function RateMeter({ color: fill, value }: { color: string; value: number }) {
+function LabeledInput({
+  label,
+  t,
+  ...props
+}: { label: string; t: Theme } & ComponentProps<typeof TextInput>) {
   return (
-    <View
-      style={{
-        marginTop: 10,
-        // 4/2 is intentionally thinner than BlockMeter's 6/3: this is a continuous
-        // rate hairline, not a countable block ledger.
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: color.lineSoft,
-        overflow: 'hidden',
-      }}
-    >
-      <View
-        style={{
-          width: `${Math.round(value * 100)}%`,
-          height: '100%',
-          borderRadius: 2,
-          backgroundColor: fill,
-        }}
+    <View style={{ gap: 6 }}>
+      <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>{label}</Text>
+      <TextInput
+        {...props}
+        placeholderTextColor={t.textPlaceholder}
+        style={ui(400, {
+          minHeight: 48,
+          backgroundColor: t.surfaceSunk,
+          borderWidth: 1,
+          borderColor: t.lineInput,
+          borderRadius: t.radii.sm,
+          paddingHorizontal: 14,
+          color: t.ink,
+          fontSize: 15,
+        })}
       />
     </View>
   );
+}
+
+function PriorityPicker({
+  value,
+  onChange,
+  t,
+}: {
+  value: Priority | null;
+  onChange: (value: Priority | null) => void;
+  t: Theme;
+}) {
+  return (
+    <View style={{ gap: 7 }}>
+      <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>Priority · optional</Text>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {PRIORITIES.map((item) => {
+          const selected = value === item;
+          const label = item ? item.toUpperCase() : 'NONE';
+          return (
+            <Pressable
+              key={item ?? 'none'}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${label} priority`}
+              onPress={() => onChange(item)}
+              style={({ pressed }) => ({
+                minHeight: 44,
+                minWidth: 54,
+                paddingHorizontal: 10,
+                borderRadius: t.radii.xs,
+                borderWidth: selected ? 0 : 1,
+                borderColor: t.lineStrong,
+                backgroundColor: selected ? (pressed ? t.accentPressed : t.ink) : t.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed && !selected ? 0.65 : 1,
+              })}
+            >
+              <Text
+                style={ui(600, { color: selected ? t.inkOnDark : t.textSecondary, fontSize: 11 })}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function useMutationFeedback<T>(mutation: Mutation<T>, messages: Record<FeedbackPhase, string>) {
+  const [value, setValue] = useState<Feedback | null>(null);
+  const lastInput = useRef<T | undefined>(undefined);
+  const wasPending = useRef(false);
+
+  const run = useCallback(
+    (input: T) => {
+      lastInput.current = input;
+      wasPending.current = false;
+      setValue({ phase: 'pending', message: messages.pending });
+      mutation.reset();
+      mutation.mutate(input);
+    },
+    [messages.pending, mutation.mutate, mutation.reset],
+  );
+
+  const retry = useCallback(() => {
+    if (lastInput.current === undefined) return;
+    wasPending.current = false;
+    setValue({ phase: 'pending', message: messages.pending });
+    if (mutation.retry) {
+      mutation.retry();
+    } else {
+      run(lastInput.current);
+    }
+  }, [messages.pending, mutation.retry, run]);
+
+  const clear = useCallback(() => {
+    mutation.reset();
+    setValue(null);
+  }, [mutation.reset]);
+
+  useEffect(() => {
+    if (wasPending.current && !mutation.isPending && value?.phase === 'pending') {
+      setValue(
+        mutation.isError
+          ? { phase: 'error', message: messages.error, retry }
+          : { phase: 'success', message: messages.success },
+      );
+    }
+    wasPending.current = mutation.isPending;
+  }, [mutation.isError, mutation.isPending, messages.error, messages.success, retry, value?.phase]);
+
+  return { value, run, retry, clear, mutation };
+}
+
+function FeedbackLine({ feedback, t }: { feedback: Feedback; t: Theme }) {
+  const isError = feedback.phase === 'error';
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: isError ? t.dangerBg : t.surfaceSunk,
+        borderWidth: 1,
+        borderColor: isError ? t.dangerLine : t.line,
+        borderRadius: t.radii.sm,
+        paddingHorizontal: 12,
+        marginVertical: 4,
+      }}
+    >
+      <Text
+        style={ui(500, {
+          color: isError ? t.dangerText : t.textSecondary,
+          flex: 1,
+          fontSize: 13,
+          lineHeight: 18,
+        })}
+      >
+        {feedback.message}
+      </Text>
+      {feedback.retry && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={feedback.retry}
+          style={({ pressed }) => ({
+            minHeight: 44,
+            justifyContent: 'center',
+            opacity: pressed ? 0.65 : 1,
+          })}
+        >
+          <Text style={ui(700, { color: t.dangerText, fontSize: 12, letterSpacing: 0.8 })}>
+            RETRY
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function RetryBanner({ message, onRetry, t }: { message: string; onRetry: () => void; t: Theme }) {
+  return <FeedbackLine feedback={{ phase: 'error', message, retry: onRetry }} t={t} />;
+}
+
+function SectionLabel({ title, t }: { title: string; t: Theme }) {
+  return (
+    <Text
+      style={ui(600, {
+        color: t.textSecondary,
+        fontSize: 11,
+        letterSpacing: 1.1,
+        textTransform: 'uppercase',
+        marginBottom: 8,
+      })}
+    >
+      {title}
+    </Text>
+  );
+}
+
+function Status({ message, t }: { message: string; t: Theme }) {
+  return (
+    <Text style={ui(400, { color: t.textSecondary, fontSize: 13, marginTop: 28 })}>{message}</Text>
+  );
+}
+
+function buildCreatePayload(
+  title: string,
+  identityRole: string,
+  priority: Priority | null,
+): GoalCreateRequest {
+  return { title: title.trim(), identityRole: identityRole.trim(), priority };
+}
+
+function closeIfIdle(
+  onClose: () => void,
+  update: ReturnType<typeof useUpdateGoal>,
+  remove: ReturnType<typeof useDeleteGoal>,
+) {
+  if (!update.isPending && !remove.isPending) onClose();
+}
+
+function utcDateKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function weekday(value: string): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' })
+    .format(date)
+    .slice(0, 2);
 }

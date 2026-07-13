@@ -7,3 +7,5 @@ dist/
 .supabase/
 coverage/
 firmware/src/secrets.h
+supabase/.temp/
+.claude/settings.local.json

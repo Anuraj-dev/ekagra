@@ -7,14 +7,24 @@
  * Only the web-only `tokensToCssVars` helper is irrelevant here; everything else
  * (color, goalPalette, radius, space, font, motion, shadow, ring) is reused as-is.
  */
+
+export type { ThemeColors, ThemeName } from '../../../web/src/theme/tokens';
 export {
   color,
+  dark,
+  duration,
+  elevation,
+  elevationNative,
+  families,
   font,
   goalPalette,
+  light,
   motion,
+  radii,
   radius,
   ring,
   shadow,
   space,
+  themes,
   withAlpha,
 } from '../../../web/src/theme/tokens';

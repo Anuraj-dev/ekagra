@@ -1,75 +1,117 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import type { ComponentType } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CrewIcon, GoalsIcon, InsightsIcon, TasksIcon, TodayIcon } from '../components/icons';
-import { color } from '../theme/tokens';
-import { text } from '../theme/typography';
+import { GoalsIcon, InsightsIcon, TasksIcon } from '../components/icons';
+import { useTheme } from '../theme/ThemeProvider';
+import { ui } from '../theme/typography';
 import type { TabParamList } from './types';
 
-const ICONS: Record<keyof TabParamList, ComponentType<{ tint?: string }>> = {
-  Today: TodayIcon,
-  Goals: GoalsIcon,
-  Insights: InsightsIcon,
-  Crew: CrewIcon,
-  Tasks: TasksIcon,
-};
+const ICONS = { Tasks: TasksIcon, Goals: GoalsIcon, Insights: InsightsIcon };
 
-/** Solid flat tab bar, hairline top, active-tab tick indicator (DESIGN-SPEC §6). */
 export function TabBar({ state, navigation }: BottomTabBarProps) {
+  const t = useTheme();
   const insets = useSafeAreaInsets();
+  const routes = state.routes as { key: string; name: keyof TabParamList }[];
+  const go = (route: (typeof routes)[number]) => {
+    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (!event.defaultPrevented) navigation.navigate(route.name);
+  };
   return (
     <View
       style={{
-        flexDirection: 'row',
-        backgroundColor: color.bg,
+        backgroundColor: t.navBar,
         borderTopWidth: 1,
-        borderTopColor: color.line,
-        paddingBottom: Math.max(insets.bottom, 12),
-        paddingTop: 4,
+        borderTopColor: t.lineSoft,
+        paddingBottom: Math.max(insets.bottom, 10),
+        paddingTop: 8,
       }}
     >
-      {state.routes.map((route, index) => {
-        const active = state.index === index;
-        const routeName = route.name as keyof TabParamList;
-        const Icon = ICONS[routeName];
-        const tint = active ? color.ember : color.t4;
-        return (
-          <Pressable
+      <View style={{ height: 68, flexDirection: 'row', alignItems: 'center' }}>
+        {routes.slice(0, 2).map((route, index) => (
+          <TabItem
             key={route.key}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!active && !event.defaultPrevented) navigation.navigate(route.name);
-            }}
-            style={{
-              flex: 1,
-              height: 64,
+            route={route}
+            active={state.index === index}
+            onPress={() => go(route)}
+            t={t}
+          />
+        ))}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Capture a task"
+          onPress={() => navigation.getParent()?.navigate('Capture' as never)}
+          style={({ pressed }) => [
+            {
+              width: 60,
+              height: 60,
+              borderRadius: t.radii.lg,
+              backgroundColor: pressed ? t.accentPressed : t.accent,
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 5,
-            }}
-          >
-            <View
-              style={{
-                position: 'absolute',
-                top: 6,
-                width: 16,
-                height: 3,
-                borderRadius: 2,
-                backgroundColor: active ? color.ember : 'transparent',
-              }}
-            />
-            <Icon tint={tint} />
-            <Text style={text(700, { fontSize: 11, color: tint })}>{routeName}</Text>
-          </Pressable>
-        );
-      })}
+              marginHorizontal: 8,
+              marginTop: -26,
+            },
+            t.elevationNative.fabAccent,
+          ]}
+        >
+          <Text style={ui(400, { color: t.inkOnDark, fontSize: 34, lineHeight: 38 })}>+</Text>
+        </Pressable>
+        {routes.slice(2).map((route, index) => (
+          <TabItem
+            key={route.key}
+            route={route}
+            active={state.index === index + 2}
+            onPress={() => go(route)}
+            t={t}
+          />
+        ))}
+      </View>
     </View>
+  );
+}
+
+function TabItem({
+  route,
+  active,
+  onPress,
+  t,
+}: {
+  route: { key: string; name: keyof TabParamList };
+  active: boolean;
+  onPress: () => void;
+  t: ReturnType<typeof useTheme>;
+}) {
+  const Icon = ICONS[route.name];
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        minHeight: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.75 : 1,
+      })}
+    >
+      <View
+        style={{
+          minWidth: 56,
+          height: 30,
+          borderRadius: t.radii.pill,
+          backgroundColor: active ? t.lineSoft : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon tint={active ? t.ink : t.textSecondary} />
+      </View>
+      <Text
+        style={ui(600, { color: active ? t.ink : t.textSecondary, fontSize: 11, marginTop: 2 })}
+      >
+        {route.name}
+      </Text>
+    </Pressable>
   );
 }

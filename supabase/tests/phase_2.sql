@@ -137,10 +137,19 @@ select is(
 );
 reset role;
 
+-- Compared against a direct reference count (same UTC-today boundary) so the test
+-- is weekday-robust: seed activity anchored to date_trunc('week', now()) lands on
+-- "today" when the suite runs on a Monday, so a hardcoded expectation was flaky.
 select is(
   (select today_blocks from public.get_device_poll_aggregates('00000000-0000-0000-0000-000000000001')),
-  1,
-  'device aggregate returns today earned blocks as one row'
+  (
+    select count(*)::integer
+    from public.sessions
+    where owner_id = '00000000-0000-0000-0000-000000000001'
+      and outcome = 'completed'
+      and started_at >= ((now() at time zone 'UTC')::date at time zone 'UTC')
+  ),
+  'device aggregate today earned blocks matches a direct completed-today count'
 );
 select is(
   (select weekly_minutes from public.get_device_poll_aggregates('00000000-0000-0000-0000-000000000001')),

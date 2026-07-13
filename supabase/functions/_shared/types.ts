@@ -15,6 +15,12 @@ export type TaskRow = {
   status: Task['status'];
   goal_id: string | null;
   estimated_blocks: number | null;
+  priority: Task['priority'];
+  scheduled_for: string | null;
+  scheduled_time: string | null;
+  deadline: string | null;
+  notes: string | null;
+  client_op_id: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -26,6 +32,8 @@ export type GoalRow = {
   title: string;
   identity_role: string;
   deadline: string | null;
+  priority: Goal['priority'];
+  client_op_id: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;

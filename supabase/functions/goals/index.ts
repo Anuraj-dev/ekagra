@@ -8,7 +8,7 @@ import {
   parseUuid,
 } from '../_vendor/core/index.ts';
 
-const fields = 'id,title,identity_role,deadline,archived_at,created_at,updated_at';
+const fields = 'id,title,identity_role,deadline,priority,archived_at,created_at,updated_at';
 
 function view(row: GoalRow): Goal {
   return {
@@ -16,6 +16,7 @@ function view(row: GoalRow): Goal {
     title: row.title,
     identityRole: row.identity_role,
     deadline: row.deadline,
+    priority: row.priority,
     archivedAt: row.archived_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -43,10 +44,24 @@ Deno.serve((request) =>
           title: input.title,
           identity_role: input.identityRole,
           deadline: input.deadline ?? null,
+          priority: input.priority ?? null,
+          client_op_id: input.clientOpId ?? null,
         })
         .select(fields)
         .single();
-      if (result.error) throw databaseApiError(result.error, 'Could not create goal.');
+      if (result.error) {
+        if (input.clientOpId && (result.error as { code?: string }).code === '23505') {
+          const existing = await client
+            .from('goals')
+            .select(fields)
+            .eq('owner_id', ownerId)
+            .eq('client_op_id', input.clientOpId)
+            .single();
+          if (existing.error) throw databaseApiError(existing.error, 'Could not load goal.');
+          return json({ goal: view(existing.data as GoalRow) }, 200);
+        }
+        throw databaseApiError(result.error, 'Could not create goal.');
+      }
       return json({ goal: view(result.data as GoalRow) }, 201);
     }
     const id = new URL(request.url).searchParams.get('id');
@@ -58,6 +73,7 @@ Deno.serve((request) =>
         ...(input.title === undefined ? {} : { title: input.title }),
         ...(input.identityRole === undefined ? {} : { identity_role: input.identityRole }),
         ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+        ...(input.priority === undefined ? {} : { priority: input.priority }),
       };
       const result = await client
         .from('goals')

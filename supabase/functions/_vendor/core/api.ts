@@ -42,6 +42,8 @@ export class ContractError extends Error {
 
 export type TaskStatus = 'inbox' | 'planned' | 'done' | 'cancelled';
 
+export type Priority = 'p1' | 'p2' | 'p3';
+
 export type Task = {
   id: string;
   title: string;
@@ -51,6 +53,13 @@ export type Task = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // v2 planning fields — optional during the rebuild: the migration adds the columns
+  // and edge fns/hooks populate them; a Task fetched before the mapper update lacks them.
+  priority?: Priority | null;
+  scheduledFor?: string | null;
+  scheduledTime?: string | null;
+  deadline?: string | null;
+  notes?: string | null;
 };
 
 export type Goal = {
@@ -61,6 +70,7 @@ export type Goal = {
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  priority?: Priority | null; // v2 — optional during rebuild (see Task)
 };
 
 export type SessionStatus = 'running' | 'paused' | 'completed' | 'abandoned';
@@ -84,6 +94,7 @@ export type Session = {
 export type SessionStartRequest = {
   taskId: string;
   durations?: TimerConfig;
+  clientOpId?: string;
 };
 
 export type SessionCommandRequest = {
@@ -111,6 +122,12 @@ export type TaskCreateRequest = {
   title: string;
   goalId?: string | null;
   estimatedBlocks?: number | null;
+  priority?: Priority | null;
+  scheduledFor?: string | null;
+  scheduledTime?: string | null;
+  deadline?: string | null;
+  notes?: string | null;
+  clientOpId?: string;
 };
 
 export type TaskUpdateRequest = Partial<TaskCreateRequest> & {
@@ -121,6 +138,8 @@ export type GoalCreateRequest = {
   title: string;
   identityRole: string;
   deadline?: string | null;
+  priority?: Priority | null;
+  clientOpId?: string;
 };
 
 export type GoalUpdateRequest = Partial<GoalCreateRequest>;
@@ -322,6 +341,24 @@ function optionalUuid(value: unknown, field: string): string | null | undefined 
   return uuidValue(value, field);
 }
 
+function parsePriority(value: unknown, field: string): Priority | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string' || !['p1', 'p2', 'p3'].includes(value)) {
+    throw new ContractError(`${field} is invalid.`);
+  }
+  return value as Priority;
+}
+
+function parseTimeOfDay(value: unknown, field: string): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+    throw new ContractError(`${field} must be an HH:MM time or null.`);
+  }
+  return value;
+}
+
 function integerValue(value: unknown, field: string, min: number, max: number): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
     throw new ContractError(`${field} must be a whole number between ${min} and ${max}.`);
@@ -342,7 +379,13 @@ function timerConfig(value: unknown): TimerConfig | undefined {
 
 export function parseSessionStartRequest(value: unknown): SessionStartRequest {
   const input = objectValue(value, 'request');
-  return { taskId: uuidValue(input.taskId, 'taskId'), durations: timerConfig(input.durations) };
+  return {
+    taskId: uuidValue(input.taskId, 'taskId'),
+    durations: timerConfig(input.durations),
+    ...(input.clientOpId === undefined
+      ? {}
+      : { clientOpId: uuidValue(input.clientOpId, 'clientOpId') }),
+  };
 }
 
 export function parseSessionCommand(value: unknown): SessionCommand {
@@ -375,6 +418,20 @@ export function parseTaskCreateRequest(value: unknown): TaskCreateRequest {
       estimatedBlocks === undefined || estimatedBlocks === null
         ? estimatedBlocks
         : integerValue(estimatedBlocks, 'estimatedBlocks', 1, 100),
+    ...(input.priority === undefined
+      ? {}
+      : { priority: parsePriority(input.priority, 'priority') }),
+    ...(input.scheduledFor === undefined
+      ? {}
+      : { scheduledFor: parseDate(input.scheduledFor, 'scheduledFor') }),
+    ...(input.scheduledTime === undefined
+      ? {}
+      : { scheduledTime: parseTimeOfDay(input.scheduledTime, 'scheduledTime') }),
+    ...(input.deadline === undefined ? {} : { deadline: parseDate(input.deadline, 'deadline') }),
+    ...(input.notes === undefined ? {} : { notes: nullableString(input.notes, 'notes', 2000) }),
+    ...(input.clientOpId === undefined
+      ? {}
+      : { clientOpId: uuidValue(input.clientOpId, 'clientOpId') }),
   };
 }
 
@@ -392,6 +449,15 @@ export function parseTaskUpdateRequest(value: unknown): TaskUpdateRequest {
   if (input.status !== undefined) {
     result.status = parseTaskStatus(input.status);
   }
+  if (input.priority !== undefined) result.priority = parsePriority(input.priority, 'priority');
+  if (input.scheduledFor !== undefined) {
+    result.scheduledFor = parseDate(input.scheduledFor, 'scheduledFor');
+  }
+  if (input.scheduledTime !== undefined) {
+    result.scheduledTime = parseTimeOfDay(input.scheduledTime, 'scheduledTime');
+  }
+  if (input.deadline !== undefined) result.deadline = parseDate(input.deadline, 'deadline');
+  if (input.notes !== undefined) result.notes = nullableString(input.notes, 'notes', 2000);
   if (Object.keys(result).length === 0)
     throw new ContractError('At least one task field is required.');
   return result;
@@ -403,6 +469,11 @@ function parseDate(value: unknown, field: string): string | null | undefined {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new ContractError(`${field} must be an ISO date or null.`);
   }
+  const [y, m, d] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) {
+    throw new ContractError(`${field} must be a real calendar date.`);
+  }
   return value;
 }
 
@@ -412,6 +483,12 @@ export function parseGoalCreateRequest(value: unknown): GoalCreateRequest {
     title: stringValue(input.title, 'title', 500),
     identityRole: stringValue(input.identityRole, 'identityRole', 120),
     deadline: parseDate(input.deadline, 'deadline'),
+    ...(input.priority === undefined
+      ? {}
+      : { priority: parsePriority(input.priority, 'priority') }),
+    ...(input.clientOpId === undefined
+      ? {}
+      : { clientOpId: uuidValue(input.clientOpId, 'clientOpId') }),
   };
 }
 
@@ -423,6 +500,7 @@ export function parseGoalUpdateRequest(value: unknown): GoalUpdateRequest {
     result.identityRole = stringValue(input.identityRole, 'identityRole', 120);
   }
   if (input.deadline !== undefined) result.deadline = parseDate(input.deadline, 'deadline');
+  if (input.priority !== undefined) result.priority = parsePriority(input.priority, 'priority');
   if (Object.keys(result).length === 0)
     throw new ContractError('At least one goal field is required.');
   return result;

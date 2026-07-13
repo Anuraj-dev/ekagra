@@ -1,5 +1,4 @@
 import { useNavigation } from '@react-navigation/native';
-import { useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PauseIcon, PlayIcon } from '../components/icons';
@@ -34,7 +33,6 @@ export function Focus() {
   const { data: goals } = useGoals();
   const timer = useTimer();
   const command = useSessionCommand();
-  const lastAction = useRef<'pause' | 'resume' | 'complete' | 'abandon' | null>(null);
   const session = data.session;
   const task = session ? tasks.find((item) => item.id === session.taskId) : undefined;
   const goal = task?.goalId ? goals.find((item) => item.id === task.goalId) : undefined;
@@ -56,11 +54,7 @@ export function Focus() {
   const taskTitle = session.taskTitle ?? task?.title;
   const send = (action: 'pause' | 'resume' | 'complete' | 'abandon') => {
     if (command.isPending) return;
-    lastAction.current = action;
     command.mutate({ action });
-  };
-  const retryCommand = () => {
-    if (lastAction.current) command.mutate({ action: lastAction.current });
   };
 
   return (
@@ -256,18 +250,19 @@ export function Focus() {
           }}
         >
           <Text style={ui(600, { color: t.dangerText, fontSize: 13, flex: 1 })}>
-            Couldn’t update session.
+            Couldn’t confirm — re-synced with the server.
           </Text>
           <Pressable
+            accessibilityLabel="Dismiss"
             accessibilityRole="button"
-            onPress={retryCommand}
+            onPress={() => command.reset()}
             style={({ pressed }) => ({
               minHeight: 44,
               justifyContent: 'center',
               opacity: pressed ? 0.65 : 1,
             })}
           >
-            <Text style={ui(700, { color: t.dangerText, fontSize: 12 })}>RETRY</Text>
+            <Text style={ui(700, { color: t.dangerText, fontSize: 12 })}>DISMISS</Text>
           </Pressable>
         </View>
       )}

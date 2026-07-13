@@ -1,4 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
+import { useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PauseIcon, PlayIcon } from '../components/icons';
@@ -33,6 +34,7 @@ export function Focus() {
   const { data: goals } = useGoals();
   const timer = useTimer();
   const command = useSessionCommand();
+  const lastAction = useRef<'pause' | 'resume' | 'complete' | 'abandon' | null>(null);
   const session = data.session;
   const task = session ? tasks.find((item) => item.id === session.taskId) : undefined;
   const goal = task?.goalId ? goals.find((item) => item.id === task.goalId) : undefined;
@@ -52,7 +54,14 @@ export function Focus() {
   const plannedMs = Math.max(1, session.plannedMinutes * 60 * 1000);
   const progress = Math.min(1, Math.max(0, timer.elapsedMs / plannedMs));
   const taskTitle = session.taskTitle ?? task?.title;
-  const send = (action: 'pause' | 'resume' | 'complete' | 'abandon') => command.mutate({ action });
+  const send = (action: 'pause' | 'resume' | 'complete' | 'abandon') => {
+    if (command.isPending) return;
+    lastAction.current = action;
+    command.mutate({ action });
+  };
+  const retryCommand = () => {
+    if (lastAction.current) command.mutate({ action: lastAction.current });
+  };
 
   return (
     <View
@@ -176,14 +185,24 @@ export function Focus() {
         <Pressable
           accessibilityLabel="Abandon focus"
           accessibilityRole="button"
+          accessibilityState={{ disabled: command.isPending }}
+          disabled={command.isPending}
           onPress={() => send('abandon')}
-          style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}
+          style={({ pressed }) => ({
+            width: 52,
+            height: 52,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: command.isPending ? 0.45 : pressed ? 0.65 : 1,
+          })}
         >
           <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>ABANDON</Text>
         </Pressable>
         <Pressable
           accessibilityLabel={paused ? 'Resume focus' : 'Pause focus'}
           accessibilityRole="button"
+          accessibilityState={{ disabled: command.isPending }}
+          disabled={command.isPending}
           onPress={() => send(paused ? 'resume' : 'pause')}
           style={({ pressed }) => [
             t.elevationNative.fabAccentHi,
@@ -194,6 +213,7 @@ export function Focus() {
               backgroundColor: pressed ? t.accentPressed : t.accent,
               alignItems: 'center',
               justifyContent: 'center',
+              opacity: command.isPending ? 0.75 : 1,
             },
           ]}
         >
@@ -208,16 +228,48 @@ export function Focus() {
         <Pressable
           accessibilityLabel="Complete focus"
           accessibilityRole="button"
+          accessibilityState={{ disabled: command.isPending }}
+          disabled={command.isPending}
           onPress={() => send('complete')}
-          style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}
+          style={({ pressed }) => ({
+            width: 52,
+            height: 52,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: command.isPending ? 0.45 : pressed ? 0.65 : 1,
+          })}
         >
           <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>DONE</Text>
         </Pressable>
       </View>
       {command.isError && (
-        <Text style={ui(600, { color: t.dangerText, fontSize: 13, marginTop: 14 })}>
-          Couldn’t update session. <Text onPress={() => command.reset()}>RETRY</Text>
-        </Text>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: 14,
+            backgroundColor: t.dangerBg,
+            borderWidth: 1,
+            borderColor: t.dangerLine,
+            borderRadius: t.radii.sm,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Text style={ui(600, { color: t.dangerText, fontSize: 13, flex: 1 })}>
+            Couldn’t update session.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={retryCommand}
+            style={({ pressed }) => ({
+              minHeight: 44,
+              justifyContent: 'center',
+              opacity: pressed ? 0.65 : 1,
+            })}
+          >
+            <Text style={ui(700, { color: t.dangerText, fontSize: 12 })}>RETRY</Text>
+          </Pressable>
+        </View>
       )}
       <Pressable
         onPress={() => nav.goBack()}

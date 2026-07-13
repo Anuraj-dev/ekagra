@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useCreateTask } from '../data/hooks';
 import type { RootNav } from '../nav/types';
@@ -11,10 +11,19 @@ export function Capture() {
   const nav = useNavigation<RootNav>();
   const [title, setTitle] = useState('');
   const create = useCreateTask();
+  const wasPending = useRef(false);
+
+  useEffect(() => {
+    if (wasPending.current && !create.isPending && !create.isError) {
+      nav.goBack();
+    }
+    wasPending.current = create.isPending;
+  }, [create.isError, create.isPending, nav]);
+
   const save = () => {
     if (!title.trim() || create.isPending) return;
+    if (create.isError) create.reset();
     create.mutate({ title: title.trim(), goalId: null });
-    setTimeout(() => nav.goBack(), 220);
   };
   return (
     <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: t.canvasDeep }}>
@@ -62,6 +71,8 @@ export function Capture() {
         />
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{ disabled: create.isPending }}
+          disabled={create.isPending}
           onPress={save}
           style={({ pressed }) => ({
             minHeight: 52,
@@ -80,7 +91,15 @@ export function Capture() {
         {create.isError && (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
             <Text style={ui(500, { color: t.dangerText, fontSize: 13 })}>Couldn’t save task.</Text>
-            <Pressable onPress={() => create.reset()}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={create.retry}
+              style={({ pressed }) => ({
+                minHeight: 44,
+                justifyContent: 'center',
+                opacity: pressed ? 0.65 : 1,
+              })}
+            >
               <Text style={ui(700, { color: t.dangerText, fontSize: 12 })}>RETRY</Text>
             </Pressable>
           </View>
@@ -88,6 +107,8 @@ export function Capture() {
         <Pressable
           onPress={() => nav.goBack()}
           accessibilityRole="button"
+          accessibilityState={{ disabled: create.isPending }}
+          disabled={create.isPending}
           style={{ alignSelf: 'center', minHeight: 44, justifyContent: 'center' }}
         >
           <Text style={ui(500, { color: t.textSecondary, fontSize: 13 })}>Cancel</Text>

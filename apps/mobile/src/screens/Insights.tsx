@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDailyFocusTrend } from '../data/hooks';
 import { useTheme } from '../theme/ThemeProvider';
@@ -44,9 +44,22 @@ export function Insights() {
               padding: 12,
             }}
           >
-            <Text style={ui(500, { color: t.dangerText, fontSize: 13 })}>
-              Couldn’t load this week’s focus.
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={ui(500, { color: t.dangerText, fontSize: 13, flex: 1 })}>
+                Couldn’t load this week’s focus.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void trend.refetch()}
+                style={({ pressed }) => ({
+                  minHeight: 44,
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.65 : 1,
+                })}
+              >
+                <Text style={ui(700, { color: t.dangerText, fontSize: 12 })}>RETRY</Text>
+              </Pressable>
+            </View>
           </View>
         ) : summary.isEmpty ? (
           <View

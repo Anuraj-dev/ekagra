@@ -21,6 +21,7 @@ type Mutation<T> = {
   isPending: boolean;
   isError: boolean;
   reset: () => void;
+  retry?: () => void;
 };
 
 const PRIORITIES: Array<Priority | null> = [null, 'p1', 'p2', 'p3'];
@@ -595,18 +596,27 @@ function useMutationFeedback<T>(mutation: Mutation<T>, messages: Record<Feedback
       lastInput.current = input;
       wasPending.current = false;
       setValue({ phase: 'pending', message: messages.pending });
+      mutation.reset();
       mutation.mutate(input);
     },
-    [messages.pending, mutation.mutate],
+    [messages.pending, mutation.mutate, mutation.reset],
   );
 
   const retry = useCallback(() => {
     if (lastInput.current === undefined) return;
-    mutation.reset();
-    run(lastInput.current);
-  }, [mutation.reset, run]);
+    wasPending.current = false;
+    setValue({ phase: 'pending', message: messages.pending });
+    if (mutation.retry) {
+      mutation.retry();
+    } else {
+      run(lastInput.current);
+    }
+  }, [messages.pending, mutation.retry, run]);
 
-  const clear = useCallback(() => setValue(null), []);
+  const clear = useCallback(() => {
+    mutation.reset();
+    setValue(null);
+  }, [mutation.reset]);
 
   useEffect(() => {
     if (wasPending.current && !mutation.isPending && value?.phase === 'pending') {

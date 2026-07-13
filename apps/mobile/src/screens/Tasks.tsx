@@ -1,5 +1,6 @@
 import type { Task } from '@ekagra/core';
 import { useNavigation } from '@react-navigation/native';
+import { useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckIcon, PlayIcon } from '../components/icons';
@@ -82,6 +83,7 @@ export function Tasks() {
   const timer = useTimer();
   const start = useStartSession();
   const complete = useCompleteTask();
+  const lastCompleteTaskId = useRef<string | null>(null);
   const today = new Date();
   const todayKey = dateKey(today);
   const inbox = tasks.filter((task) => task.status === 'inbox');
@@ -92,6 +94,13 @@ export function Tasks() {
   const startTask = (id: string) => {
     start.mutate({ taskId: id });
     nav.getParent()?.navigate('Focus' as never);
+  };
+  const completeTask = (id: string) => {
+    lastCompleteTaskId.current = id;
+    complete.mutate(id);
+  };
+  const retryComplete = () => {
+    if (lastCompleteTaskId.current) complete.mutate(lastCompleteTaskId.current);
   };
 
   return (
@@ -117,19 +126,15 @@ export function Tasks() {
               goalTitle={task.goalId ? goalTitles.get(task.goalId) : undefined}
               t={t}
               onStart={() => startTask(task.id)}
-              onComplete={() => complete.mutate(task.id)}
+              onComplete={() => completeTask(task.id)}
               pending={start.isPending || complete.isPending}
             />
           ))
         ) : (
           <EmptyState message="Inbox is clear." t={t} />
         )}
-        {start.isError && (
-          <Retry text="Couldn’t start session." onRetry={() => start.reset()} t={t} />
-        )}
-        {complete.isError && (
-          <Retry text="Couldn’t complete task." onRetry={() => complete.reset()} t={t} />
-        )}
+        {start.isError && <Retry text="Couldn’t start session." onRetry={start.retry} t={t} />}
+        {complete.isError && <Retry text="Couldn’t complete task." onRetry={retryComplete} t={t} />}
 
         <Section title="Timeline" t={t} />
         <DayStrip tasks={tasks} today={today} t={t} />
@@ -145,7 +150,7 @@ export function Tasks() {
               goalTitle={task.goalId ? goalTitles.get(task.goalId) : undefined}
               t={t}
               onStart={() => startTask(task.id)}
-              onComplete={() => complete.mutate(task.id)}
+              onComplete={() => completeTask(task.id)}
               pending={start.isPending || complete.isPending}
             />
           ))

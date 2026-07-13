@@ -1,6 +1,6 @@
 begin;
 
-select plan(34);
+select plan(41);
 
 select has_column('public', 'tasks', 'priority', 'tasks have priority');
 select col_type_is('public', 'tasks', 'priority', 'text', 'task priority is text');
@@ -173,6 +173,93 @@ select is(
   (select status from public.tasks where id = '61000000-0000-0000-0000-000000000008'::uuid),
   'done',
   'schedule changes never override a done task'
+);
+
+-- A task PATCH can include status and schedule independently. Exercise the
+-- database write shapes produced by all three incoherent combinations.
+update public.tasks
+set status = 'inbox', scheduled_for = '2026-07-15'::date
+where id = '61000000-0000-0000-0000-000000000007'::uuid;
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000007'::uuid),
+  'planned',
+  'an inbox status cannot override a schedule supplied in the same edit'
+);
+
+insert into public.tasks (id, owner_id, title)
+values (
+  '61000000-0000-0000-0000-000000000009'::uuid,
+  '00000000-0000-0000-0000-000000000001'::uuid,
+  'Unscheduled status edit'
+);
+update public.tasks
+set status = 'planned'
+where id = '61000000-0000-0000-0000-000000000009'::uuid;
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000009'::uuid),
+  'inbox',
+  'planned status without a schedule normalizes to inbox on task edit'
+);
+
+update public.tasks
+set status = 'inbox'
+where id = '61000000-0000-0000-0000-000000000006'::uuid;
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000006'::uuid),
+  'planned',
+  'inbox status on an already scheduled task normalizes to planned'
+);
+
+insert into public.tasks (id, owner_id, title, status, scheduled_for)
+values (
+  '61000000-0000-0000-0000-000000000010'::uuid,
+  '00000000-0000-0000-0000-000000000001'::uuid,
+  'Cancelled task status',
+  'cancelled',
+  null
+);
+update public.tasks
+set scheduled_for = '2026-07-16'::date
+where id in (
+  '61000000-0000-0000-0000-000000000008'::uuid,
+  '61000000-0000-0000-0000-000000000010'::uuid
+);
+select results_eq(
+  $$select status from public.tasks
+    where id in (
+      '61000000-0000-0000-0000-000000000008'::uuid,
+      '61000000-0000-0000-0000-000000000010'::uuid
+    )
+    order by status$$,
+  $$values ('cancelled'::text), ('done'::text)$$,
+  'schedule edits preserve done and cancelled statuses'
+);
+
+insert into public.tasks (id, owner_id, title)
+values (
+  '61000000-0000-0000-0000-000000000011'::uuid,
+  '00000000-0000-0000-0000-000000000001'::uuid,
+  'Morning committed task'
+);
+select lives_ok(
+  $$select public.commit_morning_plan(
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    array['61000000-0000-0000-0000-000000000011']::uuid[]
+  )$$,
+  'morning commit can deliberately plan a task without a schedule'
+);
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000011'::uuid),
+  'planned',
+  'morning commit bypass preserves planned without a schedule'
+);
+update public.tasks
+set title = 'Morning committed task renamed'
+where id = '61000000-0000-0000-0000-000000000011'::uuid;
+select is(
+  (select status from public.tasks where id = '61000000-0000-0000-0000-000000000011'::uuid),
+  'planned',
+  'an unrelated edit does not revert a morning-committed task'
 );
 
 select lives_ok(

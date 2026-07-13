@@ -91,8 +91,8 @@ Deno.serve((request) =>
     const id = await requireId(request);
     if (request.method === 'PATCH') {
       const input = parseTaskUpdateRequest(await body(request));
-      // The tasks_sync_status_with_schedule trigger derives status atomically when
-      // scheduled_for changes, while preserving done and explicit status updates.
+      // The tasks_sync_status_with_schedule trigger derives non-terminal status
+      // atomically from the effective schedule and preserves terminal statuses.
       const update = {
         ...(input.title === undefined ? {} : { title: input.title }),
         ...(input.goalId === undefined ? {} : { goal_id: input.goalId }),

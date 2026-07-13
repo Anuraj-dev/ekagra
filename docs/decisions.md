@@ -90,3 +90,9 @@ and `inbox` when unscheduled, while schedule-only edits preserve `done`.
 **Why:** Re-minting operation IDs creates duplicates after lost responses, while restoring one global
 persisted query cache can disclose the previous account's data. Create/start hooks retain one ID until
 success or explicit reset, and account transitions clear memory plus persistence before rendering.
+
+## 2026-07-13 — Task-edit schedule normalization exempts morning commit explicitly
+**Why:** Task PATCHes need one atomic database invariant across independent `status`/`scheduled_for` fields,
+but morning commit intentionally means planned for today without a calendar date. The trigger now normalizes
+both edited columns and preserves `done`/`cancelled`; `commit_morning_plan` alone uses a scoped, restored GUC
+bypass. A handler read/merge was rejected because it adds a race and cannot be covered directly by pgTAP.

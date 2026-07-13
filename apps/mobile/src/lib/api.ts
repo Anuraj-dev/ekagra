@@ -296,6 +296,55 @@ export const insightsApi = {
   },
 };
 
+// --- Focus analytics (v2) ---------------------------------------------------
+
+export type GoalDailyFocusRow = {
+  goalId: string;
+  focusDate: string;
+  honestMinutes: number;
+  earnedBlocks: number;
+  sessionsEnded: number;
+};
+
+export type DailyFocusTrendRow = {
+  focusDate: string;
+  honestMinutes: number;
+  earnedBlocks: number;
+  completedSessions: number;
+  abandonedSessions: number;
+};
+
+export const focusApi = {
+  goalDailyFocus: async (): Promise<GoalDailyFocusRow[]> => {
+    const { data, error } = await supabase
+      .from('goal_daily_focus')
+      .select('goal_id,focus_date,honest_minutes,earned_blocks,sessions_ended')
+      .order('focus_date', { ascending: true });
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      goalId: String(row.goal_id),
+      focusDate: String(row.focus_date),
+      honestMinutes: Number(row.honest_minutes),
+      earnedBlocks: Number(row.earned_blocks),
+      sessionsEnded: Number(row.sessions_ended),
+    }));
+  },
+  dailyFocusTrend: async (): Promise<DailyFocusTrendRow[]> => {
+    const { data, error } = await supabase
+      .from('daily_focus_trend')
+      .select('focus_date,honest_minutes,earned_blocks,completed_sessions,abandoned_sessions')
+      .order('focus_date', { ascending: true });
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map((row) => ({
+      focusDate: String(row.focus_date),
+      honestMinutes: Number(row.honest_minutes),
+      earnedBlocks: Number(row.earned_blocks),
+      completedSessions: Number(row.completed_sessions),
+      abandonedSessions: Number(row.abandoned_sessions),
+    }));
+  },
+};
+
 // --- Forgiveness ------------------------------------------------------------
 
 export const forgivenessApi = {

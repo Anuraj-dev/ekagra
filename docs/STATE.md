@@ -1,29 +1,37 @@
 # ekagra — State
-> Focus-first life-management app: goal-bound Pomodoro synced across Expo, web, CLI, and an ESP8266 desk companion. · Last checkpoint: 2026-07-12 (13:46)
+> Focus-first life-management app: goal-bound Pomodoro synced across Expo, web, CLI, and an ESP8266 desk companion. · Last checkpoint: 2026-07-13 (11:17)
 
 ## 🚧 In progress / next
-- **UI/UX audit executed** on branch `fix/ui-ux-audit` (9 commits, not pushed, no PR — Raja to review).
-  Next: device E2E sanity pass of the reworked screens, then PR to main.
-- Audit deferred items (follow-up work):
-  - **Insights heat grid is not dated history** — no per-calendar-date earned-block source exists client-side; grid projects weekday all-time intensity onto every week column. Needs a dated daily-earned view (data-layer change).
-  - TimerRing continuous progress tween (needs timer anchor/rate plumbed into ring; verify current 1000ms tween on device).
-  - Web: mode-toggle pressed state (no global `:active` pattern), CueBanner adds a 2nd ember moment on Today when active, GhostButton lacks a `tint` prop (danger applied inline).
-  - GoalMark label 12/700 vs spec Label 13/600 — decide app-wide.
-- Remaining known-minor issues: `isSupabaseConfigured` dead guard + silent localhost fallback in both `lib/supabase.ts`; no timeout/error state on update banner; heatmap mobile/web orientation parity.
+- **v2 FULL UI REBUILD approved** — Raja rejected the current UI/UX entirely. Everything is specified in
+  `docs/specs/001-app-v2-redesign.md` (committed) and published as GitHub issue **#42**. READ THE SPEC FIRST;
+  it is the single source of truth for the rebuild (screens, architecture, timer fix, success criteria).
+- **Wireframes**: Raja generated "Warm Planning Desk Wireframes" in claude.ai/design
+  (project `a9615a6f-f065-4868-9929-6ec42a5c62fb`). He is downloading the file to
+  `docs/design/v2/Warm Planning Desk Wireframes.dc.html` — verify it exists; if not, ask him for it.
+  It is the visual source of truth; DESIGN-SPEC.md (dark ember) is superseded for v2.
+- Very next step: implementation plan from spec 001 → phased execution. Suggested order:
+  (1) data layer swap to TanStack Query + optimistic mutations + idempotency UUIDs,
+  (2) timer start-path fix + Notifee foreground service (needs dev build, NOT Expo Go),
+  (3) new nav + screens per wireframes, (4) cold-start work with before/after measurements.
+- Decide fate of branch `fix/ui-ux-audit` (10 commits incl. spec, unpushed): its screen polish is
+  superseded by the rebuild; the spec commit must survive. Ask Raja: PR it or cherry-pick the spec.
 
 ## Status
-- **v0.1.5 released**; E2E rounds 1–3 done on device; updater verified.
-- **UI/UX audit fully executed** (docs/design/UI-UX-AUDIT.md → done): §A cross-cutting (tint tokens + withAlpha, GoalMark wiring, SecondaryButton/Chip/EntryRow primitives, 26/800 H1, gutter fixes) + all 10 screens/13 components per §C, mobile + web 1:1. Both behavioral fixes in and independently verified: Settings Revoke confirm (P0), Focus paused block-meter uses dimmed goal color not mauve (P1). Goals dual meter collapsed to one honest 7-day meter (30d bar was fabricated). Insights rebuilt 8→3 blocks. EveningClose Yes/No removed — `planMatch` now derived as `tag === 'on-plan'` (signals coupled by design).
+- v0.1.6 on mobile; v0.1.5 released; E2E rounds 1–3 done; updater verified.
+- UI/UX audit executed on `fix/ui-ux-audit` — now largely moot (v2 rebuild replaces those screens).
 - Gates green: typecheck, bun test 136, biome.
 - Hosted Supabase `gstdhscdvbzwkwipjfrr` (ap-south-1): migrations applied, 11 edge functions. Test account e2e-tester@ekagra.dev.
+- Timer bug diagnosed (GPT-5.6 Sol consult, in spec §1): silent return in `Today.tsx:84`, no
+  timeout/feedback in `api.ts:48`, task create does POST+full re-GET (`DataProvider.tsx:140`).
 
 ## Architecture map
 - Web -> apps/web/src · Mobile -> apps/mobile/src (1:1 mirror) · CLI -> apps/cli/src
-- **Theme tokens: single source apps/web/src/theme/tokens.ts — mobile tokens.ts just re-exports it.**
+- Theme tokens: single source apps/web/src/theme/tokens.ts — mobile re-exports.
 - Timer engine + API types -> packages/core/src (vendored to supabase/functions/_vendor/core; scripts/sync-core-vendor.sh, CI-enforced)
 - Edge fns -> supabase/functions/* · Migrations -> supabase/migrations/ · pgTAP -> supabase/tests/
-- Design docs -> docs/design/UI-UX-AUDIT.md (executed), docs/design/refined/DESIGN-SPEC.md (source of truth)
-- Insights = RLS-scoped view selects (daily_activity, weekly_review, focus_hours_heatmap, weekly_leaderboard, …).
+- **v2 spec -> docs/specs/001-app-v2-redesign.md · v2 wireframes -> docs/design/v2/ · issue #42**
+- Feature sources: Pravah `~/Anuraj-Dev/Snehit_projects/Pravah` (capture sheet, inbox/timeline) ·
+  pomo `~/Anuraj-Dev/Snehit_projects/pomo` (timer screen, cue system).
 
 ## Stack & run
 - Bun monorepo · Expo SDK 54 + Vite/React + bun CLI · Supabase · ESP8266 (PlatformIO).
@@ -31,15 +39,18 @@
 - Device driving: adb screencap/input; screen 1220x2712. Supabase CLI must run as `bunx supabase`.
 
 ## Key decisions (top 5)
-- Ember = one accent moment per view; voice = factual, no therapy-speak (DESIGN-SPEC §10).
-- No fabricated data in UI: Goals 30d meter removed, Insights grid caveat documented in-code rather than faked.
-- `planMatch` derived from evening tag (`tag === 'on-plan'`) — Yes/No control removed.
-- Daily totals server-derived from `daily_activity` view; honest minutes ≠ earned blocks.
-- Release APK = arm64-v8a only (50MB cap). All analytics are SQL views.
+- **v2 rebuild (2026-07-13): keep backend/data model, rebuild all mobile UI** — Pravah core planner
+  (Inbox+Timeline, capture sheet) + pomo timer UX; Warm Planning Desk design language (paper neutrals,
+  Quiet Indigo #6753c7). OUT: Kairo, Gmail/Calendar sync, Crew tab, NodeMCU/CLI (parked, spec §8).
+- TanStack Query over Legend-State (Sol consult): server-state fit, optimistic rollback; local-first DB not required yet.
+- Timer: Supabase stays authoritative, timestamp-anchored; Notifee foreground service for notification/actions; correctness never depends on JS running.
+- Nothing silent, ever: every tap has pressed state+haptic, every async a pending label, every failure on-screen retry.
+- No fabricated data in UI (carried over). All analytics are SQL views. Release APK arm64-v8a only.
 
 ## Gotchas
 - NEVER `git commit -am` with the long-lived dirty root files (broke main in #31) — stage explicit paths only.
-- `supabase db push` needs the DB password; use `bunx supabase`, not bare `supabase`. Supabase MCP is read-only.
+- Notifee requires an Expo dev build — Expo Go cannot run the v2 timer.
+- `supabase db push` needs the DB password; use `bunx supabase`. Supabase MCP is read-only.
 - pgTAP: cast uuid literals; fixtures as superuser BEFORE `set local role authenticated`.
-- Biome ignores `**/.claude` — in worktrees use `bunx biome check --write <paths>`.
 - Tables use `owner_id`, not `user_id`. Stale Expo Go process → phantom network errors; `adb shell am force-stop` first.
+- Raja's hard rule: codex Sol never above high effort; consults for this project already done — don't re-run them, results are in spec 001.

@@ -71,3 +71,14 @@
 
 ## 2026-07-12 — planMatch derived from evening tag
 **Why:** The Yes/No "did today match the plan" control was cut per the audit; `parseEveningCloseRequest` hard-requires `planMatch`, so it's now `tag === 'on-plan'`. Alternative (API change to drop the field) rejected to keep the audit UI-scoped. planMatch and the tag are now coupled by design.
+
+## 2026-07-13 — v2 full UI rebuild on existing backend (spec 001, issue #42)
+**Why:** Raja rejected the current UX outright (dead-feeling timer start, laggy creates, dark-ember design).
+Rebuild all mobile screens to Pravah's core planner + pomo's timer UX under "Warm Planning Desk" language;
+keep Supabase/data model/timer engine. Rejected alternatives: restyle-only (wouldn't fix data-layer lag)
+and full from-scratch rewrite (backend is sound). Kairo, Gmail/Calendar, Crew, NodeMCU/CLI explicitly parked.
+
+## 2026-07-13 — TanStack Query + Notifee foreground service for the v2 client
+**Why:** Sol consult: TanStack fits Supabase server-state with optimistic rollback + idempotency keys
+(Legend-State rejected — local-first DB not required yet). Timer correctness stays server-anchored,
+timestamp-based; Notifee gives the ongoing notification + actions but never owns truth. Requires dev build.

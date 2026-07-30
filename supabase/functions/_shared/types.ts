@@ -30,6 +30,7 @@ export type GoalRow = {
   id: string;
   owner_id: string;
   title: string;
+  identity_id: string;
   identity_role: string;
   deadline: string | null;
   priority: Goal['priority'];

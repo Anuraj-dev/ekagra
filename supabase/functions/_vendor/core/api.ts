@@ -62,15 +62,30 @@ export type Task = {
   notes?: string | null;
 };
 
+/**
+ * An owner-scoped identity ("Builder", "Student"). Every owner has the default
+ * `Me` identity, which keeps capture one tap.
+ */
+export type Identity = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Goal = {
   id: string;
   title: string;
+  /** Compatibility mirror of the identity name, maintained by the database. */
   identityRole: string;
   deadline: string | null;
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
   priority?: Priority | null; // v2 — optional during rebuild (see Task)
+  /** Authoritative identity link — optional during the identity migration (see Task). */
+  identityId?: string;
 };
 
 export type SessionStatus = 'running' | 'paused' | 'completed' | 'abandoned';
@@ -136,7 +151,10 @@ export type TaskUpdateRequest = Partial<TaskCreateRequest> & {
 
 export type GoalCreateRequest = {
   title: string;
-  identityRole: string;
+  /** Preferred identity seam. Exactly one of identityId/identityRole is required. */
+  identityId?: string;
+  /** Legacy label seam — the database resolves it to an identity of the same owner. */
+  identityRole?: string;
   deadline?: string | null;
   priority?: Priority | null;
   clientOpId?: string;
@@ -477,11 +495,35 @@ function parseDate(value: unknown, field: string): string | null | undefined {
   return value;
 }
 
+/**
+ * The identity fields of a goal write. `identityId` is authoritative; `identityRole`
+ * stays accepted while callers migrate, and the database resolves it to an identity.
+ */
+function parseGoalIdentity(input: Record<string, unknown>): {
+  identityId?: string;
+  identityRole?: string;
+} {
+  if (input.identityId !== undefined && input.identityRole !== undefined) {
+    throw new ContractError('Provide identityId or identityRole, not both.');
+  }
+  if (input.identityId !== undefined) {
+    return { identityId: uuidValue(input.identityId, 'identityId') };
+  }
+  if (input.identityRole !== undefined) {
+    return { identityRole: stringValue(input.identityRole, 'identityRole', 120) };
+  }
+  return {};
+}
+
 export function parseGoalCreateRequest(value: unknown): GoalCreateRequest {
   const input = objectValue(value, 'request');
+  const identity = parseGoalIdentity(input);
+  if (identity.identityId === undefined && identity.identityRole === undefined) {
+    throw new ContractError('identityId or identityRole is required.');
+  }
   return {
     title: stringValue(input.title, 'title', 500),
-    identityRole: stringValue(input.identityRole, 'identityRole', 120),
+    ...identity,
     deadline: parseDate(input.deadline, 'deadline'),
     ...(input.priority === undefined
       ? {}
@@ -494,11 +536,8 @@ export function parseGoalCreateRequest(value: unknown): GoalCreateRequest {
 
 export function parseGoalUpdateRequest(value: unknown): GoalUpdateRequest {
   const input = objectValue(value, 'request');
-  const result: GoalUpdateRequest = {};
+  const result: GoalUpdateRequest = { ...parseGoalIdentity(input) };
   if (input.title !== undefined) result.title = stringValue(input.title, 'title', 500);
-  if (input.identityRole !== undefined) {
-    result.identityRole = stringValue(input.identityRole, 'identityRole', 120);
-  }
   if (input.deadline !== undefined) result.deadline = parseDate(input.deadline, 'deadline');
   if (input.priority !== undefined) result.priority = parsePriority(input.priority, 'priority');
   if (Object.keys(result).length === 0)
@@ -556,6 +595,21 @@ export function parseDayRecord(value: unknown): DayRecord {
     planMatch: (input.plan_match as boolean | null | undefined) ?? null,
     wentWrongTag,
     note,
+    updatedAt: stringValue(input.updated_at, 'updated_at', 40),
+  };
+}
+
+/**
+ * Maps a raw `identities` row (snake_case, as returned by Supabase/RLS reads)
+ * into a typed {@link Identity}.
+ */
+export function parseIdentity(value: unknown): Identity {
+  const input = objectValue(value, 'identity');
+  return {
+    id: uuidValue(input.id, 'id'),
+    name: stringValue(input.name, 'name', 120),
+    isDefault: input.is_default === true,
+    createdAt: stringValue(input.created_at, 'created_at', 40),
     updatedAt: stringValue(input.updated_at, 'updated_at', 40),
   };
 }

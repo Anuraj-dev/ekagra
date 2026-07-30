@@ -1,4 +1,4 @@
-import type { Goal, GoalCreateRequest } from '@ekagra/core';
+import type { Goal, GoalCreateRequest, Identity } from '@ekagra/core';
 import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,8 +7,19 @@ import {
   useDeleteGoal,
   useGoalDailyFocus,
   useGoals,
+  useIdentities,
   useUpdateGoal,
 } from '../data/hooks';
+import {
+  defaultIdentity,
+  type IdentitySelection,
+  identityFields,
+  identityLabel,
+  identitySelectionChanged,
+  isSelectionComplete,
+  orderIdentities,
+  selectionForGoal,
+} from '../lib/identities';
 import { useTheme } from '../theme/ThemeProvider';
 import { display, ui } from '../theme/typography';
 
@@ -29,6 +40,7 @@ export function Goals() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const goalsQuery = useGoals();
+  const identitiesQuery = useIdentities();
   const focusQuery = useGoalDailyFocus();
   const activeGoals = useMemo(
     () => goalsQuery.data.filter((goal) => goal.archivedAt === null),
@@ -62,9 +74,21 @@ export function Goals() {
           />
         ) : null}
 
+        {identitiesQuery.isError && (
+          <RetryBanner
+            message="Couldn’t load identities."
+            onRetry={() => void identitiesQuery.refetch()}
+            t={t}
+          />
+        )}
+
         <View style={{ marginTop: 28 }}>
           <SectionLabel title="Planning desk" t={t} />
-          <GoalComposer t={t} />
+          <GoalComposer
+            identities={identitiesQuery.data}
+            identitiesLoading={identitiesQuery.isLoading}
+            t={t}
+          />
         </View>
 
         {focusQuery.isLoading && activeGoals.length > 0 && (
@@ -83,6 +107,8 @@ export function Goals() {
             <GoalCard
               key={goal.id}
               goal={goal}
+              identities={identitiesQuery.data}
+              identitiesLoading={identitiesQuery.isLoading}
               rows={focusQuery.data.filter((row) => row.goalId === goal.id)}
               loading={focusQuery.isLoading}
               t={t}
@@ -102,10 +128,18 @@ export function Goals() {
   );
 }
 
-function GoalComposer({ t }: { t: Theme }) {
+function GoalComposer({
+  identities,
+  identitiesLoading,
+  t,
+}: {
+  identities: Identity[];
+  identitiesLoading: boolean;
+  t: Theme;
+}) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [identityRole, setIdentityRole] = useState('');
+  const [selection, setSelection] = useState<IdentitySelection | null>(null);
   const [priority, setPriority] = useState<Priority | null>(null);
   const mutation = useCreateGoal();
   const feedback = useMutationFeedback(mutation, {
@@ -114,16 +148,23 @@ function GoalComposer({ t }: { t: Theme }) {
     error: 'Couldn’t create goal.',
   });
 
+  // The default "Me" identity is preselected as soon as identities load, so
+  // capture stays one tap.
+  const fallback = defaultIdentity(identities);
+  useEffect(() => {
+    if (fallback) setSelection((current) => current ?? { kind: 'existing', id: fallback.id });
+  }, [fallback]);
+
   useEffect(() => {
     if (feedback.value?.phase === 'success') {
       setTitle('');
-      setIdentityRole('');
+      setSelection(fallback ? { kind: 'existing', id: fallback.id } : null);
       setPriority(null);
       setOpen(false);
     }
-  }, [feedback.value?.phase]);
+  }, [feedback.value?.phase, fallback]);
 
-  const canSave = title.trim().length > 0 && identityRole.trim().length > 0 && !mutation.isPending;
+  const canSave = title.trim().length > 0 && isSelectionComplete(selection) && !mutation.isPending;
 
   if (!open) {
     return (
@@ -170,17 +211,17 @@ function GoalComposer({ t }: { t: Theme }) {
         onChangeText={setTitle}
         placeholder="What are you building?"
         autoFocus
-        t={t}
-      />
-      <LabeledInput
-        label="Identity role"
-        value={identityRole}
-        onChangeText={setIdentityRole}
-        placeholder="e.g. Engineer, Writer"
         onSubmitEditing={() => {
-          if (canSave) feedback.run(buildCreatePayload(title, identityRole, priority));
+          if (canSave) feedback.run(buildCreatePayload(title, selection, priority));
         }}
         returnKeyType="done"
+        t={t}
+      />
+      <IdentityPicker
+        identities={identities}
+        loading={identitiesLoading}
+        value={selection}
+        onChange={setSelection}
         t={t}
       />
       <PriorityPicker value={priority} onChange={setPriority} t={t} />
@@ -189,7 +230,7 @@ function GoalComposer({ t }: { t: Theme }) {
         <Pressable
           accessibilityRole="button"
           disabled={!canSave}
-          onPress={() => feedback.run(buildCreatePayload(title, identityRole, priority))}
+          onPress={() => feedback.run(buildCreatePayload(title, selection, priority))}
           style={({ pressed }) => ({
             minHeight: 44,
             flex: 1,
@@ -225,11 +266,15 @@ function GoalComposer({ t }: { t: Theme }) {
 
 function GoalCard({
   goal,
+  identities,
+  identitiesLoading,
   rows,
   loading,
   t,
 }: {
   goal: Goal;
+  identities: Identity[];
+  identitiesLoading: boolean;
   rows: Array<{
     focusDate: string;
     honestMinutes: number;
@@ -240,6 +285,7 @@ function GoalCard({
   t: Theme;
 }) {
   const [editing, setEditing] = useState(false);
+  const identityName = identityLabel(goal, identities);
   const totalBlocks = rows.reduce((sum, row) => sum + row.earnedBlocks, 0);
   const totalMinutes = rows.reduce((sum, row) => sum + row.honestMinutes, 0);
   const priority = goal.priority ? goal.priority.toUpperCase() : null;
@@ -248,7 +294,7 @@ function GoalCard({
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${goal.title}, ${goal.identityRole}. ${totalBlocks} earned blocks and ${totalMinutes} honest minutes in the last 7 days. Edit goal`}
+        accessibilityLabel={`${goal.title}, ${identityName}. ${totalBlocks} earned blocks and ${totalMinutes} honest minutes in the last 7 days. Edit goal`}
         onPress={() => setEditing(true)}
         style={({ pressed }) => ({
           ...t.elevationNative.low,
@@ -275,7 +321,7 @@ function GoalCard({
             marginTop: 6,
           })}
         >
-          {goal.identityRole}
+          {identityName}
         </Text>
         {goal.deadline && (
           <Text style={ui(400, { color: t.textSecondary, fontSize: 12, marginTop: 6 })}>
@@ -284,7 +330,15 @@ function GoalCard({
         )}
         <GoalFocusMeter rows={rows} loading={loading} t={t} />
       </Pressable>
-      {editing && <GoalSheet goal={goal} onClose={() => setEditing(false)} t={t} />}
+      {editing && (
+        <GoalSheet
+          goal={goal}
+          identities={identities}
+          identitiesLoading={identitiesLoading}
+          onClose={() => setEditing(false)}
+          t={t}
+        />
+      )}
     </>
   );
 }
@@ -365,9 +419,23 @@ function GoalFocusMeter({
   );
 }
 
-function GoalSheet({ goal, onClose, t }: { goal: Goal; onClose: () => void; t: Theme }) {
+function GoalSheet({
+  goal,
+  identities,
+  identitiesLoading,
+  onClose,
+  t,
+}: {
+  goal: Goal;
+  identities: Identity[];
+  identitiesLoading: boolean;
+  onClose: () => void;
+  t: Theme;
+}) {
   const [title, setTitle] = useState(goal.title);
-  const [identityRole, setIdentityRole] = useState(goal.identityRole);
+  const [selection, setSelection] = useState<IdentitySelection | null>(() =>
+    selectionForGoal(goal, identities),
+  );
   const [deadline, setDeadline] = useState(goal.deadline ?? '');
   const [priority, setPriority] = useState<Priority | null>(goal.priority ?? null);
   const update = useMutationFeedback(useUpdateGoal(), {
@@ -380,15 +448,22 @@ function GoalSheet({ goal, onClose, t }: { goal: Goal; onClose: () => void; t: T
     success: 'Goal deleted. Tasks stay, but no longer have this goal.',
     error: 'Couldn’t delete goal.',
   });
+  // The sheet can open before identities land; seed the picker when they do.
+  const seeded = useMemo(() => selectionForGoal(goal, identities), [goal, identities]);
+  useEffect(() => {
+    if (seeded) setSelection((current) => current ?? seeded);
+  }, [seeded]);
+
   const trimmedDeadline = deadline.trim();
+  const identityChanged = identitySelectionChanged(selection, goal, identities);
   const dirty =
     title.trim() !== goal.title ||
-    identityRole.trim() !== goal.identityRole ||
+    identityChanged ||
     trimmedDeadline !== (goal.deadline ?? '') ||
     priority !== (goal.priority ?? null);
   const canSave =
     title.trim().length > 0 &&
-    identityRole.trim().length > 0 &&
+    isSelectionComplete(selection) &&
     dirty &&
     !update.mutation.isPending;
 
@@ -428,10 +503,11 @@ function GoalSheet({ goal, onClose, t }: { goal: Goal; onClose: () => void; t: T
             EDIT GOAL
           </Text>
           <LabeledInput label="Goal title" value={title} onChangeText={setTitle} t={t} />
-          <LabeledInput
-            label="Identity role"
-            value={identityRole}
-            onChangeText={setIdentityRole}
+          <IdentityPicker
+            identities={identities}
+            loading={identitiesLoading}
+            value={selection}
+            onChange={setSelection}
             t={t}
           />
           <LabeledInput
@@ -454,7 +530,7 @@ function GoalSheet({ goal, onClose, t }: { goal: Goal; onClose: () => void; t: T
                   id: goal.id,
                   patch: {
                     title: title.trim(),
-                    identityRole: identityRole.trim(),
+                    ...(identityChanged ? identityFields(selection) : {}),
                     deadline: trimmedDeadline.length > 0 ? trimmedDeadline : null,
                     priority,
                   },
@@ -534,6 +610,111 @@ function LabeledInput({
         })}
       />
     </View>
+  );
+}
+
+/**
+ * Owner-scoped identities as selectable chips, plus a `New` chip that reveals a
+ * name field. The default identity leads the row so capture stays one tap.
+ */
+function IdentityPicker({
+  identities,
+  loading,
+  value,
+  onChange,
+  t,
+}: {
+  identities: Identity[];
+  loading: boolean;
+  value: IdentitySelection | null;
+  onChange: (value: IdentitySelection) => void;
+  t: Theme;
+}) {
+  const ordered = orderIdentities(identities);
+  const creating = value?.kind === 'new';
+
+  return (
+    <View style={{ gap: 7 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>Identity</Text>
+        {loading && <Text style={ui(500, { color: t.textSecondary, fontSize: 11 })}>Loading</Text>}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        {ordered.map((identity) => {
+          const selected = value?.kind === 'existing' && value.id === identity.id;
+          return (
+            <IdentityChip
+              key={identity.id}
+              label={identity.name}
+              selected={selected}
+              onPress={() => onChange({ kind: 'existing', id: identity.id })}
+              t={t}
+            />
+          );
+        })}
+        <IdentityChip
+          label="New"
+          selected={creating}
+          onPress={() => onChange({ kind: 'new', name: '' })}
+          t={t}
+        />
+      </View>
+      {creating && (
+        <TextInput
+          accessibilityLabel="Identity name"
+          value={value.name}
+          onChangeText={(name) => onChange({ kind: 'new', name })}
+          autoFocus
+          placeholderTextColor={t.textPlaceholder}
+          style={ui(400, {
+            minHeight: 48,
+            backgroundColor: t.surfaceSunk,
+            borderWidth: 1,
+            borderColor: t.lineInput,
+            borderRadius: t.radii.sm,
+            paddingHorizontal: 14,
+            color: t.ink,
+            fontSize: 15,
+          })}
+        />
+      )}
+    </View>
+  );
+}
+
+function IdentityChip({
+  label,
+  selected,
+  onPress,
+  t,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  t: Theme;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        minHeight: 44,
+        paddingHorizontal: 14,
+        borderRadius: t.radii.pill,
+        borderWidth: selected ? 0 : 1,
+        borderColor: t.lineStrong,
+        backgroundColor: selected ? (pressed ? t.accentPressed : t.ink) : t.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed && !selected ? 0.65 : 1,
+      })}
+    >
+      <Text style={ui(600, { color: selected ? t.inkOnDark : t.textSecondary, fontSize: 12 })}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -704,10 +885,10 @@ function Status({ message, t }: { message: string; t: Theme }) {
 
 function buildCreatePayload(
   title: string,
-  identityRole: string,
+  selection: IdentitySelection | null,
   priority: Priority | null,
 ): GoalCreateRequest {
-  return { title: title.trim(), identityRole: identityRole.trim(), priority };
+  return { title: title.trim(), ...identityFields(selection), priority };
 }
 
 function closeIfIdle(

@@ -143,3 +143,9 @@ UI: icons + ≤2-word labels, no instructional copy, no em dashes, state shown b
 hidden a11y labels mandatory, text survives only for failures; ~5 signature animations, rest instant,
 reduced-motion → fades. Visual language deliberately NOT locked — palette research (real apps, contrast)
 precedes mockups.
+
+## 2026-07-31 — Warm Planning Desk II chosen after the mockup gate
+**Why:** Raja selected the evolved paper-neutral direction after the four-theme comparison. P1 keeps the
+shipped v2 component feel and Quiet Indigo `#6753C7`, uses the contrast-verified refinement palette, and
+treats the warm Today, Focus, and Plan mockups as implementation references. The other theme files remain
+research artifacts, not competing sources of truth.

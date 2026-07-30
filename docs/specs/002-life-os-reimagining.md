@@ -33,7 +33,7 @@ loop ships first and must survive exam season lived-in.
 3. As Raja, I want one Plan cascade from year to day, so that all planning lives in one place.
 4. As Raja, I want to commit a goal to a quarter with one tap, so that yearly direction becomes quarterly focus.
 5. As Raja, I want to cascade a commitment down a horizon (year→quarter→month→week→day) without duplicating it, so that there is one source of truth.
-6. As Raja, I want upper horizons to hold targets and themes, not task lists, so that only the day is lived.
+6. As Raja, I want year, quarter, and month to hold Goal targets while week holds commitment edges rather than duplicate task rows, so that only the day is lived.
 7. As Raja, I want to plan tomorrow in under a minute from this week's commitments, so that planning never becomes its own job.
 8. As Raja, I want to time-box my day into deep, shallow, admin, and rest blocks, so that deep work is scheduled, not hoped for.
 9. As Raja, I want a block to require a committed task before Focus starts, so that every honest minute stays attributable.
@@ -71,18 +71,19 @@ loop ships first and must survive exam season lived-in.
 - **Schema (additive migration, existing owner_id + RLS discipline)**:
   - `identities` — promoted from `goals.identity_role` text.
   - `plans` — one self-referencing table, `horizon ∈ {year, quarter, month, week, day}`, `parent_plan_id`. `day_records` absorbed into day plans.
-  - `commitments` — edge `(plan_id, subject)` placing goals/tasks/occurrences into plans; cascade = child commitments referencing the same subject.
-  - `habit_rules` — recurrence, `cue_rule_id` self-FK (stacking), minimum version, effective-date edits; generates a rolling window of `occurrences` sharing the task row shape (done/skipped/missed).
+  - `commitments` — edge `(plan_id, subject)` placing goals/tasks/occurrences into plans; cascade = child commitments referencing the same subject. A trigger enforces the horizon contract: year/quarter/month accept Goal targets, week accepts Goal or Task commitments, and day accepts Task or Occurrence commitments.
+  - `habit_rules` — recurrence, `cue_rule_id` self-FK (stacking), minimum version, effective-date edits; generates a rolling window of `occurrences` (done/skipped/missed). Each occurrence owns one executable `tasks` projection, so the existing task-bound Session seam remains intact without putting rule history in `tasks`.
   - `blocks` — ordered time slots on a day plan, `kind ∈ {deep, shallow, admin, rest}`, each referencing a committed task/occurrence.
-  - `sessions` — existing table gains `block_id`.
-  - `attachments` — generic `(subject_type, subject_id, kind ∈ {image, audio, text}, storage_path, transcript)`; vision boards and voice journal are the same mechanism.
+  - `sessions` — existing table gains `block_id`; its required `task_id` remains the executable Task directly committed to the Block or the one-to-one Task projection owned by its Occurrence. A trigger proves the Session task matches the Block commitment.
+  - `entries` — first-class journal residue anchored to exactly one day Plan or Session; an Entry owns one or more Attachments, so multiple entries and non-media text entries remain distinct records.
+  - `attachments` — generic `(subject_type, subject_id, kind ∈ {image, audio, text}, storage_path, transcript)` on an Entry, Goal, or other supported subject; vision boards and voice journal share the mechanism. Voice keeps the Attachment row and transcript after its transient audio object is deleted.
 - **Derived data stays SQL**: never-miss-twice rate, deep hours, weekly review projections as `security_invoker` views. No stored streaks.
 - **Sweep**: explicit user-invoked operation (edge fn or RPC) carrying unfinished commitments forward; plans never mutate silently.
 - **Voice**: record on device → upload to private Storage bucket (durable retry queue) → edge fn transcribes via the Voisu/Hyprvox-proven STT architecture → transcript on the attachment. Transcript is the artifact; audio transient.
 - **Device**: existing poll transport and token-hash model kept; add pause/resume/skip commands through the existing device-action path; fix TLS trust before device carries tokens; provisioning polish later phase.
 - **Client**: TanStack Query persisted cache stays the data layer; idempotent commands (`client_op_id`) stay the write pattern; no SQLite outbox (revisit only on logged pain).
 - **IA**: tabs Today · Plan · Self · Review (Review may start as a sheet); Focus is a full-screen takeover; Capture/Voice/Detail/Settings are sheets. Insights dashboard, MorningCommit/EveningClose screens, Crew/social, goalPalette removed. Tokens move to a shared package; web unrouted and out of CI; CLI updated against the new entities.
-- **Visual language**: not locked. Palette research from proven apps (contrast-verified) precedes mockups; 4 mockup directions per screen (Luna), then Raja picks.
+- **Visual language**: locked after the research/mockup gate to Warm Planning Desk II: paper neutrals, Quiet Indigo `#6753C7`, light primary, and the shipped v2 component feel. The chosen references are `today-warm-desk.html`, `focus-warm-desk.html`, and `plan-warm-desk.html`; other theme explorations are retained but not implementation inputs.
 - **Phases**: P1 spine migration + Today + Plan(week↔day) + copy-strip pass. P2 habit rules/occurrences/stacks + weekly review + voice + desk revival. P3 month/quarter/year cascade + vision media + Review surface. P4 motion signature pass, provisioning polish, hardening.
 
 ## Testing Decisions
@@ -109,4 +110,4 @@ loop ships first and must survive exam season lived-in.
 - Full consultation papers, fork rulings, and the deduped question pool live in the session scratchpad; the durable outcomes are entirely in `CONTEXT.md`, `docs/decisions.md`, and this spec.
 - Success metric for P1 is behavioral, not feature count: Raja opens Today every morning through exam season (exams Aug 16, Sep 13).
 - The v2 Focus screen is kept essentially verbatim; it is the best-designed surface in the repo and is not relitigated.
-- Mockups: 4 researched theme directions per screen (Today, Plan, Self, Review, Focus takeover, key sheets) before P1 UI work begins.
+- Mockups: four researched directions were compared; Warm Planning Desk II is the chosen P1 implementation direction.

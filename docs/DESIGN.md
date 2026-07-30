@@ -1,279 +1,386 @@
-# DESIGN.md — ekagra v2 design law ("Warm Planning Desk")
+# DESIGN.md: ekagra Life-OS P1 design law
 
-> Single source of design truth for the v2 rebuild. **This file + the v2 wireframes are law.**
-> If a request conflicts with it, flag the conflict — do not silently diverge.
+> Single source of truth for the ekagra UI law. The product direction is **Warm Planning Desk II**.
+> Preserve useful shipped v2 geometry and interaction behavior unless spec 002 supersedes it.
 >
-> - Visual source of truth: `docs/design/v2/Warm Planning Desk Wireframes.dc.html` (13 frames, `1a`–`1m`).
-> - Functional spec: `docs/specs/001-app-v2-redesign.md` (§6 is the design section this doc expands).
-> - **Superseded:** `docs/design/refined/DESIGN-SPEC.md` (dark-ember v1) — do not consult for v2.
-> - Tokens implemented in `apps/web/src/theme/tokens.ts` (mobile re-exports; see §12). Hex is truth.
+> - Product: `ekagra`.
+> - Active functional authority: `docs/specs/002-life-os-reimagining.md`.
+> - Chosen visual references: `docs/design/lifeos-mockups/today-warm-desk.html`,
+>   `docs/design/lifeos-mockups/focus-warm-desk.html`, and
+>   `docs/design/lifeos-mockups/plan-warm-desk.html`.
+> - The old `docs/design/v2` wireframes remain component-feel references only where spec 002 does not
+>   supersede them.
+> - `docs/design/refined/DESIGN-SPEC.md` is superseded and is not an implementation input.
 
-## 0. Precedence & how to use this doc
+## 0. Precedence and use
 
-1. This doc defines tokens and component rules. The wireframe frame it cites (e.g. `[1e]`) is the pixel reference.
-2. Every agent building UI (Claude **or** codex/Luna) must be handed this doc's relevant sections inline — Luna cannot invoke the design skill, so the dispatch prompt carries the law.
-3. When in doubt about a value not covered here, read the cited wireframe frame; do not invent hexes.
+1. Spec 002 controls product scope, information architecture, domain states, copy law, motion law, and
+   P1 behavior.
+2. This document controls tokens, geometry, component behavior, accessibility, and export compatibility.
+3. Warm Planning Desk II mockups control the visual composition of Today, Focus, and Plan.
+4. Shipped v2 wireframes supply reusable component geometry and interaction behavior only where they do
+   not conflict with the preceding rules.
 
-**Open decision (do not resolve unasked):** the wireframes brand the app **"Tempo"** (Focus wordmark `[1e]`,
-Android notification `[1h]`), while the repo/product is **ekagra**. Product name for v2 UI copy is Raja's call —
-until decided, keep the wordmark as a single `APP_NAME` constant, do not hard-code either string in screens.
+If a request conflicts with this law or spec 002, flag the conflict before implementation. Do not create a
+parallel visual direction or silently diverge.
 
----
+## 1. Brand and voice
 
-## 1. Brand & voice
+- Feeling: a warm planning desk with paper neutrals, calm density, and instrument-grade Focus behavior.
+- The product name is always `ekagra`. Do not use a legacy wordmark.
+- UI is icon-first. Visible labels are no longer than two words.
+- There is no explanatory or instructional UI copy. State is communicated through fill, density, and
+  signature motion.
+- Compact pending labels may name state only: `Saving`, `Starting`, `Syncing`.
+- Clear text is reserved for failures and must include the recovery action.
+- No em dashes in UI copy or design examples.
+- Use line icons. Do not use emoji as icons.
+- Accessibility labels are hidden from the visual UI and present on every icon-only control.
+- One accent moment per view. Quiet Indigo is reserved for the primary action, current state, active
+  control, or current pip.
 
-- **Feeling:** a warm planning desk — paper neutrals, calm, unhurried, instrument-grade for the timer. Not a "productivity dashboard," not therapy-app soft. Analog-desk meets precision tool.
-- **Voice:** factual, explains state. "Saves to Inbox for later triage." / "Timer holds until you resume." Never therapy-speak, never hype. Copy states *where a thing goes* and *what will happen*.
-- **One accent moment per view.** Quiet Indigo is a scalpel, not a highlighter — the primary CTA, the current pip, the active toggle. Ink (near-black) does most of the "selected/strong" work; indigo is reserved.
-- **Icons:** line icons (lucide on RN). No emoji as icons. Wireframe glyphs (▶ ↺ ≫ ❚❚) are placeholders for real icons.
+## 2. Color tokens
 
----
+Hex values are authoritative. Use semantic roles rather than component-local colors.
 
-## 2. Color
+### 2.1 Core light tokens
 
-### 2.1 Light theme — primary
-
-| Role | Hex | Usage |
+| Token | Hex | Use |
 |---|---|---|
-| `canvas` | `#f7f1e8` | App background (phone surface) |
-| `canvasDeep` | `#efe9dd` | Desk surround / notification tray bg |
-| `surface` | `#fdfaf4` | Raised cards (goal cards, notification card) |
-| `surfaceSunk` | `#f2ead9` | Selected/inset wells (active timeline row, narrative block, goal chip fill) |
-| `navBar` | `#f2ebdd` | Bottom nav background |
-| `ink` | `#201914` | Primary text; strong/selected fills; high-priority dot |
-| `inkOnDark` | `#f7f1e8` | Text on ink / dark chips / snackbars |
-| `textSecondary` | `#6f6355` | **Informational** secondary text (passes AA, 5.2:1) — labels that carry meaning |
-| `textMetaDecorative` | `#8a7c6c` | **Decorative** meta only (≤3.6:1 — never for info-bearing text; see §10) |
-| `textPlaceholder` | `#a4977f` | Input placeholders, empty-state hints, tertiary |
-| `line` | `#eae1d0` | Card borders, row dividers |
-| `lineSoft` | `#e6dcc9` | Subtle dividers, nav top border, progress track (light), empty meter bar |
-| `lineInput` | `#ddd2bf` | Input underlines |
-| `lineStrong` | `#c9bda8` | Chip outlines, outline-button borders, drag handle |
-| `accent` | `#6753c7` | Quiet Indigo — primary CTA, current pip, active toggle, accent moment |
-| `accentPressed` | `#52409f` | Indigo pressed state |
-| `accentOnDark` | `#c3b6f5` | Indigo tint for actions on dark surfaces (snackbar UNDO, mini-chip dot) |
-| `dangerBg` | `#f6e2dc` | Failure banner background |
-| `dangerLine` | `#dcb2a4` | Failure banner border / start-fail chip border |
-| `dangerText` | `#5d2b1c` | Failure text + RETRY |
-| `snackbarBg` | `#2a2119` | Dark snackbar / mini-timer chip / burst-flash pill |
+| `bg` | `#FBF7F0` | App background |
+| `surface` | `#F3EDE2` | Raised cards, sheets, and controls |
+| `ink` | `#2B2621` | Primary text, selected fills, strong state |
+| `accent` | `#6753C7` | Quiet Indigo actions, active state, current pip |
+| `success` | `#3F7D58` | Successful state |
+| `danger` | `#B3492E` | Failure state and recovery action |
 
-**Priority / status dots:** P1/high = `ink`; mid = `#a4977f` (solid); low = transparent w/ `1.5px #a4977f` ring. Completed row: 55% opacity, strike-through in `#6f6355`, `✓` glyph.
+### 2.2 Core dark tokens
 
-### 2.2 Dark theme — derived (not primary)
+| Token | Hex | Use |
+|---|---|---|
+| `bg` | `#1E1B17` | App background |
+| `surface` | `#2A2520` | Raised cards, sheets, and controls |
+| `ink` | `#F1EAE0` | Primary text, selected fills, strong state |
+| `accent` | `#8F7CE8` | Quiet Indigo actions, active state, current pip |
+| `success` | `#6FBF8B` | Successful state |
+| `danger` | `#E38266` | Failure state and recovery action |
 
-Dark is *derived* from light; only Focus `[1f]` is fully specced in wireframes. Derive the rest by mapping roles:
+### 2.3 Supporting roles
 
-| Role | Hex |
-|---|---|
-| `canvas` | `#1c1712` |
-| `ink` (text) | `#ede4d6` |
-| `textSecondary` | `#a4977f` |
-| `textMetaDecorative` | `#8a7c6c` |
-| `line` / track | `#3a3128` |
-| `lineStrong` | `#4d4236` |
-| progress fill | `#ede4d6` |
-| `accent` | `#6753c7` (unchanged — accent is theme-invariant) |
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `textSecondary` | `#6D6258` | `#C4B8AB` | Meaningful secondary information |
+| `line` | `#DFD5C6` | `#4B433B` | Dividers and outlines |
+| `track` | `#E2D8C9` | `#3A332C` | Empty progress and density |
+| `onAccent` | `#FBF7F0` | `#1E1B17` | Content on the theme accent |
+| `dangerSurface` | `#F5DED5` | `#3B2923` | Low-emphasis failure surface |
+| `successSurface` | `#DDEBDD` | `#223229` | Low-emphasis success surface |
 
-### 2.3 Goal accent
-
-Goals use **ink for their bar meters** in v2 wireframes (`[1i]` bars are indigo but that is the *accent moment*; goal identity is by name+chip, not per-goal hue). Keep the neutral system — do **not** reintroduce per-goal color hues from v1. The `goalPalette` export stays for back-compat but is unused in v2 screens.
-
----
+- Informational text must maintain a contrast ratio of at least 4.5:1 against its actual background.
+- Text on the light `dangerSurface` and `successSurface` uses `ink`; status color remains available to
+  borders and icons. Dark theme text may use `danger` or `success`; both pairings pass 4.5:1.
+- Do not use low-contrast decorative meta for information. If a value matters, use `ink` or
+  `textSecondary`.
+- Do not reintroduce per-goal color hues. Goal identity comes from name, relationship, and density.
 
 ## 3. Typography
 
-Three families, three+ semantic roles. **Monospace is timer-only.**
+The shipped v2 families and hierarchy remain useful. Monospace is timer-only.
 
-| Family | Where |
+| Family | Use |
 |---|---|
-| `Source Serif 4` (600, tracking −.01em) | **Display** — screen titles, goal names, narrative-insight sentence, session-complete heading, app wordmark |
-| `Instrument Sans` (400/500/600) | **Body / UI** — everything else |
-| `JetBrains Mono` (500/600) | **Timer readout only** — hero MM:SS, mini-chip time, notification time |
+| `Source Serif 4` | Display titles, goal names, narrative review headline, wordmark |
+| `Instrument Sans` | Body, controls, labels, metadata |
+| `JetBrains Mono` | Focus time, timer chip, notification time |
 
-**Roles & scale (from wireframes):**
-
-| Role | Font / size / weight | Notes |
+| Role | Size and weight | Use |
 |---|---|---|
-| Display XL | Serif 32px 600 | Screen title (`Tasks`, `Goals`, `Insights`, `Settings`) |
-| Display L | Serif 30px 600 | Goal-detail title |
-| Display M | Serif 24px 600 | Session-complete heading |
-| Display S | Serif 20px 600 | Goal card name |
-| Narrative | Serif 19px 600, line-height 1.35 | Insights lead sentence, capture title input |
-| Body | Sans 15px 400 | Task titles, row content, settings rows |
-| Body S | Sans 13.5–14px 400 | Secondary content, buttons |
-| Label/Button | Sans 13–15px 600 | Primary button, tab labels |
-| **Meta** | Sans 11px 500, tracking .08em, **UPPERCASE** | Section kickers ("INBOX · 3", "CAPTURE", "FOCUS") — color per §2 rule |
-| Meta inline | Sans 11px 500, tracking .02–.03em, sentence-case | Row sub-text ("added 2 d ago", "09:00 · 2 × 25 min") |
-| Timer hero | Mono 92px 500, tracking −.02em, line-height 1 | Focus MM:SS |
-| Timer small | Mono 13–14px 600 | Mini-chip, notification |
+| Display XL | Serif 32px 600 | Today, Plan, Self, Review titles |
+| Display L | Serif 30px 600 | Detail sheet title |
+| Display M | Serif 24px 600 | Session completion title |
+| Display S | Serif 20px 600 | Goal and identity names |
+| Narrative | Serif 19px 600, line-height 1.35 | Review headline only |
+| Body | Sans 15px 400 | Tasks and row content |
+| Body S | Sans 13.5 to 14px 400 | Compact values and controls |
+| Label | Sans 13 to 15px 600 | Visible labels, never over two words |
+| Meta | Sans 11px 500, tracking `.08em` | Compact state and section markers |
+| Timer hero | Mono 92px 500, line-height 1 | Focus time |
+| Timer small | Mono 13 to 14px 600 | Timer chip and notifications |
 
----
+Content names such as a task or goal may be longer than two words. The two-word limit applies to visible
+UI labels, actions, tabs, section markers, and status labels.
 
-## 4. Spacing & layout
+## 4. Information architecture
 
-- Base rhythm: **4** (`space` scale 4/8/12/16/20/24/32/40). Screen gutters **20px** (headers), **16–24px** (content).
-- Phone frame reference: 412 × 917. Edge-to-edge; respect safe areas + gesture bar.
-- Task/settings row vertical padding **13px** (10px for compact settings rows), gutter 20px.
-- Card interior padding **18px**; sheet interior gutter **24px**.
-- Section kicker → content gap ~8–12px; inter-card gap **12px**.
+The primary navigation has four destinations, in this order:
 
----
+`Today` · `Plan` · `Self` · `Review`
 
-## 5. Radii
+Focus is a full-screen takeover with no bottom navigation. Capture, Voice, Detail, and Settings are
+bottom sheets. Review may initially open as a sheet. MorningCommit, EveningClose, Insights, Goals as a
+standalone tab, and other v2 dashboard surfaces are not part of this IA.
 
-| Token | px | Use |
+- `Today`: blocks, committed tasks, habit checks, overdue state, Sweep, and the running timer chip.
+- `Plan`: week and day plans, commitment cascade, and time-boxed blocks.
+- `Self`: identities, goals, habits, and their relationships.
+- `Review`: the forced review pass, honest rates, journal residue, and `Deep`.
+- `Focus`: task-bound timer takeover from an eligible block.
+
+## 5. Spacing and layout
+
+- Base rhythm: 4px, 8px, 12px, 16px, 20px, 24px, 32px, 40px.
+- Phone reference: 412 x 917, edge-to-edge with safe areas and the gesture bar respected.
+- Screen gutters: 20px for headers and 16 to 24px for content.
+- Task and settings rows retain shipped v2 vertical padding of 13px, with 10px for compact settings.
+- Card interior padding: 18px. Sheet interior gutter: 24px.
+- Section marker to content: 8 to 12px. Inter-card gap: 12px.
+- Bottom navigation is 64px high with four evenly spaced destinations. Today owns the floating capture
+  affordance shown in the chosen mockup.
+- Layout must hold at 375px, 768px, and 1440px without horizontal scrolling.
+
+## 6. Radii
+
+| Token | Px | Use |
+|---|---:|---|
+| `xs` | 8 | Priority controls |
+| `sm` | 12 | Compact chips and snackbars |
+| `md` | 14 | Rating squares and Focus transport |
+| `lg` | 18 | Cards and navigation capture control |
+| `xl` | 26 | Focus play control and transport container |
+| `sheet` | 28 | Sheet top corners only |
+| `pill` | 999 | Chips, toggles, progress, and pips |
+
+Timeline day cells retain a 12px radius.
+
+## 7. Elevation
+
+Use warm-black, low-spread shadows. Keep the shipped v2 named tiers and provide CSS and RN forms:
+
+| Token | CSS value | Use |
 |---|---|---|
-| `xs` | 8 | Priority buttons (P1/P2/P3) |
-| `sm` | 12 | Small chips-as-squares, snackbar |
-| `md` | 14 | Rating squares, focus transport FAB |
-| `lg` | 18–20 | Cards (goal 18, notif 20), nav FAB (20) |
-| `xl` | 26 | Focus play FAB, focus transport container |
-| `sheet` | 28 (top only) | Bottom sheets `28px 28px 0 0` |
-| `pill` | 999 | Chips, pills, toggles, day cells, progress bars, dots |
+| `low` | `0 2px 8px rgba(43, 38, 33, .08)` | Card lift |
+| `medium` | `0 3px 10px rgba(43, 38, 33, .25)` | Floating timer chip |
+| `high` | `0 4px 14px rgba(43, 38, 33, .30)` | Persistent failure surface |
+| `sheet` | `0 -8px 30px rgba(43, 38, 33, .30)` | Sheet separation |
+| `fabAccent` | `0 5px 15px rgba(103, 83, 199, .28)` | Today capture control |
+| `fabAccentHi` | `0 5px 16px rgba(103, 83, 199, .40)` | Focus play control |
+| `notif` | `0 2px 10px rgba(43, 38, 33, .12)` | Notification card |
 
-Timeline day cells: 12px radius.
+No new shadow tier is introduced for a single component.
 
----
+## 8. Motion law
 
-## 6. Elevation (named)
+Motion has exactly five signature animations:
 
-Shadows are warm-black, low-spread, never harsh. Named tiers + specific component shadows:
+1. Task to Focus morph.
+2. Block ink-fill.
+3. Cascade dock.
+4. Habit-chain pulse.
+5. Waveform to chip settle.
 
-| Token | Value |
-|---|---|
-| `low` (card) | `0 2px 8px rgba(32,25,20,.08)` |
-| `medium` (mini-chip / floating) | `0 3px 10px rgba(32,25,20,.25)` |
-| `high` (snackbar) | `0 4px 14px rgba(32,25,20,.30)` |
-| `sheet` | `0 -8px 30px rgba(32,25,20,.30)` |
-| `fabAccent` (nav +) | `0 3px 10px rgba(103,83,199,.35)` |
-| `fabAccentHi` (focus play) | `0 5px 16px rgba(103,83,199,.40)` |
-| `notif` | `0 2px 10px rgba(32,25,20,.12)` |
+Every other state change is instant. Pressed feedback is synchronous on touch-down, using fill or density
+change. Cascade dock is the only spring animation. The remaining signatures may use the shipped v2 fast
+and base timings, with ease-out entry and ease-in exit. Sheets and swipe gestures track the pointer
+directly and settle without a separate animation.
 
-Provide RN decompositions (shadowColor/Opacity/Radius/Offset + elevation) alongside CSS strings, as the current `shadow.fabNative` already does.
+Reduced motion replaces the five signatures with fades. The OS preference and the in-app setting are both
+honored. Do not add cursor, pending-dot, live-dot, or generic pulse animations outside the five signatures.
 
----
+## 9. Components and interaction
 
-## 7. Motion
+### 9.1 Bottom navigation and capture control
 
-- **Durations:** `fast` 200ms, `base` 280ms. **Easing:** ease-out `cubic-bezier(.2,.8,.2,1)` for enter/standard; `easeIn cubic-bezier(.4,0,1,1)` for exits.
-- **Springs only for gestures** (sheet drag/dismiss, swipe). Not for state changes.
-- **Pulse** (`@keyframes pulse` opacity 1↔.25): Live dot 1.6s, text cursor 1.1s, pending dots ("Saving…"/"Starting…") 1s.
-- **Pressed feedback (mandatory, synchronous):** scale `.94` (icon buttons), `.97` (chips), `.98` (primary buttons) + `filter: brightness(.85)` or a pressed color (indigo→`#52409f`). Fires on touch-down, before any async.
-- **Reduced motion is first-class** (`[1l]` toggle): replace pulses with static states, cross-fades instead of slides, no springs. Respect OS setting + in-app toggle.
+- Height: 64px. Background: `surface`. Top border: `line`.
+- Order: `Today`, `Plan`, `Self`, `Review`.
+- Active destination: ink label and a 56 x 30px pill behind the icon.
+- Inactive destinations: `textSecondary` label.
+- Today capture control: 46 x 46px circle, `accent` fill, `onAccent` icon, `fabAccent` shadow.
+- Capture opens the Capture or Voice sheet from Today. It does not become a fifth destination.
 
----
+### 9.2 Timer chip
 
-## 8. Components
+When a session runs, a floating pill sits above navigation. It shows an accent state dot, task name, and
+monospace time. Tap opens Focus. Use the shipped v2 medium shadow and compact geometry.
 
-Each spec cites its wireframe frame. Build to the frame; use tokens above.
+### 9.3 Today rows and blocks
 
-### 8.1 Bottom nav + capture FAB `[1a,1i,1k,1l]`
-- Height 84px, bg `navBar`, top border `lineSoft`. Order: **Tasks · Goals · [ + ] · Insights · Settings** (the `+` FAB sits center, overhanging −26px).
-- Active tab: label in `ink` + **M3 pill** behind the glyph (56×30, radius pill, bg `lineSoft`). Inactive label `#6f6355`.
-- Capture FAB: 60×60, radius `lg` (20), bg `accent`, white `+`, shadow `fabAccent`.
+- Preserve the shipped v2 task row geometry: priority mark, task content, and a play affordance.
+- Blocks are the primary Today structure. Density communicates deep, shallow, admin, and rest.
+- A block cannot enter Focus without a committed Task or Occurrence.
+- Starting a task uses the task to Focus morph. The default play control remains a minimum 44 x 44px hit
+  target even when the visible icon is smaller.
+- A running task uses an ink edge, denser fill, stronger title, and timer value instead of a duplicate
+  play control.
+- Completed rows use reduced opacity, strike-through, and a completion icon.
+- Overdue state uses a chip and `Sweep`. Sweep is explicit and never mutates a plan silently.
 
-### 8.2 Mini-timer chip `[1b]`
-Floating pill above nav while a session runs: bg `snackbarBg`, pulsing `accentOnDark` dot + task name + mono time. Tap → Focus. Shadow `medium`.
+### 9.4 Capture sheet
 
-### 8.3 Task row `[1a,1b,1j]`
-`[priority dot] [title + sub-meta] [▶ play]`. Padding 13px/20px, divider `line`. Running task: bg `surfaceSunk` + `3px ink` left border + bold title + right-aligned mono time (no play button). Completed: 55% opacity, strike-through `#6f6355`, `✓` in place of dot.
+- Bottom sheet with 28px top radius, dimmed backdrop, 36 x 4px drag handle, and swipe-down dismissal.
+- Preserve the shipped segmented underline geometry for `Task` and `Goal` capture.
+- Auto-focus the title field. Use hidden accessibility labels for fields and controls.
+- Task capture supports date, goal, and priority controls. Advanced fields remain behind a compact `More`
+  control.
+- Goal capture supports identity, priority, and an optional first task.
+- Sticky footer retains a full-width accent action above the keyboard. Actions are `Save`, `Create`, and
+  `Discard`, each no longer than two words.
+- Remove outcome and destination explanations. Success uses fill, density, or the waveform to chip settle
+  signature. Failure is persistent, adjacent, and text-bearing.
+- Burst capture keeps the shipped flash-pill behavior. Its visible state label is compact, such as
+  `Saved 3`.
 
-### 8.4 Play / "start focus" affordance `[1a]` + states `[1m]`
-Default: 34×34 circle, `1.5px lineStrong` border, transparent. **States:** pressed → bg `#e6dcc9` scale .94; pending → pill "● Starting…" (pulsing dot, `#6f6355`); failure → pill "Couldn't start · **RETRY**" (border `dangerLine`, text `dangerText`), stays on screen. **Never a silent tap.**
+### 9.5 Voice sheet
 
-### 8.5 Goal chip (`gchip`) `[1a]`
-11px 500, padding 2px/8px, radius pill, border `lineInput`, text `#6f6355`, bg `surfaceSunk`.
+- Voice opens as a sheet from Today.
+- Hold-to-speak is the primary control. Waveform to chip settle is the only recording completion
+  signature.
+- Pending labels may say `Transcribing` or `Saving`. They must not explain the pipeline.
+- The transcript is the durable artifact. Audio is transient.
+- Failure text remains visible with `Retry` until resolved or dismissed.
 
-### 8.6 Timeline day strip `[1a]`
-Horizontal 7-cell strip. Selected day: filled `ink`, text `canvas`, count in `#cfc4ad`. Unselected: `1px lineSoft` border, count `#a4977f`, `—` when none.
+### 9.6 Plan
 
-### 8.7 Capture sheet `[1c,1d]`
-Modal bottom sheet, radius `sheet`, blurred+dimmed backdrop (`rgba(32,25,20,.35)`), drag handle (36×4 `lineStrong`), swipe-down dismiss (spring-back if unsaved). Kicker "CAPTURE".
-- **Segmented underline tabs** New task / New goal: active = 600 ink + `2.5px ink` underline; inactive = 500 `#8a7c6c` + transparent underline. **No filled pills.**
-- Title: auto-focused, 19px, animated indigo caret (`2px×22px`, pulse 1.1s), `2px ink` underline.
-- **Task:** date presets Inbox/Today/Tomorrow/Later·{weekday} (selected = filled ink pill; rest = `lineStrong` outline). Goal chip picker (selected = `1.5px ink` border + ✓; rest outline; "No goal"). "More ▲" disclosure → Notes, Deadline, Time, Priority P1–P3.
-- **Goal:** "First task (optional)" seed field + Priority.
-- **Sticky footer** above keyboard: full-width `accent` button, adaptive label ("Save & close" / "Create goal" / "Saving…"). Below: Discard (link) + outcome copy ("Saves to Inbox for later triage." / "Creates goal · appears in Goals.").
-- **Burst capture:** Enter = save-and-stay, sticky date/goal/priority, "✓ Saved · N captured" flash pill (`snackbarBg`) at top `[1d]`.
+- Use `plan-warm-desk.html` as the visual reference for the week to day cascade.
+- Preserve shipped v2 card, day strip, goal chip, and outline control geometry where it supports the
+  cascade.
+- A commitment moves through the hierarchy by explicit user action. Cascade dock is the signature motion.
+- Goal commitments may appear at every horizon. Task commitments are week or day. Occurrence commitments
+  are day only.
+- Time-boxed blocks show kind through fill and density. No helper paragraph explains the hierarchy.
 
-### 8.8 Focus (timer takeover) `[1e]` light / `[1f]` dark
-Full-screen, no nav. Top→bottom: app wordmark (serif 16, `#6f6355`); "FOCUS" meta (tracking .22em); **mono 92px MM:SS**; live indicator (pulsing ink dot + "Live" / `[ Paused ]` in meta / "READY"); task name (15px) + "Goal · session N of M today" meta; thin progress bar (280×3, track `lineSoft`, fill `ink`); **launch pips** (11×11 radius 3, one per daily-goal session ≤12: done = `ink`, current = `accent`, future = `1.5px lineStrong` outline); stats strip Today/Sessions/Streak (tap → Insights); **Extend +1/+5** outline pills; transport row **↺ Reset (52) · ❚❚/▶ Play FAB (72, radius 26, `accent`, shadow `fabAccentHi`) · ≫ Skip (52)**. Paused adds "Timer holds until you resume." Dark = §2.2.
+### 9.7 Self
 
-### 8.9 Session-end sheet `[1g]`
-Bottom sheet, no navigation away. Heading "Session N of M complete" (serif 24) + meta ("task · 25:00 focused · goal"). "How was your focus?" → 1–5 squares (48×48, radius `md`; selected = filled ink). Optional note (underline input). Primary `accent` button "Log session · start break". Auto-break countdown caption ("Break starts automatically in 0:24.").
+- Self is the home for identities, goals, habit rules, and cue chains.
+- Identity is always present on a habit. The default identity is `Me`.
+- Goal media uses the shared attachment treatment. Do not add per-goal color palettes.
+- Habit stacking uses habit-chain pulse. Pending occurrences are visually distinct from done, skipped, and
+  missed through fill and density.
 
-### 8.10 Android notification `[1h]`
-Card radius `lg`, bg `surface`, shadow `notif`. Indigo app square + "Tempo · Focus · now" + mono time + "remaining · session N of M". Indigo progress bar. Actions: **Pause · Stop** (indigo text). Body tap → Focus. Live countdown each second (from absolute expiry; JS-independent per spec §3.2).
+### 9.8 Review
 
-### 8.11 Goals card + 7-day meter `[1i]`
-Card `surface`, radius `lg`, border `line`. Name (serif 20) + priority meta (right) + "N linked · M scheduled today". **Honest 7-day bar meter:** one bar/day, height ∝ sessions done, `accent` fills, empty day = 4px `lineSoft` stub. Caption "X of Y planned sessions done, last 7 days". **No fabricated data.**
+- Review is a forced pass, not a dashboard of unlimited cards.
+- Keep the shipped narrative-first card geometry where useful, with a maximum of three blocks.
+- The headline metric is `Deep`.
+- Rates, deep hours, journal residue, and playback use honest derived data only. Never fabricate a chart,
+  heat map, streak, or completion value.
+- Review controls are compact and icon-first. Explanatory copy is not permitted outside failure states.
 
-### 8.12 Goal detail `[1j]`
-Back + "GOAL" kicker; serif 30 title; meta; 7-day meter with weekday axis. "Linked tasks · N" list of task rows (per-task ▶). Inline "+ Add task to {goal}…" underline field at list end.
+### 9.9 Focus takeover
 
-### 8.13 Insights `[1k]`
-Max **3 blocks**, narrative first. Block 1: `surfaceSunk` card, serif-19 lead sentence + meta stat line. Block 2/3: `surface` cards — completion-trend bars (`#d9cdb6`, today = `accent`) w/ weekday axis; focus-hours-by-goal (label + hours + `ink` fill bar on `line` track). No fabricated data; heat grid only when dated source exists.
+- Focus is full-screen, task-bound, and preserves the shipped v2 Focus geometry and timer engine behavior.
+- Top to bottom: ekagra wordmark, `Focus` marker, mono `MM:SS`, live state, task name, goal/session data,
+  linear progress bar, launch pips, stats, extension controls, and transport.
+- Stats are `Today`, `Sessions`, and `Deep`.
+- Launch pips remain one per daily-goal session up to 12. Done uses `ink`, current uses `accent`, and future
+  uses an outline.
+- Transport retains reset, 72px play or pause control, and skip geometry. Icon-only controls have hidden
+  accessibility labels.
+- Paused state is shown through fill and density. Do not show a pause explanation.
+- Focus uses the light core tokens by default and the dark core tokens for the dark reference state.
 
-### 8.14 Settings `[1l]`
-Sectioned (Timer / Sound & haptics / Appearance / Account) with meta section headers. Rows: label + value + `›`, or label+sub + **toggle** (48×28: on = `accent` + knob right; off = `lineStrong` + knob left `#fdfaf4`). Preview button (outline). Account row + "Sign out" (indigo).
+### 9.10 Detail sheet and session completion
 
-### 8.15 Feedback primitives `[1m]`
-- **Primary button:** default `accent` / pressed `accentPressed` scale .98 / pending "● Saving…" opacity .75.
-- **Error banner:** bg `dangerBg`, border `dangerLine`, text `dangerText`, inline RETRY — **persists, no auto-dismiss.**
-- **Snackbars** (`snackbarBg`): "Completed …" + UNDO / "Sync failed · last synced HH:MM" + RETRY. UNDO/RETRY in `accentOnDark`.
-- Chips: default outline / pressed `#e6dcc9` scale .97 / selected filled `ink`.
+- Detail opens as a sheet, retaining the shipped goal-detail list, meter, back control, and inline add-field
+  geometry where useful.
+- Session completion remains a bottom sheet with a serif heading, five 48 x 48px rating squares, optional
+  note field, and sticky primary action.
+- Visible actions are compact: `Log session`, `Start break`, `Dismiss`.
+- Auto-break state is represented by the timer and density. Only failure states receive explanatory text.
 
----
+### 9.11 Settings sheet
 
-## 9. Feedback law — "nothing silent, ever"
+- Settings opens as a sheet with compact section markers and the shipped row and toggle geometry.
+- Keep timer, sound, appearance, account, and reduced-motion controls.
+- Use visible labels of no more than two words. Inputs and toggles have hidden accessibility labels.
+- Account failure states persist with `Retry` where recovery is possible.
 
-Non-negotiable, applies to every interactive element:
-1. **Every tap** → synchronous pressed state **+ haptic**, fired on touch-down before any await.
-2. **Every async action** → a factual pending label ("Saving…", "Starting…"), never a spinner-only dead state.
-3. **Every failure** → an **on-screen** explanation **+ Retry** that persists. No toasts that vanish; no silent no-op returns (this is the timer bug spec §1 exists to kill).
+### 9.12 Notifications and feedback
 
----
+- Preserve the shipped notification card geometry, absolute-expiry countdown, progress bar, and Pause or
+  Stop actions. Use `ekagra` branding.
+- Every tap receives synchronous pressed feedback and haptic feedback on touch-down.
+- Every async action exposes a compact pending state such as `Saving` or `Starting`. A spinner alone is not
+  a state.
+- Every failure is visible, adjacent to the affected action, persistent, and paired with `Retry` when
+  retry is possible. Failures may use clear text.
+- No success toast, explanatory snackbar, or silent no-op is part of the law.
 
-## 10. Accessibility gates (CRITICAL — non-negotiable)
+## 10. Accessibility gates
 
-- **Contrast ≥ 4.5:1 for all info-bearing text.** Verified: `ink`/`#6f6355`/`accent`(white) pass. **`#8a7c6c` on canvas ≈ 3.6:1 and `#a4977f` lower — these FAIL AA and are decorative/placeholder only.** Any meta text that conveys real information ("3 in inbox", "session 4 of 8") uses `textSecondary` `#6f6355`, or ≥18.66px-bold / ≥24px if it must stay lighter.
-- **Touch targets ≥ 44×44px.** The 34px play affordance needs a ≥44px hit slop.
-- **Visible focus states** on all interactive elements (keyboard/switch-access order correct).
-- **Labels on all inputs**; icon-only buttons get accessible labels.
-- **Reduced motion** honored (OS + in-app `[1l]`): no pulse, no springs, cross-fades only.
-- Timer hero is decorative-mono but must expose remaining time to AT via label.
+- All informational text has contrast of at least 4.5:1 against its actual background. Large text still
+  follows the same rule for simplicity.
+- Every touch target is at least 44 x 44px, including icon hit slop around smaller visible glyphs.
+- Every icon-only control has a hidden accessibility label.
+- Every input has a hidden associated label.
+- Visible focus states exist on all interactive elements. Keyboard and switch-access order follows visual
+  order.
+- State must remain understandable without motion. Reduced motion uses fades.
+- The timer hero exposes remaining time to assistive technology even though its visual type is decorative
+  monospace.
+- Do not use color as the only signal. Pair fill with density, position, icon, or text when text is allowed.
 
----
+## 11. Reference map
 
-## 11. Screen index (wireframe map)
+| Surface | Primary reference | Preserved shipped v2 input |
+|---|---|---|
+| Today | `today-warm-desk.html` | Task rows, timer chip, navigation, capture control |
+| Focus | `focus-warm-desk.html` | Full takeover, timer geometry, transport, pips |
+| Plan | `plan-warm-desk.html` | Cards, day strip, chips, detail list |
+| Self | Warm Planning Desk II tokens and components | Cards, sheets, controls |
+| Review | Warm Planning Desk II tokens and components | Narrative-first card geometry only |
 
-| Frame | Screen |
-|---|---|
-| `1a` | Tasks — idle (Inbox + Timeline) |
-| `1b` | Tasks — session running (undo snackbar, mini-timer chip) |
-| `1c` | Capture — task (More expanded) |
-| `1d` | Capture — goal (burst flash) |
-| `1e` | Focus — running (light, primary) |
-| `1f` | Focus — paused (dark) |
-| `1g` | Session-end sheet |
-| `1h` | Android notification |
-| `1i` | Goals — list (7-day meters) |
-| `1j` | Goal detail |
-| `1k` | Insights (narrative-first) |
-| `1l` | Settings |
-| `1m` | Interaction states (pressed / pending / failure) |
+The v2 frame IDs `1a` through `1m` are historical component references, not the current IA.
 
----
+## 12. Token implementation and compatibility
 
-## 12. Token implementation
+The target token source is a shared workspace package consumed by mobile and CLI where relevant. No import
+may reach into `apps/web`. The web app remains in the repository, but is unrouted, starved, and outside the
+active CI path.
 
-Single source: **`apps/web/src/theme/tokens.ts`**; `apps/mobile/src/theme/tokens.ts` re-exports it verbatim (Metro watches the workspace root). Keep the **export surface stable** (`color`, `radius`, `space`, `font`, `motion`, `shadow`, `ring`, `withAlpha`, `tokensToCssVars`) so consumers don't break; **replace the values** with §2–§7 and **extend** with:
-- Semantic color roles from §2.1/§2.2 (a `light`/`dark` map, not a flat dark-only object).
-- `font`: add `serif` (Source Serif 4), `mono` (JetBrains Mono); keep `sans` (Instrument Sans) as `family`.
-- `motion`: add `fast` 200 / `base` 280 durations + named easings.
-- `shadow`: add `low`/`medium`/`high`/`sheet`/`fabAccent`/`fabAccentHi`/`notif` (CSS + RN forms).
-- `radius`: add `md` 14, `xl` 26, `sheet` 28.
+Keep the existing export surface compatible while moving ownership:
 
-`ring` (SVG timer geometry) is v1-specific — v2 Focus uses a **linear** progress bar + pips, not a ring; keep the export only if still referenced, else remove when the Focus screen lands.
+`color`, `radius`, `space`, `font`, `motion`, `shadow`, `ring`, `withAlpha`, `tokensToCssVars`
 
-Migration must keep `bun run typecheck` green; consumers referencing removed/renamed color keys are updated in the same change.
+The shared package must expose:
+
+- Light and dark semantic color maps with the core values in §2.
+- `font.family`, `font.serif`, and `font.mono`.
+- Signature motion names, reduced-motion behavior, and compatibility fields for existing consumers.
+- The shipped radius and shadow names, including `md`, `xl`, `sheet`, `low`, `medium`, `high`, `fabAccent`,
+  `fabAccentHi`, and `notif`.
+
+`ring` is retained only for export compatibility while referenced. Focus implementation uses a linear
+progress bar and pips. Consumers of renamed or removed roles must migrate in the same change as the token
+source, and mobile or CLI imports must never be repaired by importing from web.
+
+## 13. Critical review checklist
+
+### Tier 1: block completion
+
+- [ ] Informational text contrast is at least 4.5:1 in light and dark states.
+- [ ] Every touch target is at least 44 x 44px.
+- [ ] Every icon-only control has a hidden accessibility label.
+- [ ] Every input has a hidden associated label.
+- [ ] Visible focus states and correct keyboard order exist.
+- [ ] Async actions show a compact pending state and disable duplicate submission.
+- [ ] Failures are adjacent, persistent, clear, and recoverable where possible.
+- [ ] No action is silent.
+
+### Tier 2: high
+
+- [ ] Today, Plan, Self, Review, Focus, and sheet boundaries match the IA.
+- [ ] No visible UI label exceeds two words.
+- [ ] No explanatory or instructional copy appears outside failures.
+- [ ] Only the five signature animations exist. All other state changes are instant.
+- [ ] Reduced motion uses fades.
+- [ ] No horizontal scroll exists at 375px, 768px, or 1440px.
+- [ ] Web is not an import source for mobile or CLI.
+- [ ] Metrics and charts use dated, owner-scoped data only.
+
+### Tier 3: polish
+
+- [ ] Colors, spacing, radii, motion, and elevation use shared tokens.
+- [ ] Shipped v2 geometry is preserved where spec 002 does not supersede it.
+- [ ] Focus stats use `Today`, `Sessions`, and `Deep`.
+- [ ] Goal colors remain neutral; no per-goal palette returns.
+- [ ] Hover, active, pending, empty, and failure states are designed without adding explanatory copy.

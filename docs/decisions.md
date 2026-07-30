@@ -149,3 +149,20 @@ precedes mockups.
 shipped v2 component feel and Quiet Indigo `#6753C7`, uses the contrast-verified refinement palette, and
 treats the warm Today, Focus, and Plan mockups as implementation references. The other theme files remain
 research artifacts, not competing sources of truth.
+
+## 2026-07-31 — Life-OS contract clarifications: horizon subjects, plan calendar identity, pending occurrences, identity-bound rules
+**Why:** The second Sol-high review of PR #59 found four contract conflicts between `CONTEXT.md`, spec 002, and
+the chosen `plan-warm-desk.html` mockup. Rulings, clarifying (not reversing) the 2026-07-31 entries above:
+(1) Commitment horizon rules are per subject type — a Goal commits at ANY horizon down to day (the mockup's
+GOAL → WEEK → WED cascade is one subject, not a duplicate), a Task at week or day, an Occurrence at day only;
+Blocks still require a committed Task/Occurrence, so a Goal commitment is never block-eligible. The earlier
+"day accepts Task or Occurrence" phrasing would have broken the chosen cascade UI.
+(2) Plans get a canonical calendar identity: horizon-aligned `starts_on`, `unique (owner, horizon, starts_on)`,
+and parent containment in the next horizon up — because absorbing `day_records` made a day plan the day
+record, and Today / ISO-week selection must be a deterministic lookup, not a scan with tie-breaking.
+(3) Occurrence `outcome` is nullable: null = pending, terminal = done/skipped/missed. A rolling generation
+window must be able to create tomorrow's rows without pre-declaring an outcome, and an untouched habit today
+is not a miss. The terminal contract is unweakened — generation never clears a terminal outcome.
+(4) Every HabitRule carries a non-null `identity_id` (default "Me" seeded per owner, so capture stays one tap)
+and a cue link must stay within the same owner AND the same Identity, since a Stack that crosses identities
+would break the Atomic Habits mechanic identity-required was adopted to protect.

@@ -3,7 +3,8 @@
 
 ## 🚧 In progress / next
 - **Life-OS P1 is the active work order:** `docs/specs/002-life-os-reimagining.md` (issue #44), delivered through #45–#51 in dependency order. PR #43 already merged the v2 UI foundation.
-- **Documentation baseline is PR #59** (`docs/life-os-spec`). Its first Sol-high review found contract conflicts; fixes are in progress before implementation starts.
+- **Documentation baseline is PR #59** (`docs/life-os-spec`). Two Sol-high review rounds exposed contract
+  conflicts; the second-round fixes and Luna design-law reconciliation are awaiting a fresh final review.
 - **External CI blocker:** GitHub rejected both PR #59 jobs before assigning a runner because the account payment failed or its Actions spending limit must be increased. No workflow step ran; do not diagnose this as a repository test failure.
 - **Standing git workflow (Raja, 2026-07-13):** commit as you go → push → open PR → let review + CI run → merge ONLY when review approved AND CI green. See memory [[git-merge-workflow]].
 - MorningCommit/EveningClose and Insights are superseded by the Life-OS Today/Plan/Review shape; no pending product decision remains.
@@ -17,7 +18,8 @@
 - Web -> apps/web/src · Mobile -> apps/mobile/src · CLI -> apps/cli/src
 - Mobile data layer: apps/mobile/src/data — TanStack Query (persisted AsyncStorage), optimistic mutations, `queries/`, `mutations/` (RetryableMutationResult w/ stable clientOpId), `queryClient.tsx` (cache-owner isolation).
 - Auth cache isolation -> apps/mobile/src/auth/AuthProvider.tsx (owner marker; wipe on identity change, keep same-user cold-boot cache).
-- Theme tokens: single source apps/web/src/theme/tokens.ts — mobile re-exports. Design law: `docs/DESIGN.md` (Warm Planning Desk, light primary).
+- Theme tokens: currently sourced from apps/web/src/theme/tokens.ts and re-exported by mobile; ticket #45
+  moves them to a shared package. Design law: `docs/DESIGN.md` (Warm Planning Desk II, light primary).
 - Timer engine + API types -> packages/core/src (vendored to supabase/functions/_vendor/core; scripts/sync-core-vendor.sh, CI-enforced).
 - Edge fns -> supabase/functions/* · Migrations -> supabase/migrations/ · pgTAP -> supabase/tests/
 
@@ -27,8 +29,8 @@
 - Device driving: adb screencap/input; Supabase CLI as `bunx supabase`.
 
 ## Key decisions (top 5)
-- **Life-OS builds on the shipped v2 client without a stack rewrite** — additive Postgres spine, TanStack Query, server-owned timer, CLI kept alive; full work order in spec 002.
-- Warm Planning Desk II is chosen: paper neutrals, Quiet Indigo `#6753c7`, light primary, shipped v2 component feel.
+- **Life-OS builds on the shipped v2 client without a stack rewrite** using an additive Postgres spine,
+  TanStack Query, server-owned timer, and the live CLI. Warm Planning Desk II is the chosen visual system.
 - Session-start idempotency: client `clientOpId` + partial unique `(owner_id, client_op_id)`; server insert→catch 23505→select→200 (fresh 201). Plus `one_active_session_per_owner`. App-level pre-check removed (relies on constraint).
 - Task status↔schedule invariant enforced by BEFORE trigger on `(status, scheduled_for)`; morning-commit bypasses via transaction-local GUC `ekagra.morning_commit_bypass` so "committed for today" (planned w/o schedule) survives.
 - Session commands never auto-retry (`retry:false`) — uncertain failure reconciles to server truth via refetch; UI shows dismiss, not blind-resend.

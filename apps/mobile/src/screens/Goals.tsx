@@ -503,6 +503,10 @@ function GoalSheet({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             bounces={false}
+            // iOS raises the keyboard over the sheet; let UIKit own the inset so
+            // Save/Delete stay reachable instead of guessing a fixed offset.
+            // No-op on Android, where the window resizes for us.
+            automaticallyAdjustKeyboardInsets
             contentContainerStyle={{
               paddingTop: 22,
               paddingHorizontal: 24,

@@ -85,6 +85,11 @@ select profiles.id, 'Me'
 from public.profiles
 on conflict (owner_id, name) do nothing;
 
+-- Supabase applies this migration transactionally. Take the writer-conflicting
+-- lock before snapshotting legacy roles; it waits for earlier goal writes and
+-- holds later writes until the identity trigger and FK are installed.
+lock table public.goals in share row exclusive mode;
+
 -- Preserve every exact legacy role per owner before adding the goal FK. Public
 -- goal writes stay capped at 120 characters, while the Identity read contract
 -- deliberately accepts any valid historical text already stored in Postgres.

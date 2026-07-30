@@ -166,3 +166,10 @@ is not a miss. The terminal contract is unweakened — generation never clears a
 (4) Every HabitRule carries a non-null `identity_id` (default "Me" seeded per owner, so capture stays one tap)
 and a cue link must stay within the same owner AND the same Identity, since a Stack that crosses identities
 would break the Atomic Habits mechanic identity-required was adopted to protect.
+
+## 2026-07-31 — Life-OS calendar boundaries become owner-local
+**Why:** The 2026-07-10 UTC-only boundary was an explicit v1 deferral until per-user time zones existed.
+Life-OS makes Today, Sweep, occurrences, and weekly review the primary daily loop, so UTC would show Raja
+the wrong day around local midnight. `profiles.time_zone` now carries an IANA zone with a `UTC` fallback;
+calendar dates derive from that zone, never the database session's `current_date`. This supersedes only the
+old deferral while preserving deterministic server-owned boundaries.

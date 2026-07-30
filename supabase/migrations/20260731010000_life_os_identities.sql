@@ -5,7 +5,7 @@
 create table public.identities (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete cascade,
-  name text not null check (name = trim(name) and length(name) > 0),
+  name text not null check (length(trim(name)) > 0),
   is_default boolean generated always as (name = 'Me') stored,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -60,18 +60,6 @@ create trigger identities_guard_key
   before update of owner_id, name on public.identities
   for each row execute function public.guard_identity_key();
 
--- Preserve every exact legacy role per owner before adding the goal FK.
-insert into public.identities (owner_id, name)
-select distinct goals.owner_id, trim(goals.identity_role)
-from public.goals
-on conflict (owner_id, name) do nothing;
-
--- Every existing owner receives the one-tap fallback, even without a goal.
-insert into public.identities (owner_id, name)
-select profiles.id, 'Me'
-from public.profiles
-on conflict (owner_id, name) do nothing;
-
 create or replace function public.seed_default_identity_for_profile()
 returns trigger
 language plpgsql
@@ -90,15 +78,35 @@ create trigger profiles_seed_default_identity
   after insert on public.profiles
   for each row execute function public.seed_default_identity_for_profile();
 
+-- Install the profile trigger before the existing-owner backfill so a profile
+-- committed concurrently with this migration cannot miss its default Identity.
+insert into public.identities (owner_id, name)
+select profiles.id, 'Me'
+from public.profiles
+on conflict (owner_id, name) do nothing;
+
+-- Preserve every exact legacy role per owner before adding the goal FK. Public
+-- goal writes stay capped at 120 characters, while the Identity read contract
+-- deliberately accepts any valid historical text already stored in Postgres.
+insert into public.identities (owner_id, name)
+select distinct goals.owner_id, goals.identity_role
+from public.goals
+on conflict (owner_id, name) do nothing;
+
 alter table public.goals
   add column identity_id uuid;
 
+-- This is a structural backfill, not a user edit. Suppress only the timestamp
+-- trigger so historical goal modification times remain intact.
+alter table public.goals disable trigger goals_set_updated_at;
+
 update public.goals
-set identity_id = identities.id,
-    identity_role = identities.name
+set identity_id = identities.id
 from public.identities
 where identities.owner_id = goals.owner_id
-  and identities.name = trim(goals.identity_role);
+  and identities.name = goals.identity_role;
+
+alter table public.goals enable trigger goals_set_updated_at;
 
 alter table public.goals
   alter column identity_id set not null,

@@ -170,6 +170,19 @@ describe('parseIdentity', () => {
       }),
     ).toThrow('name');
   });
+
+  test('preserves historical identity text outside the public write limit', () => {
+    const historicalName = ` ${'x'.repeat(121)} `;
+    expect(
+      parseIdentity({
+        id: '70000000-0000-0000-0000-000000000004',
+        name: historicalName,
+        is_default: false,
+        created_at: '2026-07-31T00:00:00.000Z',
+        updated_at: '2026-07-31T00:00:00.000Z',
+      }).name,
+    ).toBe(historicalName);
+  });
 });
 
 describe('parseDayRecord', () => {

@@ -1,4 +1,4 @@
-import type { Goal, GoalCreateRequest, Identity } from '@ekagra/core';
+import type { Goal, GoalCreateRequest, GoalUpdateRequest, Identity } from '@ekagra/core';
 import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -432,6 +432,7 @@ function GoalSheet({
   onClose: () => void;
   t: Theme;
 }) {
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState(goal.title);
   const [selection, setSelection] = useState<IdentitySelection | null>(() =>
     selectionForGoal(goal, identities),
@@ -487,100 +488,112 @@ function GoalSheet({
             opacity: 0.24,
           }}
         />
+        {/* The chip row wraps, so tall identity lists / large text can outgrow the
+            viewport — the sheet body scrolls instead of pushing controls off-screen. */}
         <View
           style={{
             ...t.elevationNative.sheet,
             backgroundColor: t.surface,
             borderTopLeftRadius: t.radii.sheet,
             borderTopRightRadius: t.radii.sheet,
-            paddingTop: 22,
-            paddingHorizontal: 24,
-            paddingBottom: 28,
-            gap: 14,
+            maxHeight: '86%',
           }}
         >
-          <Text style={ui(600, { color: t.textSecondary, fontSize: 11, letterSpacing: 1.1 })}>
-            EDIT GOAL
-          </Text>
-          <LabeledInput label="Goal title" value={title} onChangeText={setTitle} t={t} />
-          <IdentityPicker
-            identities={identities}
-            loading={identitiesLoading}
-            value={selection}
-            onChange={setSelection}
-            t={t}
-          />
-          <LabeledInput
-            label="Deadline · optional"
-            value={deadline}
-            onChangeText={setDeadline}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
-            t={t}
-          />
-          <PriorityPicker value={priority} onChange={setPriority} t={t} />
-          {update.value && <FeedbackLine feedback={update.value} t={t} />}
-          {remove.value && <FeedbackLine feedback={remove.value} t={t} />}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Pressable
-              accessibilityRole="button"
-              disabled={!canSave}
-              onPress={() =>
-                update.run({
-                  id: goal.id,
-                  patch: {
-                    title: title.trim(),
-                    ...(identityChanged ? identityFields(selection) : {}),
-                    deadline: trimmedDeadline.length > 0 ? trimmedDeadline : null,
-                    priority,
-                  },
-                })
-              }
-              style={({ pressed }) => ({
-                minHeight: 44,
-                flex: 1,
-                borderRadius: t.radii.pill,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: canSave ? (pressed ? t.accentPressed : t.accent) : t.lineSoft,
-              })}
-            >
-              <Text
-                style={ui(600, { color: canSave ? t.inkOnDark : t.textSecondary, fontSize: 14 })}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            contentContainerStyle={{
+              paddingTop: 22,
+              paddingHorizontal: 24,
+              paddingBottom: 28 + insets.bottom,
+              gap: 14,
+            }}
+          >
+            <Text style={ui(600, { color: t.textSecondary, fontSize: 11, letterSpacing: 1.1 })}>
+              EDIT GOAL
+            </Text>
+            <LabeledInput label="Goal title" value={title} onChangeText={setTitle} t={t} />
+            <IdentityPicker
+              identities={identities}
+              loading={identitiesLoading}
+              value={selection}
+              onChange={setSelection}
+              t={t}
+            />
+            <LabeledInput
+              label="Deadline · optional"
+              value={deadline}
+              onChangeText={setDeadline}
+              placeholder="YYYY-MM-DD"
+              autoCapitalize="none"
+              t={t}
+            />
+            <PriorityPicker value={priority} onChange={setPriority} t={t} />
+            {update.value && <FeedbackLine feedback={update.value} t={t} />}
+            {remove.value && <FeedbackLine feedback={remove.value} t={t} />}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={!canSave}
+                onPress={() =>
+                  update.run({
+                    id: goal.id,
+                    patch: buildUpdatePayload(
+                      title,
+                      selection,
+                      identityChanged,
+                      trimmedDeadline,
+                      priority,
+                    ),
+                  })
+                }
+                style={({ pressed }) => ({
+                  minHeight: 44,
+                  flex: 1,
+                  borderRadius: t.radii.pill,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: canSave ? (pressed ? t.accentPressed : t.accent) : t.lineSoft,
+                })}
               >
-                {update.mutation.isPending ? 'Saving…' : 'Save changes'}
-              </Text>
-            </Pressable>
+                <Text
+                  style={ui(600, { color: canSave ? t.inkOnDark : t.textSecondary, fontSize: 14 })}
+                >
+                  {update.mutation.isPending ? 'Saving…' : 'Save changes'}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={update.mutation.isPending || remove.mutation.isPending}
+                onPress={onClose}
+                style={({ pressed }) => ({
+                  minHeight: 44,
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.65 : 1,
+                })}
+              >
+                <Text style={ui(600, { color: t.textSecondary, fontSize: 14 })}>Close</Text>
+              </Pressable>
+            </View>
             <Pressable
               accessibilityRole="button"
               disabled={update.mutation.isPending || remove.mutation.isPending}
-              onPress={onClose}
+              onPress={() =>
+                Alert.alert('Delete goal?', 'Tasks stay, but they will no longer have this goal.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => remove.run(goal.id) },
+                ])
+              }
               style={({ pressed }) => ({
                 minHeight: 44,
                 justifyContent: 'center',
                 opacity: pressed ? 0.65 : 1,
               })}
             >
-              <Text style={ui(600, { color: t.textSecondary, fontSize: 14 })}>Close</Text>
+              <Text style={ui(600, { color: t.dangerText, fontSize: 13 })}>Delete goal</Text>
             </Pressable>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={update.mutation.isPending || remove.mutation.isPending}
-            onPress={() =>
-              Alert.alert('Delete goal?', 'Tasks stay, but they will no longer have this goal.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: () => remove.run(goal.id) },
-              ])
-            }
-            style={({ pressed }) => ({
-              minHeight: 44,
-              justifyContent: 'center',
-              opacity: pressed ? 0.65 : 1,
-            })}
-          >
-            <Text style={ui(600, { color: t.dangerText, fontSize: 13 })}>Delete goal</Text>
-          </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -614,7 +627,7 @@ function LabeledInput({
 }
 
 /**
- * Owner-scoped identities as selectable chips, plus a `New` chip that reveals a
+ * Owner-scoped identities as selectable chips, plus a `+ New` chip that reveals a
  * name field. The default identity leads the row so capture stays one tap.
  */
 function IdentityPicker({
@@ -652,8 +665,10 @@ function IdentityPicker({
             />
           );
         })}
+        {/* The `+` prefix keeps this chip distinct from a real identity named "New". */}
         <IdentityChip
-          label="New"
+          label="+ New"
+          accessibilityLabel="Create new identity"
           selected={creating}
           onPress={() => onChange({ kind: 'new', name: '' })}
           t={t}
@@ -684,11 +699,13 @@ function IdentityPicker({
 
 function IdentityChip({
   label,
+  accessibilityLabel,
   selected,
   onPress,
   t,
 }: {
   label: string;
+  accessibilityLabel?: string;
   selected: boolean;
   onPress: () => void;
   t: Theme;
@@ -697,7 +714,7 @@ function IdentityChip({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
       style={({ pressed }) => ({
         minHeight: 44,
@@ -888,7 +905,32 @@ function buildCreatePayload(
   selection: IdentitySelection | null,
   priority: Priority | null,
 ): GoalCreateRequest {
-  return { title: title.trim(), ...identityFields(selection), priority };
+  const identity = requiredIdentityFields(selection);
+  return { title: title.trim(), ...identity, priority };
+}
+
+function buildUpdatePayload(
+  title: string,
+  selection: IdentitySelection | null,
+  identityChanged: boolean,
+  deadline: string,
+  priority: Priority | null,
+): GoalUpdateRequest {
+  const fields = {
+    title: title.trim(),
+    deadline: deadline.length > 0 ? deadline : null,
+    priority,
+  };
+  return identityChanged ? { ...fields, ...requiredIdentityFields(selection) } : fields;
+}
+
+function requiredIdentityFields(
+  selection: IdentitySelection | null,
+): { identityId: string; identityRole?: never } | { identityId?: never; identityRole: string } {
+  const fields = identityFields(selection);
+  if (fields.identityId !== undefined) return { identityId: fields.identityId };
+  if (fields.identityRole !== undefined) return { identityRole: fields.identityRole };
+  throw new Error('A complete identity selection is required.');
 }
 
 function closeIfIdle(

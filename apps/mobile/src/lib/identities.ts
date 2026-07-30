@@ -7,6 +7,11 @@ import type { Goal, Identity } from '@ekagra/core';
  */
 export type IdentitySelection = { kind: 'existing'; id: string } | { kind: 'new'; name: string };
 
+export type IdentityWriteFields =
+  | { identityId: string; identityRole?: never }
+  | { identityId?: never; identityRole: string }
+  | { identityId?: never; identityRole?: never };
+
 /** The default `Me` identity keeps capture one tap; fall back to the oldest identity. */
 export function defaultIdentity(identities: Identity[]): Identity | null {
   return identities.find((identity) => identity.isDefault) ?? identities[0] ?? null;
@@ -32,10 +37,7 @@ export function selectionForGoal(goal: Goal, identities: Identity[]): IdentitySe
  * The identity fields of a goal write. An existing identity travels as the
  * authoritative id; a typed name travels on the compatibility label seam.
  */
-export function identityFields(selection: IdentitySelection | null): {
-  identityId?: string;
-  identityRole?: string;
-} {
+export function identityFields(selection: IdentitySelection | null): IdentityWriteFields {
   if (!selection) return {};
   if (selection.kind === 'existing') return { identityId: selection.id };
   const name = selection.name.trim();

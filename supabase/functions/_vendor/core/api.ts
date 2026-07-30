@@ -149,18 +149,32 @@ export type TaskUpdateRequest = Partial<TaskCreateRequest> & {
   status?: TaskStatus;
 };
 
-export type GoalCreateRequest = {
+type GoalWriteFields = {
   title: string;
-  /** Preferred identity seam. Exactly one of identityId/identityRole is required. */
-  identityId?: string;
-  /** Legacy label seam — the database resolves it to an identity of the same owner. */
-  identityRole?: string;
   deadline?: string | null;
   priority?: Priority | null;
   clientOpId?: string;
 };
 
-export type GoalUpdateRequest = Partial<GoalCreateRequest>;
+type GoalIdentityChoice =
+  | {
+      /** Preferred identity seam. */
+      identityId: string;
+      identityRole?: never;
+    }
+  | {
+      identityId?: never;
+      /** Legacy label seam — the database resolves it to an identity of the same owner. */
+      identityRole: string;
+    };
+
+type OptionalGoalIdentity = GoalIdentityChoice | { identityId?: never; identityRole?: never };
+
+/** Goal creation always carries exactly one identity representation. */
+export type GoalCreateRequest = GoalWriteFields & GoalIdentityChoice;
+
+/** Goal updates may omit identity, but cannot send both identity representations. */
+export type GoalUpdateRequest = Partial<GoalWriteFields> & OptionalGoalIdentity;
 
 export type MorningCommitRequest = {
   taskIds: string[];
@@ -321,6 +335,13 @@ function stringValue(value: unknown, field: string, maxLength = 200): string {
     );
   }
   return value.trim();
+}
+
+function storedStringValue(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new ContractError(`${field} must be a non-empty string.`);
+  }
+  return value;
 }
 
 /** A string-or-null field: undefined/null map to null, anything non-string is rejected. */
@@ -521,9 +542,8 @@ export function parseGoalCreateRequest(value: unknown): GoalCreateRequest {
   if (identity.identityId === undefined && identity.identityRole === undefined) {
     throw new ContractError('identityId or identityRole is required.');
   }
-  return {
+  const fields: GoalWriteFields = {
     title: stringValue(input.title, 'title', 500),
-    ...identity,
     deadline: parseDate(input.deadline, 'deadline'),
     ...(input.priority === undefined
       ? {}
@@ -532,17 +552,22 @@ export function parseGoalCreateRequest(value: unknown): GoalCreateRequest {
       ? {}
       : { clientOpId: uuidValue(input.clientOpId, 'clientOpId') }),
   };
+  return identity.identityId !== undefined
+    ? { ...fields, identityId: identity.identityId }
+    : { ...fields, identityRole: identity.identityRole as string };
 }
 
 export function parseGoalUpdateRequest(value: unknown): GoalUpdateRequest {
   const input = objectValue(value, 'request');
-  const result: GoalUpdateRequest = { ...parseGoalIdentity(input) };
+  const result: Partial<GoalWriteFields> & { identityId?: string; identityRole?: string } = {
+    ...parseGoalIdentity(input),
+  };
   if (input.title !== undefined) result.title = stringValue(input.title, 'title', 500);
   if (input.deadline !== undefined) result.deadline = parseDate(input.deadline, 'deadline');
   if (input.priority !== undefined) result.priority = parsePriority(input.priority, 'priority');
   if (Object.keys(result).length === 0)
     throw new ContractError('At least one goal field is required.');
-  return result;
+  return result as GoalUpdateRequest;
 }
 
 export function parseMorningCommitRequest(value: unknown): MorningCommitRequest {
@@ -607,7 +632,7 @@ export function parseIdentity(value: unknown): Identity {
   const input = objectValue(value, 'identity');
   return {
     id: uuidValue(input.id, 'id'),
-    name: stringValue(input.name, 'name', 120),
+    name: storedStringValue(input.name, 'name'),
     isDefault: input.is_default === true,
     createdAt: stringValue(input.created_at, 'created_at', 40),
     updatedAt: stringValue(input.updated_at, 'updated_at', 40),

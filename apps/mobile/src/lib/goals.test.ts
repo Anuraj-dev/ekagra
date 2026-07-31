@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Goal } from '@ekagra/core';
-import { color, goalPalette } from '../theme/tokens';
+import { color, goalPalette } from '@ekagra/tokens';
 import { buildGoalColorMap, goalColor, goalName } from './goals';
 
 function goal(id: string, createdAt: string, title = id): Goal {

@@ -1,6 +1,6 @@
+import { color } from '@ekagra/tokens';
 import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
-import { color } from '../theme/tokens';
 import { text } from '../theme/typography';
 import { ChevronLeftIcon } from './icons';
 import { Enter } from './motion';

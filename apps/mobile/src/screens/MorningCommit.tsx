@@ -1,3 +1,4 @@
+import { color } from '@ekagra/tokens';
 import { useNavigation } from '@react-navigation/native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -10,7 +11,6 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor, goalName } from '../lib/goals';
 import type { RootNav } from '../nav/types';
-import { color } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 
 /** Morning Commit flow — save one to three tasks (the server contract's range). */

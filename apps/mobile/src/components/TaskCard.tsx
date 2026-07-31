@@ -1,7 +1,7 @@
 import type { Task } from '@ekagra/core';
+import { color } from '@ekagra/tokens';
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { color } from '../theme/tokens';
 import { tabular, text } from '../theme/typography';
 import { BlockMeter } from './BlockMeter';
 import { GoalMark } from './GoalMark';

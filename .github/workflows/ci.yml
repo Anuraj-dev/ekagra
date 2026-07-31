@@ -25,7 +25,7 @@ jobs:
           ./scripts/sync-core-vendor.sh
           git diff --exit-code supabase/functions/_vendor
       - run: bun run lint
-      - run: bun test
+      - run: bun run test
 
   supabase:
     name: Fresh Supabase migrations and database tests

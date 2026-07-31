@@ -1,3 +1,4 @@
+import { color, space } from '@ekagra/tokens';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
@@ -5,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
 import { Screen } from '../components/Screen';
 import { PrimaryButton } from '../components/ui';
-import { color, space } from '../theme/tokens';
 import { overline, text } from '../theme/typography';
 
 /** Map raw Supabase error messages to plain, sanitized copy. */

@@ -1,6 +1,7 @@
 /** Line icons transcribed from the web app, reimplemented with react-native-svg. */
+
+import { color } from '@ekagra/tokens';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { color } from '../theme/tokens';
 
 export function TodayIcon({ tint = color.t4 }: { tint?: string }) {
   return (

@@ -1,5 +1,5 @@
+import { color, space } from '@ekagra/tokens';
 import { View } from 'react-native';
-import { color, space } from '../theme/tokens';
 
 /**
  * Segmented ledger bar (DESIGN-SPEC §6). Each segment is one estimated block;

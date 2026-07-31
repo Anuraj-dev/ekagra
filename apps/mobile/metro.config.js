@@ -1,5 +1,5 @@
 // Metro config tuned for the Bun monorepo: watch the workspace root so shared
-// packages (@ekagra/core) and the reused web token module resolve, and let Metro
+// packages (@ekagra/core and @ekagra/tokens) resolve, and let Metro
 // find hoisted dependencies from both the app and the root node_modules.
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('node:path');

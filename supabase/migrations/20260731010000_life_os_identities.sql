@@ -87,10 +87,11 @@ select profiles.id, 'Me'
 from public.profiles
 on conflict (owner_id, name) do nothing;
 
--- Take the writer-conflicting lock before snapshotting legacy roles; it waits
--- for earlier goal writes and holds later writes until the identity trigger and
--- FK are installed at commit.
-lock table public.goals in share row exclusive mode;
+-- Take the strongest lock this transaction will need before snapshotting
+-- legacy roles: ADD COLUMN below requires ACCESS EXCLUSIVE. Acquiring it up
+-- front avoids a lock-upgrade deadlock with a transaction that first reads
+-- goals and then tries to write them.
+lock table public.goals in access exclusive mode;
 
 -- Preserve every exact legacy role per owner before adding the goal FK. Public
 -- goal writes stay capped at 120 characters, while the Identity read contract

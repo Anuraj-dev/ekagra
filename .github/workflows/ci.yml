@@ -43,7 +43,12 @@ jobs:
       - run: supabase start -x studio -x imgproxy
       - run: supabase db lint --local
       - run: supabase db reset --local
-      - run: supabase test db
+      - name: Run database tests
+        run: |
+          migration_fixture=supabase/tests/life_os_identities_migration.inc
+          cp supabase/migrations/20260731010000_life_os_identities.sql "$migration_fixture"
+          trap 'rm -f "$migration_fixture"' EXIT
+          supabase test db
       - name: Export local Supabase connection values
         run: |
           supabase status -o env > /tmp/supabase.env

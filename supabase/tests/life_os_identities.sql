@@ -1,6 +1,6 @@
 begin;
 
-select plan(30);
+select plan(37);
 
 select has_table('public', 'identities', 'identities table exists');
 select has_column('public', 'identities', 'owner_id', 'identities are owner scoped');
@@ -54,6 +54,14 @@ select is(
   'the seeded Builder role is preserved as an identity'
 );
 select is(
+  (select convalidated
+   from pg_constraint
+   where conrelid = 'public.identities'::regclass
+     and conname = 'identities_name_canonical'),
+  false,
+  'the canonical name check stays NOT VALID so historical identities survive'
+);
+select is(
   has_table_privilege('anon', 'public.identities', 'select'),
   false,
   'anonymous users cannot select identities'
@@ -104,6 +112,61 @@ select throws_ok(
   '23505',
   null,
   'identity names are unique per owner'
+);
+select throws_ok(
+  $$insert into public.identities (id, owner_id, name)
+    values ('71000000-0000-0000-0000-000000000005'::uuid,
+            '00000000-0000-0000-0000-000000000001'::uuid,
+            '  Student  ')$$,
+  '23514',
+  null,
+  'a direct write cannot smuggle a whitespace-padded duplicate name'
+);
+select throws_ok(
+  format(
+    $$insert into public.identities (id, owner_id, name)
+      values ('71000000-0000-0000-0000-000000000006'::uuid,
+              '00000000-0000-0000-0000-000000000001'::uuid,
+              %L)$$,
+    repeat('n', 121)
+  ),
+  '23514',
+  null,
+  'a direct write cannot exceed the 120 character name bound'
+);
+select lives_ok(
+  format(
+    $$insert into public.identities (id, owner_id, name)
+      values ('71000000-0000-0000-0000-000000000007'::uuid,
+              '00000000-0000-0000-0000-000000000001'::uuid,
+              %L)$$,
+    repeat('n', 120)
+  ),
+  'a 120 character identity name is still accepted'
+);
+select throws_ok(
+  $$update public.identities
+    set name = ' Student '
+    where owner_id = '00000000-0000-0000-0000-000000000001'::uuid
+      and name = 'Student'$$,
+  '23514',
+  null,
+  'a direct update cannot introduce a padded name'
+);
+select lives_ok(
+  $$insert into public.goals (id, owner_id, title, identity_role)
+    values ('72000000-0000-0000-0000-000000000005'::uuid,
+            '00000000-0000-0000-0000-000000000001'::uuid,
+            'Padded legacy role goal',
+            '  Student  ')$$,
+  'a padded legacy goal role still resolves'
+);
+select is(
+  (select count(*) from public.identities
+   where owner_id = '00000000-0000-0000-0000-000000000001'::uuid
+     and name = 'Student'),
+  1::bigint,
+  'a padded legacy goal role reuses the canonical identity instead of duplicating it'
 );
 select lives_ok(
   $$insert into public.goals (id, owner_id, title, identity_role)

@@ -101,6 +101,19 @@ select distinct goals.owner_id, goals.identity_role
 from public.goals
 on conflict (owner_id, name) do nothing;
 
+-- Canonical names for every Identity written from here on. An authenticated
+-- client reaching PostgREST directly must not be able to slip a
+-- whitespace-padded duplicate past the (owner_id, name) unique key, or store an
+-- unbounded name the 120-character goal contract rejects. NOT VALID is the
+-- additive-safe half: it skips the full-table scan so every legacy row
+-- backfilled above survives byte for byte -- including dirty historical goal
+-- labels -- while Postgres still enforces the check on every later INSERT and
+-- UPDATE, including updates to those legacy rows.
+alter table public.identities
+  add constraint identities_name_canonical
+    check (name = trim(name) and length(name) <= 120)
+    not valid;
+
 alter table public.goals
   add column identity_id uuid;
 
@@ -134,6 +147,7 @@ as $$
 declare
   resolved_id uuid;
   resolved_name text;
+  target_name text;
 begin
   -- A legacy PATCH changes the mirror while leaving identity_id untouched.
   -- Resolve that label as a new authoritative Identity for the same owner.
@@ -156,12 +170,34 @@ begin
         message = 'goal identity must belong to goal owner';
     end if;
   elsif nullif(trim(new.identity_role), '') is not null then
-    resolved_name := trim(new.identity_role);
+    target_name := trim(new.identity_role);
 
-    insert into public.identities (owner_id, name)
-    values (new.owner_id, resolved_name)
-    on conflict (owner_id, name) do update set name = excluded.name
-    returning id, name into resolved_id, resolved_name;
+    -- Read first, and never take a row lock on an Identity that already
+    -- exists. This trigger runs while the writer holds its goal row, and the
+    -- rename trigger below locks an Identity and then updates that owner's
+    -- goals; upgrading the existing Identity here (ON CONFLICT DO UPDATE)
+    -- claimed the two in the opposite order and deadlocked. Plain SELECT takes
+    -- no lock and the goal FK only needs KEY SHARE, which does not conflict
+    -- with a rename's non-key update, so the cycle cannot form. INSERT ... DO
+    -- NOTHING locks only a row it creates; the loop closes the concurrent
+    -- create race, where DO NOTHING returns no row because a competing
+    -- transaction inserted the same name first.
+    loop
+      select identities.id, identities.name
+        into resolved_id, resolved_name
+      from public.identities
+      where identities.owner_id = new.owner_id
+        and identities.name = target_name;
+
+      exit when resolved_id is not null;
+
+      insert into public.identities (owner_id, name)
+      values (new.owner_id, target_name)
+      on conflict (owner_id, name) do nothing
+      returning id, name into resolved_id, resolved_name;
+
+      exit when resolved_id is not null;
+    end loop;
   else
     select identities.id, identities.name
       into resolved_id, resolved_name

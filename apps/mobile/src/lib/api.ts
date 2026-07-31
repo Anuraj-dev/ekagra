@@ -140,12 +140,16 @@ export const identitiesApi = {
   /**
    * Owner-scoped identities, oldest first. Read directly from `identities`
    * (owner-scoped RLS); goal writes carry the identity id through /goals.
+   * `id` breaks created_at ties so the picker order is stable across refetches
+   * — the migration backfills a whole owner's identities in one statement, so
+   * ties are the norm, not the exception.
    */
   list: async (): Promise<Identity[]> => {
     const { data, error } = await supabase
       .from('identities')
       .select(IDENTITY_COLUMNS)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
     if (error) throw new ApiError(500, 'internal_error', error.message);
     return (data ?? []).map(parseIdentity);
   },

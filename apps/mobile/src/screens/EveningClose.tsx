@@ -1,3 +1,4 @@
+import { color } from '@ekagra/tokens';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
@@ -9,7 +10,6 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { useData } from '../data/DataProvider';
 import { motivationApi } from '../lib/api';
 import type { RootNav } from '../nav/types';
-import { color } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 const WENT_WRONG_TAGS = ['on-plan', 'scope-creep', 'interruptions', 'low-energy', 'other'] as const;

@@ -1,7 +1,7 @@
+import { color, space } from '@ekagra/tokens';
 import type { ReactNode } from 'react';
 import { ScrollView, type StyleProp, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { color, space } from '../theme/tokens';
 
 /**
  * The app frame for a tabbed screen: full-bleed background, safe-area aware, with a

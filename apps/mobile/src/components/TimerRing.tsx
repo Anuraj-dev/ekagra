@@ -1,3 +1,4 @@
+import { color, ring } from '@ekagra/tokens';
 import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import Animated, {
@@ -8,7 +9,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
-import { color, ring } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 export type RingPhase = 'work' | 'break';

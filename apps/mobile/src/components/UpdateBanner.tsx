@@ -1,10 +1,10 @@
+import { color } from '@ekagra/tokens';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadDismissedVersion, saveDismissedVersion } from '../lib/updatePrefs';
 import type { UpdateErrorReason } from '../lib/updates';
 import { useUpdater } from '../lib/useUpdater';
-import { color } from '../theme/tokens';
 import { text } from '../theme/typography';
 
 const ERROR_COPY: Record<UpdateErrorReason, string> = {

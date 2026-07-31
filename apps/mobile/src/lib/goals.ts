@@ -1,5 +1,5 @@
 import type { Goal } from '@ekagra/core';
-import { color, goalPalette } from '../theme/tokens';
+import { color, goalPalette } from '@ekagra/tokens';
 
 /**
  * Goal color is data (DESIGN-SPEC §2/§5). The API has no color field, so we assign

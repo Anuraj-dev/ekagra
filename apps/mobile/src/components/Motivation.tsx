@@ -1,7 +1,7 @@
 import type { MotivationRates, MotivationStatus } from '@ekagra/core';
+import { color } from '@ekagra/tokens';
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { color } from '../theme/tokens';
 import { overline, tabular, text } from '../theme/typography';
 
 export function RateRings({ rates }: { rates: MotivationRates[] }) {

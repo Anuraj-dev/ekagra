@@ -1,0 +1,3 @@
+# Keep the dormant web test harness available when the web app is explicitly resurrected.
+[test]
+preload = ["./src/test/setup-dom.ts"]

@@ -1,6 +1,6 @@
+import { color } from '@ekagra/tokens';
 import type { ReactNode } from 'react';
 import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native';
-import { color } from '../theme/tokens';
 import { overline, text } from '../theme/typography';
 
 /** Filled ember pill; disabled → the hard-block "well" treatment (DESIGN-SPEC §6). */

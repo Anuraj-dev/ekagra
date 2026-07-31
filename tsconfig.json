@@ -11,6 +11,6 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["packages", "apps"],
-  "exclude": ["node_modules", "apps/mobile"]
+  "include": ["packages", "apps/cli"],
+  "exclude": ["node_modules"]
 }

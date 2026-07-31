@@ -1,3 +1,4 @@
-# Registers a happy-dom document before any test module loads (web render tests).
+# The active test path needs a DOM for mobile's React contract tests. Web's
+# separate harness remains scoped to apps/web/bunfig.toml.
 [test]
-preload = ["./apps/web/src/test/setup-dom.ts"]
+preload = ["./apps/mobile/src/test/setup-dom.ts"]

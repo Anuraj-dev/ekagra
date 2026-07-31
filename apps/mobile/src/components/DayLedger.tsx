@@ -1,5 +1,5 @@
+import { color } from '@ekagra/tokens';
 import { Text, View } from 'react-native';
-import { color } from '../theme/tokens';
 import { text } from '../theme/typography';
 
 /**

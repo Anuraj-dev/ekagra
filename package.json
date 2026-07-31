@@ -7,8 +7,8 @@
     "apps/*"
   ],
   "scripts": {
-    "lint": "biome check .",
-    "test": "bun test",
+    "lint": "biome check packages apps/cli apps/mobile firmware supabase scripts",
+    "test": "bun test $(rg --files packages apps/cli apps/mobile firmware supabase -g '*.test.ts' -g '*.test.tsx')",
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/mobile/tsconfig.json"
   },
   "devDependencies": {

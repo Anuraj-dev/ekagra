@@ -1,4 +1,4 @@
-import type { Goal } from '@ekagra/core';
+import type { Goal, GoalUpdateRequest } from '@ekagra/core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useData } from '../data/DataProvider';
 import { buildGoalColorMap, goalColor } from '../lib/goals';
@@ -278,10 +278,7 @@ function GoalSheet({
 }: {
   goal: Goal;
   onClose: () => void;
-  onSave: (
-    id: string,
-    payload: { title?: string; identityRole?: string; deadline?: string | null },
-  ) => Promise<unknown>;
+  onSave: (id: string, payload: GoalUpdateRequest) => Promise<unknown>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const [title, setTitle] = useState(goal.title);

@@ -22,7 +22,9 @@ export function useCreateGoal(): RetryableMutationResult<GoalCreateRequest> {
       const provisional: CachedGoal = {
         id: variables.optimisticId,
         title: variables.title,
-        identityRole: variables.identityRole,
+        identityId: variables.identityId,
+        // Empty until the server mirrors the name; the card reads the identity row.
+        identityRole: variables.identityRole ?? '',
         deadline: variables.deadline ?? null,
         archivedAt: null,
         createdAt: now,
@@ -42,7 +44,14 @@ export function useCreateGoal(): RetryableMutationResult<GoalCreateRequest> {
         currentOperation.current = null;
       }
     },
-    onSettled: () => client.invalidateQueries({ queryKey: qk.goals }),
+    // A goal written on the label seam creates its identity server-side, so the
+    // identity list is refreshed alongside goals.
+    onSettled: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: qk.goals }),
+        client.invalidateQueries({ queryKey: qk.identities }),
+      ]);
+    },
   });
   const mutate = useCallback(
     (input: GoalCreateRequest) => {
@@ -81,8 +90,12 @@ export function useUpdateGoal(): MutationResult<{ id: string; patch: GoalUpdateR
     onMutate: async ({ id, patch }) => {
       await client.cancelQueries({ queryKey: qk.goals });
       const previous = client.getQueryData<CachedGoal[]>(qk.goals);
+      const optimisticPatch =
+        patch.identityRole === undefined ? patch : { ...patch, identityId: undefined };
       client.setQueryData<CachedGoal[]>(qk.goals, (goals = []) =>
-        goals.map((goal) => (goal.id === id ? { ...goal, ...patch, syncing: true } : goal)),
+        goals.map((goal) =>
+          goal.id === id ? { ...goal, ...optimisticPatch, syncing: true } : goal,
+        ),
       );
       return { previous };
     },
@@ -92,7 +105,12 @@ export function useUpdateGoal(): MutationResult<{ id: string; patch: GoalUpdateR
         goals.map((goal) => (goal.id === updated.id ? updated : goal)),
       );
     },
-    onSettled: () => client.invalidateQueries({ queryKey: qk.goals }),
+    onSettled: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: qk.goals }),
+        client.invalidateQueries({ queryKey: qk.identities }),
+      ]);
+    },
   });
   return {
     mutate: mutation.mutate,

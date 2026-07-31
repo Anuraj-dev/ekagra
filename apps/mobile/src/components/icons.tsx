@@ -103,6 +103,20 @@ export function ChevronLeftIcon({ tint = color.t3 }: { tint?: string }) {
   );
 }
 
+export function PlusIcon({ tint = color.t4, size = 18 }: { tint?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 20 20">
+      <Path
+        d="M10 4 L10 16 M4 10 L16 10"
+        fill="none"
+        stroke={tint}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export function PlayIcon({ size = 16, fill = color.bg }: { size?: number; fill?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">

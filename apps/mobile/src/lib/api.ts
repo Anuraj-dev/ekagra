@@ -12,6 +12,7 @@ import type {
   Goal,
   GoalCreateRequest,
   GoalUpdateRequest,
+  Identity,
   IdentityRoleHours,
   MorningCommitRequest,
   MotivationStatus,
@@ -26,10 +27,11 @@ import type {
   TaskUpdateRequest,
   WeeklyReview,
 } from '@ekagra/core';
-import { parseDayRecord } from '@ekagra/core';
+import { parseDayRecord, parseIdentity } from '@ekagra/core';
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, supabase } from './supabase';
 
 const DAY_RECORD_COLUMNS = 'record_date,morning_task_ids,plan_match,went_wrong_tag,note,updated_at';
+const IDENTITY_COLUMNS = 'id,name,is_default,created_at,updated_at';
 
 /** A typed error carrying the contract's error code, thrown for any non-2xx response. */
 export class ApiError extends Error {
@@ -130,6 +132,27 @@ export const goalsApi = {
       (r) => r.goal,
     ),
   remove: (id: string) => request<void>('/goals', { method: 'DELETE', query: { id } }),
+};
+
+// --- Identities -------------------------------------------------------------
+
+export const identitiesApi = {
+  /**
+   * Owner-scoped identities, oldest first. Read directly from `identities`
+   * (owner-scoped RLS); goal writes carry the identity id through /goals.
+   * `id` breaks created_at ties so the picker order is stable across refetches
+   * — the migration backfills a whole owner's identities in one statement, so
+   * ties are the norm, not the exception.
+   */
+  list: async (): Promise<Identity[]> => {
+    const { data, error } = await supabase
+      .from('identities')
+      .select(IDENTITY_COLUMNS)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) throw new ApiError(500, 'internal_error', error.message);
+    return (data ?? []).map(parseIdentity);
+  },
 };
 
 // --- Rituals ----------------------------------------------------------------

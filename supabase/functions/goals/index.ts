@@ -8,12 +8,14 @@ import {
   parseUuid,
 } from '../_vendor/core/index.ts';
 
-const fields = 'id,title,identity_role,deadline,priority,archived_at,created_at,updated_at';
+const fields =
+  'id,title,identity_id,identity_role,deadline,priority,archived_at,created_at,updated_at';
 
 function view(row: GoalRow): Goal {
   return {
     id: row.id,
     title: row.title,
+    identityId: row.identity_id,
     identityRole: row.identity_role,
     deadline: row.deadline,
     priority: row.priority,
@@ -42,7 +44,10 @@ Deno.serve((request) =>
         .insert({
           owner_id: ownerId,
           title: input.title,
-          identity_role: input.identityRole,
+          // The goals identity trigger resolves whichever seam the client sent and
+          // keeps identity_role mirrored, so only the provided one is written.
+          ...(input.identityId === undefined ? {} : { identity_id: input.identityId }),
+          ...(input.identityRole === undefined ? {} : { identity_role: input.identityRole }),
           deadline: input.deadline ?? null,
           priority: input.priority ?? null,
           client_op_id: input.clientOpId ?? null,
@@ -71,6 +76,7 @@ Deno.serve((request) =>
       const input = parseGoalUpdateRequest(await body(request));
       const update = {
         ...(input.title === undefined ? {} : { title: input.title }),
+        ...(input.identityId === undefined ? {} : { identity_id: input.identityId }),
         ...(input.identityRole === undefined ? {} : { identity_role: input.identityRole }),
         ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
         ...(input.priority === undefined ? {} : { priority: input.priority }),

@@ -43,7 +43,16 @@ jobs:
       - run: supabase start -x studio -x imgproxy
       - run: supabase db lint --local
       - run: supabase db reset --local
-      - run: supabase test db
+      - name: Run database tests
+        run: |
+          # Every test except the identities upgrade replay, which downgrades the
+          # schema and must not run before tests that assume the intact one.
+          # Globbing (not a hand-written list) keeps new tests in this suite.
+          mapfile -t suite < <(
+            find supabase/tests -maxdepth 1 -name '*.sql' \
+              ! -name 'life_os_identities_upgrade.sql' | sort
+          )
+          supabase test db "${suite[@]}"
       - name: Export local Supabase connection values
         run: |
           supabase status -o env > /tmp/supabase.env
@@ -65,6 +74,19 @@ jobs:
           exit 1
       - run: bun scripts/phase-2-smoke.ts
       - run: bun scripts/phase-8-cli-smoke.ts
+      # Strictly the last database test. Reset to the migration immediately
+      # before identities, then replay the identities migration against that
+      # disposable schema. Pinning the starting version keeps later Identity
+      # foreign keys from making this historical upgrade test impossible.
+      - name: Replay the identities upgrade
+        run: |
+          supabase db reset --local --version 20260713170000
+          migration_fixture=supabase/tests/life_os_identities_migration.inc
+          # The replay \ir's this fixture, so the copy has to live inside the
+          # test directory the CLI mounts, under its exact expected name.
+          cp supabase/migrations/20260731010000_life_os_identities.sql "$migration_fixture"
+          trap 'rm -f "$migration_fixture"' EXIT
+          supabase test db supabase/tests/life_os_identities_upgrade.sql
       - name: Dump edge function logs
         if: failure()
         run: |

@@ -6,6 +6,7 @@ import {
   parseEveningCloseRequest,
   parseGoalCreateRequest,
   parseGoalUpdateRequest,
+  parseIdentity,
   parseMorningCommitRequest,
   parseSessionCommand,
   parseSessionStartRequest,
@@ -105,6 +106,94 @@ describe('API contract validators', () => {
     expect(() => parseTaskUpdateRequest({ notes: 'x'.repeat(2001) })).toThrow('notes');
     expect(() => parseGoalUpdateRequest({ priority: 'urgent' })).toThrow('priority');
     expect(() => parseSessionStartRequest({ taskId, clientOpId: 'not-a-uuid' })).toThrow('UUID');
+  });
+});
+
+describe('goal identity seam', () => {
+  const identityId = '70000000-0000-0000-0000-000000000001';
+
+  test('accepts either identity seam on create and update', () => {
+    expect(parseGoalCreateRequest({ title: 'Ship v2', identityId })).toMatchObject({ identityId });
+    expect(parseGoalCreateRequest({ title: 'Ship v2', identityRole: ' Builder ' })).toMatchObject({
+      identityRole: 'Builder',
+    });
+    expect(parseGoalUpdateRequest({ identityId })).toEqual({ identityId });
+    expect(parseGoalUpdateRequest({ identityRole: 'Student' })).toEqual({
+      identityRole: 'Student',
+    });
+  });
+
+  test('rejects a missing, doubled, or malformed identity', () => {
+    expect(() => parseGoalCreateRequest({ title: 'No identity' })).toThrow('identityId');
+    expect(() =>
+      parseGoalCreateRequest({ title: 'Both', identityId, identityRole: 'Builder' }),
+    ).toThrow('not both');
+    expect(() => parseGoalCreateRequest({ title: 'Bad id', identityId: 'not-a-uuid' })).toThrow(
+      'UUID',
+    );
+    expect(() => parseGoalUpdateRequest({ identityId: 'not-a-uuid' })).toThrow('UUID');
+  });
+
+  test('an identity-only update is a valid patch', () => {
+    expect(() => parseGoalUpdateRequest({})).toThrow('At least one goal field');
+    expect(parseGoalUpdateRequest({ identityId }).identityId).toBe(identityId);
+  });
+});
+
+describe('parseIdentity', () => {
+  test('maps an identities row into a typed Identity', () => {
+    expect(
+      parseIdentity({
+        id: '70000000-0000-0000-0000-000000000002',
+        name: 'Me',
+        is_default: true,
+        created_at: '2026-07-31T00:00:00.000Z',
+        updated_at: '2026-07-31T00:00:00.000Z',
+      }),
+    ).toEqual({
+      id: '70000000-0000-0000-0000-000000000002',
+      name: 'Me',
+      isDefault: true,
+      createdAt: '2026-07-31T00:00:00.000Z',
+      updatedAt: '2026-07-31T00:00:00.000Z',
+    });
+  });
+
+  test('rejects a row without a usable name', () => {
+    expect(() =>
+      parseIdentity({
+        id: '70000000-0000-0000-0000-000000000003',
+        name: '',
+        is_default: false,
+        created_at: '2026-07-31T00:00:00.000Z',
+        updated_at: '2026-07-31T00:00:00.000Z',
+      }),
+    ).toThrow('name');
+  });
+
+  test('preserves historical identity text outside the public write limit', () => {
+    const historicalName = ` ${'x'.repeat(121)} `;
+    expect(
+      parseIdentity({
+        id: '70000000-0000-0000-0000-000000000004',
+        name: historicalName,
+        is_default: false,
+        created_at: '2026-07-31T00:00:00.000Z',
+        updated_at: '2026-07-31T00:00:00.000Z',
+      }).name,
+    ).toBe(historicalName);
+  });
+
+  test('preserves a tab-only identity accepted by the legacy database constraint', () => {
+    expect(
+      parseIdentity({
+        id: '70000000-0000-0000-0000-000000000005',
+        name: '\t',
+        is_default: false,
+        created_at: '2026-07-31T00:00:00.000Z',
+        updated_at: '2026-07-31T00:00:00.000Z',
+      }).name,
+    ).toBe('\t');
   });
 });
 

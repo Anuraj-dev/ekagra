@@ -2,6 +2,8 @@
 -- identity_role remains as a trigger-maintained compatibility mirror while
 -- existing mobile, CLI, Edge Function, and analytics consumers migrate.
 
+begin;
+
 create table public.identities (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete cascade,
@@ -85,9 +87,9 @@ select profiles.id, 'Me'
 from public.profiles
 on conflict (owner_id, name) do nothing;
 
--- Supabase applies this migration transactionally. Take the writer-conflicting
--- lock before snapshotting legacy roles; it waits for earlier goal writes and
--- holds later writes until the identity trigger and FK are installed.
+-- Take the writer-conflicting lock before snapshotting legacy roles; it waits
+-- for earlier goal writes and holds later writes until the identity trigger and
+-- FK are installed at commit.
 lock table public.goals in share row exclusive mode;
 
 -- Preserve every exact legacy role per owner before adding the goal FK. Public
@@ -202,3 +204,5 @@ $$;
 create trigger identities_sync_goal_mirror
   after update of name on public.identities
   for each row execute function public.sync_identity_name_to_goals();
+
+commit;

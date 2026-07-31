@@ -1,7 +1,14 @@
 begin;
 
 -- Reconstruct the schema immediately before the identities migration, seed a
--- legacy row, and replay the real migration inside this rollback-only test.
+-- legacy row, and replay the real migration with its production transaction
+-- boundary. Preserve the changed seed values so later pgTAP files see the same
+-- fixture state.
+create temporary table identity_upgrade_original_goal on commit preserve rows as
+select id, identity_role, updated_at
+from public.goals
+where id = '10000000-0000-0000-0000-000000000001'::uuid;
+
 drop trigger profiles_seed_default_identity on public.profiles;
 drop trigger goals_resolve_identity on public.goals;
 drop trigger identities_sync_goal_mirror on public.identities;
@@ -21,7 +28,11 @@ set identity_role = ' Legacy Builder ',
 where id = '10000000-0000-0000-0000-000000000001'::uuid;
 alter table public.goals enable trigger goals_set_updated_at;
 
+commit;
+
 \ir ../migrations/20260731010000_life_os_identities.sql
+
+begin;
 
 select plan(4);
 
@@ -53,5 +64,19 @@ select is(
   (select count(*) from public.goals),
   'the replay links every existing goal to a same-owner identity'
 );
+
+update public.identities
+set name = original.identity_role
+from identity_upgrade_original_goal as original
+join public.goals on goals.id = original.id
+where identities.id = goals.identity_id;
+
+alter table public.goals disable trigger goals_set_updated_at;
+update public.goals
+set updated_at = original.updated_at
+from identity_upgrade_original_goal as original
+where goals.id = original.id;
+alter table public.goals enable trigger goals_set_updated_at;
+
 select * from finish();
-rollback;
+commit;

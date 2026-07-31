@@ -8,12 +8,15 @@ import type { CommandDeps } from './context';
  */
 export async function today(deps: CommandDeps): Promise<number> {
   const { io, client } = deps;
-  const [planned, current, stats, rate] = await Promise.all([
-    client.listTasks('planned'),
+  const [todayPlan, current, stats, rate] = await Promise.all([
+    client.todayPlan(),
     client.currentSession(),
     client.todayStats(),
     client.rollingRate(7),
   ]);
+  const planned = todayPlan.commitments.flatMap((commitment) =>
+    commitment.task ? [commitment.task] : [],
+  );
 
   io.line(bold('Today'));
   if (planned.length === 0) {

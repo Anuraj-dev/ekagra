@@ -24,10 +24,10 @@ export function parseSelection(input: string): number[] {
  */
 export async function plan(deps: CommandDeps): Promise<number> {
   const { io, client } = deps;
-  const [inbox, planned] = await Promise.all([
-    client.listTasks('inbox'),
-    client.listTasks('planned'),
-  ]);
+  const [inbox, todayPlan] = await Promise.all([client.listTasks('inbox'), client.todayPlan()]);
+  const planned = todayPlan.commitments.flatMap((commitment) =>
+    commitment.task ? [commitment.task] : [],
+  );
 
   if (planned.length > 0) {
     io.line(dim('Already committed today:'));

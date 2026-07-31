@@ -1,4 +1,10 @@
-import type { CurrentSessionResponse, Session, SessionResponse, Task } from '@ekagra/core';
+import type {
+  CurrentSessionResponse,
+  Session,
+  SessionResponse,
+  Task,
+  TodayPlan,
+} from '@ekagra/core';
 import type { ApiClient, RollingRate, TodayStats, WeeklyStanding } from './api/client';
 import type { IO } from './io';
 
@@ -80,6 +86,7 @@ type FakeClientState = {
   startResult?: SessionResponse;
   commandResults?: SessionResponse[];
   todayStats?: TodayStats;
+  todayPlan?: TodayPlan;
   rollingRate?: RollingRate | null;
   standings?: WeeklyStanding[];
   userId?: string;
@@ -112,6 +119,28 @@ export function fakeClient(state: FakeClientState = {}): FakeClient {
     commitMorning: (taskIds) => {
       record('commitMorning', taskIds);
       return Promise.resolve();
+    },
+    todayPlan: () => {
+      record('todayPlan');
+      return Promise.resolve(
+        state.todayPlan ?? {
+          plan: {
+            id: '30000000-0000-0000-0000-000000000001',
+            horizon: 'day',
+            startsOn: '2026-07-31',
+            parentPlanId: '30000000-0000-0000-0000-000000000002',
+          },
+          commitments: (state.tasks ?? [])
+            .filter((item) => item.status === 'planned')
+            .map((item, index) => ({
+              id: `40000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`,
+              subjectType: 'task' as const,
+              subjectId: item.id,
+              createdAt: item.createdAt,
+              task: item,
+            })),
+        },
+      );
     },
     currentSession: () => {
       record('currentSession');

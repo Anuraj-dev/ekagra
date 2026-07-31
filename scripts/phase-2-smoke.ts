@@ -9,6 +9,8 @@ const password = 'Phase2-smoke-password-123!';
 
 type SmokeData = {
   task?: { id: string };
+  plan?: { id: string; startsOn?: string };
+  commitments?: Array<{ subjectId?: string; task?: { id?: string; title?: string } | null }>;
   session?: { status?: string; earnedBlock?: boolean };
   deviceToken?: string;
   [key: string]: unknown;
@@ -74,6 +76,31 @@ async function main(): Promise<void> {
   assert(createdTask.data.task, 'task create returned no task');
   const taskId = createdTask.data.task.id;
 
+  const planCommit = await request('plans', {
+    method: 'POST',
+    headers: authorization,
+    body: JSON.stringify({ taskIds: [taskId] }),
+  });
+  assert(
+    planCommit.response.status === 201,
+    `Today plan commit failed: ${JSON.stringify(planCommit.data)}`,
+  );
+  assert(
+    planCommit.data.commitments?.some(
+      (edge) => edge.subjectId === taskId && edge.task?.title === 'Phase 2 smoke task',
+    ),
+    'Today plan commit did not return the real committed task',
+  );
+  const fetchedPlan = await request('plans', { headers: authorization });
+  assert(
+    fetchedPlan.response.ok &&
+      fetchedPlan.data.plan?.id === planCommit.data.plan?.id &&
+      fetchedPlan.data.commitments?.some((edge) => edge.task?.id === taskId),
+    `Today fetch did not preserve the API commitment: ${JSON.stringify(fetchedPlan.data)}`,
+  );
+
+  // The superseded ritual route remains a compatibility adapter for CLI/mobile
+  // callers until their old screens disappear.
   const commit = await request('rituals?ritual=morning-commit', {
     method: 'POST',
     headers: authorization,

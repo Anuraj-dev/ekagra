@@ -8,7 +8,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import { clearUserQueryState, readCacheOwner, rememberCacheOwner } from '../data/queryClient';
+import { qk } from '../data/keys';
+import {
+  clearUserQueryState,
+  queryClient,
+  readCacheOwner,
+  rememberCacheOwner,
+} from '../data/queryClient';
 import { supabase } from '../lib/supabase';
 
 type AuthContextValue = {
@@ -20,6 +26,20 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+async function syncOwnerTimeZone(ownerId: string): Promise<boolean> {
+  const resolved = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone = typeof resolved === 'string' && resolved.length > 0 ? resolved : 'UTC';
+  const { error } = await supabase
+    .from('profiles')
+    .update({ time_zone: timeZone })
+    .eq('id', ownerId);
+  if (error) {
+    console.error('Could not update the owner time zone.', error);
+    return false;
+  }
+  return true;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -54,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active || currentTransition !== transition) return;
       setSession(next);
       setLoading(false);
+      if (nextOwnerId) {
+        void syncOwnerTimeZone(nextOwnerId).then((synced) => {
+          if (!synced || !active || currentTransition !== transition) return;
+          void queryClient.invalidateQueries({ queryKey: qk.todayPlan });
+        });
+      }
     };
     void supabase.auth.getSession().then(({ data }) => applySession(data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {

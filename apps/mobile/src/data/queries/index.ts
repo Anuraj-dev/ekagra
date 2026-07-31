@@ -4,3 +4,4 @@ export { useGoalDailyFocus } from './useGoalDailyFocus';
 export { useGoals } from './useGoals';
 export { useIdentities } from './useIdentities';
 export { useTasks } from './useTasks';
+export { useTodayPlan } from './useTodayPlan';

@@ -11,7 +11,9 @@ import {
   useStartSession,
   useTasks,
   useTimer,
+  useTodayPlan,
 } from '../data/hooks';
+import { committedTodayTasks } from '../data/today';
 import type { RootNav } from '../nav/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { display, mono, ui } from '../theme/typography';
@@ -78,6 +80,7 @@ export function Tasks() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
   const { data: tasks } = useTasks();
+  const { data: todayPlan } = useTodayPlan();
   const { data: goals } = useGoals();
   const { data: current } = useCurrentSession();
   const timer = useTimer();
@@ -85,10 +88,16 @@ export function Tasks() {
   const complete = useCompleteTask();
   const lastCompleteTaskId = useRef<string | null>(null);
   const today = new Date();
-  const todayKey = dateKey(today);
-  const inbox = tasks.filter((task) => task.status === 'inbox');
-  const planned = tasks.filter((task) => task.status === 'planned' || task.status === 'done');
-  const scheduledToday = tasks.filter((task) => task.scheduledFor === todayKey).length;
+  const todayTasks = committedTodayTasks(todayPlan);
+  const todayTaskIds = new Set(todayTasks.map((task) => task.id));
+  const inbox = tasks.filter((task) => task.status === 'inbox' && !todayTaskIds.has(task.id));
+  const planned = [
+    ...todayTasks,
+    ...tasks.filter(
+      (task) => !todayTaskIds.has(task.id) && (task.status === 'planned' || task.status === 'done'),
+    ),
+  ];
+  const scheduledToday = todayTasks.length;
   const activeTaskId = current.session?.taskId ?? null;
   const goalTitles = new Map(goals.map((goal) => [goal.id, goal.title]));
   const startTask = (id: string) => {

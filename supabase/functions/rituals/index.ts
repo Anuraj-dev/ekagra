@@ -16,26 +16,21 @@ Deno.serve((request) =>
         p_task_ids: input.taskIds,
       });
       if (result.error) throw databaseApiError(result.error, 'Could not save the morning commit.');
-      return json({ ritual: 'morning-commit', dayRecord: result.data });
+      const committed = result.data as { planId?: string } | null;
+      if (!committed?.planId) throw new ApiError('internal_error', 'Plan commit returned no plan.');
+      return json({ ritual: 'morning-commit', planId: committed.planId });
     }
 
     if (ritual === 'evening-close') {
       const input = parseEveningCloseRequest(await body(request));
-      const record = await client
-        .from('day_records')
-        .upsert(
-          {
-            owner_id: ownerId,
-            plan_match: input.planMatch,
-            went_wrong_tag: input.wentWrongTag,
-            note: input.note ?? null,
-          },
-          { onConflict: 'owner_id,record_date' },
-        )
-        .select('record_date,morning_task_ids,plan_match,went_wrong_tag,note,updated_at')
-        .single();
-      if (record.error) throw new ApiError('internal_error', 'Could not save the evening close.');
-      return json({ ritual: 'evening-close', dayRecord: record.data });
+      const result = await client.rpc('close_today_plan', {
+        p_owner_id: ownerId,
+        p_plan_match: input.planMatch,
+        p_went_wrong_tag: input.wentWrongTag,
+        p_note: input.note ?? null,
+      });
+      if (result.error) throw databaseApiError(result.error, 'Could not save the evening close.');
+      return json({ ritual: 'evening-close', planId: result.data });
     }
 
     throw new ApiError('bad_request', 'ritual must be morning-commit or evening-close.');

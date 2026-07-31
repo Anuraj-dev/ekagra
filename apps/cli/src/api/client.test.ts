@@ -32,6 +32,29 @@ describe('createHttpClient', () => {
     expect(seen[0]?.headers.Authorization).toBe('Bearer jwt-token');
   });
 
+  it('fetches Today through the authenticated plans edge', async () => {
+    const client = createHttpClient(
+      config,
+      token,
+      fetchStub((url) => {
+        expect(url).toBe('https://example.supabase.co/functions/v1/plans');
+        return {
+          status: 200,
+          body: {
+            plan: {
+              id: '30000000-0000-0000-0000-000000000001',
+              horizon: 'day',
+              startsOn: '2026-08-01',
+              parentPlanId: '30000000-0000-0000-0000-000000000002',
+            },
+            commitments: [],
+          },
+        };
+      }),
+    );
+    expect((await client.todayPlan()).plan.startsOn).toBe('2026-08-01');
+  });
+
   it('turns contract error bodies into typed ApiErrors', async () => {
     const client = createHttpClient(
       config,

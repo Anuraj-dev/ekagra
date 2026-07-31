@@ -13,6 +13,8 @@ import {
   parseTaskCreateRequest,
   parseTaskStatus,
   parseTaskUpdateRequest,
+  parseTodayCommitRequest,
+  parseTodayPlan,
 } from './api';
 
 const taskId = '20000000-0000-0000-0000-000000000001';
@@ -259,5 +261,50 @@ describe('parseDayRecord', () => {
     expect(() => parseDayRecord({ ...base, went_wrong_tag: 42 })).toThrow('went_wrong_tag');
     expect(() => parseDayRecord({ ...base, note: { text: 'x' } })).toThrow('note');
     expect(() => parseDayRecord({ ...base, note: 'x'.repeat(1001) })).toThrow('note');
+  });
+});
+
+describe('Today plan contract', () => {
+  test('parses a real committed task from the Plans edge', () => {
+    expect(
+      parseTodayPlan({
+        plan: {
+          id: '30000000-0000-0000-0000-000000000001',
+          horizon: 'day',
+          startsOn: '2026-08-01',
+          parentPlanId: '30000000-0000-0000-0000-000000000002',
+        },
+        commitments: [
+          {
+            id: '40000000-0000-0000-0000-000000000001',
+            subjectType: 'task',
+            subjectId: taskId,
+            createdAt: '2026-07-31T20:00:00.000Z',
+            task: {
+              id: taskId,
+              title: 'Committed through API',
+              status: 'planned',
+              goalId: null,
+              estimatedBlocks: 1,
+              completedAt: null,
+              createdAt: '2026-07-31T19:00:00.000Z',
+              updatedAt: '2026-07-31T20:00:00.000Z',
+              priority: 'p1',
+              scheduledFor: '2026-08-01',
+              scheduledTime: null,
+              deadline: null,
+              notes: null,
+            },
+          },
+        ],
+      }).commitments[0]?.task?.title,
+    ).toBe('Committed through API');
+  });
+
+  test('validates additive Today commits and rejects duplicate task ids', () => {
+    expect(parseTodayCommitRequest({ taskIds: [taskId] })).toEqual({ taskIds: [taskId] });
+    expect(parseTodayCommitRequest({ taskIds: [] })).toEqual({ taskIds: [] });
+    expect(() => parseTodayCommitRequest({ taskIds: [taskId, taskId] })).toThrow('unique');
+    expect(() => parseTodayPlan({ plan: {}, commitments: [] })).toThrow('plan.id');
   });
 });

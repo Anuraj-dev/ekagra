@@ -96,3 +96,80 @@ success or explicit reset, and account transitions clear memory plus persistence
 but morning commit intentionally means planned for today without a calendar date. The trigger now normalizes
 both edited columns and preserves `done`/`cancelled`; `commit_morning_plan` alone uses a scoped, restored GUC
 bypass. A handler read/merge was rejected because it adds a race and cannot be covered directly by pgTAP.
+
+## 2026-07-31 — Life-OS reimagining: one entity chain, phased, no stack rewrite (4-model consult)
+**Why:** Raja rescoped ekagra from focus app to all-in-one life OS (horizon planning, habits, deep work,
+voice journal, vision media, desk device). Sol-high, Grok 4.5, Opus 5, and Fable 5 debated to consensus:
+keep Bun/Expo/Supabase/timer-engine/firmware; rebuild the product shape around Identity → Goal → Plan
+(self-referencing year/quarter/month/week/day) → Commitment → Task/Occurrence → Block → Session → Entry,
+with one generic Attachment mechanism. Rejected: stack rewrite, five bolted-on modules, local-first SQLite
+outbox (4-0 — no proven offline pain; server must stay session truth for phone+desk), second cloud for media.
+Phased delivery (daily loop in ~2wk, then habits/voice/desk, then cascade/vision, then polish) — full-vision-
+before-shipping rejected as solo-dev suicide during exams. Web starved (unrouted, out of CI, not deleted);
+CLI stays alive per Raja; Crew/social, Insights dashboard, ritual screens, explanatory copy discarded.
+
+## 2026-07-31 — Habits: split tables in Postgres, unified at the seam
+**Why:** HabitRule (generator: recurrence, cue self-FK, minimum version, effective-date edits, rolling
+generation window) + Occurrence (dated instance: done/skipped/missed) — a nullable-rule task table makes
+future-rule edits dangerous and leaves "skip Thursday" nowhere to live (Sol). But Occurrence shares the
+task row shape so Today, block placement, and session binding stay one code path (Grok/Opus). Binary
+occurrences only; count/duration habits rejected year one (effort habits are blocks+sessions instead).
+Consistency = computed never-miss-twice rate (SQL view); stored streaks rejected as shame mechanics.
+
+## 2026-07-31 — Timer stays task-bound absolutely; blocks never run bare
+**Why:** Deep-work Blocks collided with the no-task-no-session invariant. Ruling: a Block must carry a
+committed task/occurrence before Focus starts from it — starting a block means picking its task (one tap
+when planned). Bare block sessions rejected: honest minutes must stay attributable or the analytics
+honesty rule erodes. Same reason the ESP8266 gets pause/resume/skip but never start (start needs task
+choice; a 3-button OLED can't express it). Server remains sole session authority.
+
+## 2026-07-31 — Plans never mutate silently: one-tap Sweep, no auto-rebalance
+**Why:** When a week breaks midweek, auto-redistribution would hide slippage from weekly review and
+violate "nothing silent, ever". Today shows an overdue chip; one Sweep gesture carries unfinished
+commitments forward — Raja decides, app executes. Stale-until-Sunday rejected (kills the daily loop).
+Weekly review headline = deep hours (honest deep-block session hours); review is a forced pass, not a report.
+
+## 2026-07-31 — Voice journal rides the proven Voisu/Hyprvox transcription architecture
+**Why:** Transcript is the durable, searchable artifact attached to day/session; audio is transient.
+The capture→STT pipeline is already solved in Raja's Voisu/Hyprvox work — reuse that architecture over
+Supabase Storage + edge fn rather than designing a new one. Media and voice share ONE generic Attachment
+mechanism (subject_type/subject_id) so vision boards cost no extra infra.
+
+## 2026-07-31 — Personal-only, door open; identity required for habits; UI law: instruments don't narrate
+**Why:** Build for one user, zero social/team abstractions, but keep owner_id+RLS discipline on every new
+table so multi-user later is an auth change, not a rewrite. Every habit must hang off an Identity (default
+"Me" keeps capture one-tap) — identity-as-optional-tag would quietly kill the Atomic Habits mechanic.
+UI: icons + ≤2-word labels, no instructional copy, no em dashes, state shown by fill/density/motion,
+hidden a11y labels mandatory, text survives only for failures; ~5 signature animations, rest instant,
+reduced-motion → fades. Visual language deliberately NOT locked — palette research (real apps, contrast)
+precedes mockups.
+
+## 2026-07-31 — Warm Planning Desk II chosen after the mockup gate
+**Why:** Raja selected the evolved paper-neutral direction after the four-theme comparison. P1 keeps the
+shipped v2 component feel and Quiet Indigo `#6753C7`, uses the contrast-verified refinement palette, and
+treats the warm Today, Focus, and Plan mockups as implementation references. The other theme files remain
+research artifacts, not competing sources of truth.
+
+## 2026-07-31 — Life-OS contract clarifications: horizon subjects, plan calendar identity, pending occurrences, identity-bound rules
+**Why:** The second Sol-high review of PR #59 found four contract conflicts between `CONTEXT.md`, spec 002, and
+the chosen `plan-warm-desk.html` mockup. Rulings, clarifying (not reversing) the 2026-07-31 entries above:
+(1) Commitment horizon rules are per subject type — a Goal commits at ANY horizon down to day (the mockup's
+GOAL → WEEK → WED cascade is one subject, not a duplicate), a Task at week or day, an Occurrence at day only;
+Blocks still require a committed Task/Occurrence, so a Goal commitment is never block-eligible. The earlier
+"day accepts Task or Occurrence" phrasing would have broken the chosen cascade UI.
+(2) Plans get a canonical calendar identity: horizon-aligned `starts_on`, `unique (owner, horizon, starts_on)`,
+and parent containment in the next horizon up — because absorbing `day_records` made a day plan the day
+record, and Today / ISO-week selection must be a deterministic lookup, not a scan with tie-breaking.
+(3) Occurrence `outcome` is nullable: null = pending, terminal = done/skipped/missed. A rolling generation
+window must be able to create tomorrow's rows without pre-declaring an outcome, and an untouched habit today
+is not a miss. The terminal contract is unweakened — generation never clears a terminal outcome.
+(4) Every HabitRule carries a non-null `identity_id` (default "Me" seeded per owner, so capture stays one tap)
+and a cue link must stay within the same owner AND the same Identity, since a Stack that crosses identities
+would break the Atomic Habits mechanic identity-required was adopted to protect.
+
+## 2026-07-31 — Life-OS calendar boundaries become owner-local
+**Why:** The 2026-07-10 UTC-only boundary was an explicit v1 deferral until per-user time zones existed.
+Life-OS makes Today, Sweep, occurrences, and weekly review the primary daily loop, so UTC would show Raja
+the wrong day around local midnight. `profiles.time_zone` now carries an IANA zone with a `UTC` fallback;
+calendar dates derive from that zone, never the database session's `current_date`. This supersedes only the
+old deferral while preserving deterministic server-owned boundaries.

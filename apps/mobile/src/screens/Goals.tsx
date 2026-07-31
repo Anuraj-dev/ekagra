@@ -2,6 +2,7 @@ import type { Goal, GoalCreateRequest, GoalUpdateRequest, Identity } from '@ekag
 import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CrewIcon, PlusIcon } from '../components/icons';
 import {
   useCreateGoal,
   useDeleteGoal,
@@ -36,6 +37,7 @@ type Mutation<T> = {
 };
 
 const PRIORITIES: Array<Priority | null> = [null, 'p1', 'p2', 'p3'];
+const MAX_IDENTITY_NAME_LENGTH = 120;
 export function Goals() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -653,7 +655,10 @@ function IdentityPicker({
   return (
     <View style={{ gap: 7 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>Identity</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <CrewIcon tint={t.accent} />
+          <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>Identity</Text>
+        </View>
         {loading && <Text style={ui(500, { color: t.textSecondary, fontSize: 11 })}>Loading</Text>}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -663,39 +668,63 @@ function IdentityPicker({
             <IdentityChip
               key={identity.id}
               label={identity.name}
+              accessibilityLabel={`${identity.name} identity`}
               selected={selected}
               onPress={() => onChange({ kind: 'existing', id: identity.id })}
               t={t}
             />
           );
         })}
-        {/* The `+` prefix keeps this chip distinct from a real identity named "New". */}
+        {/* The icon keeps this chip distinct from a real identity named "New". */}
         <IdentityChip
-          label="+ New"
+          label="New"
           accessibilityLabel="Create new identity"
+          isNew
           selected={creating}
           onPress={() => onChange({ kind: 'new', name: '' })}
           t={t}
         />
       </View>
       {creating && (
-        <TextInput
-          accessibilityLabel="Identity name"
-          value={value.name}
-          onChangeText={(name) => onChange({ kind: 'new', name })}
-          autoFocus
-          placeholderTextColor={t.textPlaceholder}
-          style={ui(400, {
-            minHeight: 48,
-            backgroundColor: t.surfaceSunk,
-            borderWidth: 1,
-            borderColor: t.lineInput,
-            borderRadius: t.radii.sm,
-            paddingHorizontal: 14,
-            color: t.ink,
-            fontSize: 15,
-          })}
-        />
+        <View style={{ gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <PlusIcon tint={t.accent} size={16} />
+            <Text style={ui(600, { color: t.textSecondary, fontSize: 12 })}>New identity</Text>
+          </View>
+          <View
+            style={{
+              minHeight: 48,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: t.surfaceSunk,
+              borderWidth: 1,
+              borderColor: t.lineInput,
+              borderRadius: t.radii.sm,
+              paddingHorizontal: 14,
+            }}
+          >
+            <PlusIcon tint={t.accent} size={18} />
+            <TextInput
+              accessibilityLabel="Identity name"
+              value={value.name}
+              maxLength={MAX_IDENTITY_NAME_LENGTH}
+              onChangeText={(name) =>
+                onChange({ kind: 'new', name: name.slice(0, MAX_IDENTITY_NAME_LENGTH) })
+              }
+              autoFocus
+              placeholder="Identity name"
+              placeholderTextColor={t.textPlaceholder}
+              style={ui(400, {
+                minHeight: 46,
+                flex: 1,
+                padding: 0,
+                color: t.ink,
+                fontSize: 15,
+              })}
+            />
+          </View>
+        </View>
       )}
     </View>
   );
@@ -704,12 +733,14 @@ function IdentityPicker({
 function IdentityChip({
   label,
   accessibilityLabel,
+  isNew = false,
   selected,
   onPress,
   t,
 }: {
   label: string;
   accessibilityLabel?: string;
+  isNew?: boolean;
   selected: boolean;
   onPress: () => void;
   t: Theme;
@@ -723,23 +754,31 @@ function IdentityChip({
       style={({ pressed }) => ({
         minHeight: 44,
         maxWidth: '100%',
+        flexDirection: 'row',
         flexShrink: 1,
+        gap: 6,
         paddingHorizontal: 14,
         borderRadius: t.radii.pill,
         borderWidth: selected ? 0 : 1,
         borderColor: t.lineStrong,
-        backgroundColor: selected ? (pressed ? t.accentPressed : t.ink) : t.surface,
+        backgroundColor: selected ? (pressed ? t.accentPressed : t.accent) : t.surface,
         alignItems: 'center',
         justifyContent: 'center',
         opacity: pressed && !selected ? 0.65 : 1,
       })}
     >
+      {isNew ? (
+        <PlusIcon tint={selected ? t.inkOnDark : t.accent} size={16} />
+      ) : (
+        <CrewIcon tint={selected ? t.inkOnDark : t.accent} />
+      )}
       <Text
         numberOfLines={1}
-        ellipsizeMode="tail"
+        ellipsizeMode="head"
         style={ui(600, {
           color: selected ? t.inkOnDark : t.textSecondary,
           fontSize: 12,
+          minWidth: 0,
           flexShrink: 1,
         })}
       >
@@ -943,7 +982,9 @@ function requiredIdentityFields(
 ): { identityId: string; identityRole?: never } | { identityId?: never; identityRole: string } {
   const fields = identityFields(selection);
   if (fields.identityId !== undefined) return { identityId: fields.identityId };
-  if (fields.identityRole !== undefined) return { identityRole: fields.identityRole };
+  if (fields.identityRole !== undefined) {
+    return { identityRole: fields.identityRole.slice(0, MAX_IDENTITY_NAME_LENGTH) };
+  }
   throw new Error('A complete identity selection is required.');
 }
 

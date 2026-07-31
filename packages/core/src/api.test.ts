@@ -183,6 +183,18 @@ describe('parseIdentity', () => {
       }).name,
     ).toBe(historicalName);
   });
+
+  test('preserves a tab-only identity accepted by the legacy database constraint', () => {
+    expect(
+      parseIdentity({
+        id: '70000000-0000-0000-0000-000000000005',
+        name: '\t',
+        is_default: false,
+        created_at: '2026-07-31T00:00:00.000Z',
+        updated_at: '2026-07-31T00:00:00.000Z',
+      }).name,
+    ).toBe('\t');
+  });
 });
 
 describe('parseDayRecord', () => {

@@ -74,12 +74,13 @@ jobs:
           exit 1
       - run: bun scripts/phase-2-smoke.ts
       - run: bun scripts/phase-8-cli-smoke.ts
-      # Strictly the last database test. It commits a downgrade before replaying
-      # the migration, so anything running after it would be reading a schema
-      # this step, not `db reset`, produced. Placing it behind the smoke checks
-      # means a failed replay can never cascade into them.
+      # Strictly the last database test. Reset to the migration immediately
+      # before identities, then replay the identities migration against that
+      # disposable schema. Pinning the starting version keeps later Identity
+      # foreign keys from making this historical upgrade test impossible.
       - name: Replay the identities upgrade
         run: |
+          supabase db reset --local --version 20260713170000
           migration_fixture=supabase/tests/life_os_identities_migration.inc
           # The replay \ir's this fixture, so the copy has to live inside the
           # test directory the CLI mounts, under its exact expected name.

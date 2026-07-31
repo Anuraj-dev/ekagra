@@ -338,7 +338,10 @@ function stringValue(value: unknown, field: string, maxLength = 200): string {
 }
 
 function storedStringValue(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
+  // Stored rows can predate the public write contract. PostgreSQL's historical
+  // trim() check removed ordinary spaces only, so a tab-only legacy value was
+  // valid and must remain readable after an additive migration.
+  if (typeof value !== 'string' || value.length === 0) {
     throw new ContractError(`${field} must be a non-empty string.`);
   }
   return value;

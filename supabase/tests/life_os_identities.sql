@@ -117,10 +117,10 @@ select throws_ok(
   $$insert into public.identities (id, owner_id, name)
     values ('71000000-0000-0000-0000-000000000005'::uuid,
             '00000000-0000-0000-0000-000000000001'::uuid,
-            '  Student  ')$$,
+            E'\tStudent\t')$$,
   '23514',
   null,
-  'a direct write cannot smuggle a whitespace-padded duplicate name'
+  'a direct write cannot smuggle a surrounding-whitespace duplicate name'
 );
 select throws_ok(
   format(
@@ -235,12 +235,12 @@ select throws_ok(
 );
 select throws_ok(
   $$update public.identities
-    set name = 'Renamed default'
+    set name = 'Renamed Student'
     where owner_id = '00000000-0000-0000-0000-000000000001'::uuid
-      and is_default$$,
+      and name = 'Student'$$,
   '23514',
-  'default identity name is immutable',
-  'the default identity cannot be renamed'
+  'identity name is immutable',
+  'identity names are immutable so no identity-to-goal lock path exists'
 );
 select is(
   (select count(*) from public.identities

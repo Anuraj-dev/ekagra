@@ -48,10 +48,14 @@ begin
       message = 'identity owner is immutable';
   end if;
 
-  if old.is_default and new.name is distinct from old.name then
+  -- P1 changes a Goal's identity link instead of renaming an Identity. Keeping
+  -- names immutable avoids a bidirectional Identity -> Goal mirror: that path
+  -- would lock identities then goals while legacy Goal resolution locks them in
+  -- the opposite order.
+  if new.name is distinct from old.name then
     raise exception using
       errcode = '23514',
-      message = 'default identity name is immutable';
+      message = 'identity name is immutable';
   end if;
 
   return new;
@@ -111,7 +115,10 @@ on conflict (owner_id, name) do nothing;
 -- UPDATE, including updates to those legacy rows.
 alter table public.identities
   add constraint identities_name_canonical
-    check (name = trim(name) and length(name) <= 120)
+    check (
+      name = regexp_replace(name, '^[[:space:]]+|[[:space:]]+$', '', 'g')
+      and length(name) <= 120
+    )
     not valid;
 
 alter table public.goals
@@ -169,19 +176,21 @@ begin
         errcode = '23514',
         message = 'goal identity must belong to goal owner';
     end if;
-  elsif nullif(trim(new.identity_role), '') is not null then
-    target_name := trim(new.identity_role);
+  elsif nullif(
+    regexp_replace(new.identity_role, '^[[:space:]]+|[[:space:]]+$', '', 'g'),
+    ''
+  ) is not null then
+    target_name := regexp_replace(
+      new.identity_role,
+      '^[[:space:]]+|[[:space:]]+$',
+      '',
+      'g'
+    );
 
-    -- Read first, and never take a row lock on an Identity that already
-    -- exists. This trigger runs while the writer holds its goal row, and the
-    -- rename trigger below locks an Identity and then updates that owner's
-    -- goals; upgrading the existing Identity here (ON CONFLICT DO UPDATE)
-    -- claimed the two in the opposite order and deadlocked. Plain SELECT takes
-    -- no lock and the goal FK only needs KEY SHARE, which does not conflict
-    -- with a rename's non-key update, so the cycle cannot form. INSERT ... DO
-    -- NOTHING locks only a row it creates; the loop closes the concurrent
-    -- create race, where DO NOTHING returns no row because a competing
-    -- transaction inserted the same name first.
+    -- Read first so resolving an existing Identity never takes an unnecessary
+    -- row-update lock. INSERT ... DO NOTHING locks only a row it creates; the
+    -- loop closes the concurrent-create race when another transaction wins the
+    -- same owner/name key first.
     loop
       select identities.id, identities.name
         into resolved_id, resolved_name
@@ -221,25 +230,5 @@ $$;
 create trigger goals_resolve_identity
   before insert or update of owner_id, identity_id, identity_role on public.goals
   for each row execute function public.resolve_goal_identity();
-
-create or replace function public.sync_identity_name_to_goals()
-returns trigger
-language plpgsql
-set search_path = public
-as $$
-begin
-  if new.name is distinct from old.name then
-    update public.goals
-    set identity_role = new.name
-    where owner_id = new.owner_id
-      and identity_id = new.id;
-  end if;
-  return new;
-end;
-$$;
-
-create trigger identities_sync_goal_mirror
-  after update of name on public.identities
-  for each row execute function public.sync_identity_name_to_goals();
 
 commit;

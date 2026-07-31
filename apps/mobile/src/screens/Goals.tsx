@@ -722,6 +722,8 @@ function IdentityChip({
       onPress={onPress}
       style={({ pressed }) => ({
         minHeight: 44,
+        maxWidth: '100%',
+        flexShrink: 1,
         paddingHorizontal: 14,
         borderRadius: t.radii.pill,
         borderWidth: selected ? 0 : 1,
@@ -732,7 +734,15 @@ function IdentityChip({
         opacity: pressed && !selected ? 0.65 : 1,
       })}
     >
-      <Text style={ui(600, { color: selected ? t.inkOnDark : t.textSecondary, fontSize: 12 })}>
+      <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={ui(600, {
+          color: selected ? t.inkOnDark : t.textSecondary,
+          fontSize: 12,
+          flexShrink: 1,
+        })}
+      >
         {label}
       </Text>
     </Pressable>

@@ -34,13 +34,11 @@ values (
 
 drop trigger profiles_seed_default_identity on public.profiles;
 drop trigger goals_resolve_identity on public.goals;
-drop trigger identities_sync_goal_mirror on public.identities;
 drop trigger identities_guard_key on public.identities;
 alter table public.goals drop constraint goals_identity_owner_fk;
 alter table public.goals drop column identity_id;
 drop function public.seed_default_identity_for_profile();
 drop function public.resolve_goal_identity();
-drop function public.sync_identity_name_to_goals();
 drop function public.guard_identity_key();
 drop table public.identities;
 

@@ -11,12 +11,20 @@ create table public.identities (
   is_default boolean generated always as (name = 'Me') stored,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (id, owner_id),
-  unique (owner_id, name)
+  unique (id, owner_id)
 );
 
 create index identities_owner_created_idx
   on public.identities (owner_id, created_at, id);
+
+-- Public writes are canonical and capped at 120 characters, so this partial
+-- key enforces their owner-scoped uniqueness without indexing unbounded legacy
+-- labels. A full (owner_id, name) B-tree can reject a historically valid long,
+-- incompressible role before the additive backfill gets a chance to preserve it.
+create unique index identities_owner_canonical_name_key
+  on public.identities (owner_id, name)
+  where length(name) <= 120
+    and name = regexp_replace(name, '^[[:space:]]+|[[:space:]]+$', '', 'g');
 
 alter table public.identities enable row level security;
 
@@ -75,7 +83,10 @@ as $$
 begin
   insert into public.identities (owner_id, name)
   values (new.id, 'Me')
-  on conflict (owner_id, name) do nothing;
+  on conflict (owner_id, name)
+    where length(name) <= 120
+      and name = regexp_replace(name, '^[[:space:]]+|[[:space:]]+$', '', 'g')
+    do nothing;
   return new;
 end;
 $$;
@@ -89,7 +100,10 @@ create trigger profiles_seed_default_identity
 insert into public.identities (owner_id, name)
 select profiles.id, 'Me'
 from public.profiles
-on conflict (owner_id, name) do nothing;
+on conflict (owner_id, name)
+  where length(name) <= 120
+    and name = regexp_replace(name, '^[[:space:]]+|[[:space:]]+$', '', 'g')
+  do nothing;
 
 -- Take the strongest lock this transaction will need before snapshotting
 -- legacy roles: ADD COLUMN below requires ACCESS EXCLUSIVE. Acquiring it up
@@ -103,7 +117,10 @@ lock table public.goals in access exclusive mode;
 insert into public.identities (owner_id, name)
 select distinct goals.owner_id, goals.identity_role
 from public.goals
-on conflict (owner_id, name) do nothing;
+on conflict (owner_id, name)
+  where length(name) <= 120
+    and name = regexp_replace(name, '^[[:space:]]+|[[:space:]]+$', '', 'g')
+  do nothing;
 
 -- Canonical names for every Identity written from here on. An authenticated
 -- client reaching PostgREST directly must not be able to slip a
@@ -202,7 +219,10 @@ begin
 
       insert into public.identities (owner_id, name)
       values (new.owner_id, target_name)
-      on conflict (owner_id, name) do nothing
+      on conflict (owner_id, name)
+        where length(name) <= 120
+          and name = regexp_replace(name, '^[[:space:]]+|[[:space:]]+$', '', 'g')
+        do nothing
       returning id, name into resolved_id, resolved_name;
 
       exit when resolved_id is not null;

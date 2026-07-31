@@ -7,6 +7,8 @@ create temporary table identity_upgrade_fixture (
   owner_id uuid not null,
   padded_goal_id uuid not null,
   tab_goal_id uuid not null,
+  long_goal_id uuid not null,
+  long_role text not null,
   legacy_updated_at timestamptz not null
 ) on commit preserve rows;
 
@@ -15,6 +17,8 @@ values (
   gen_random_uuid(),
   gen_random_uuid(),
   gen_random_uuid(),
+  gen_random_uuid(),
+  (select string_agg(md5(value::text), '') from generate_series(1, 100) as series(value)),
   '2024-01-02 03:04:05+00'::timestamptz
 );
 
@@ -41,6 +45,9 @@ select padded_goal_id, owner_id, 'Legacy padded identity', ' Legacy Builder ', l
 from identity_upgrade_fixture
 union all
 select tab_goal_id, owner_id, 'Legacy tab identity', E'\t', legacy_updated_at
+from identity_upgrade_fixture
+union all
+select long_goal_id, owner_id, 'Legacy long identity', long_role, legacy_updated_at
 from identity_upgrade_fixture;
 
 commit;
@@ -49,7 +56,7 @@ commit;
 
 begin;
 
-select plan(6);
+select plan(7);
 
 select is(
   (select goals.identity_role
@@ -81,6 +88,18 @@ select is(
    where goals.id = fixture.tab_goal_id),
   E'\t',
   'the upgrade preserves a tab-only role accepted by the legacy constraint'
+);
+
+select is(
+  (select identities.name
+   from public.goals as goals
+   join public.identities as identities
+     on identities.id = goals.identity_id
+    and identities.owner_id = goals.owner_id,
+     identity_upgrade_fixture as fixture
+   where goals.id = fixture.long_goal_id),
+  (select long_role from identity_upgrade_fixture),
+  'the upgrade preserves an incompressible legacy role larger than a B-tree index row'
 );
 
 select is(

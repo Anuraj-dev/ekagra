@@ -53,10 +53,10 @@ select
 from plans_upgrade_fixture;
 
 insert into public.tasks (id, owner_id, title, status, scheduled_for)
-select valid_task_id, owner_id, 'Valid legacy morning task', 'planned', null
+select valid_task_id, owner_id, 'Valid legacy morning task', 'planned', null::date
 from plans_upgrade_fixture
 union all
-select cross_owner_task_id, other_owner_id, 'Cross owner legacy morning task', 'planned', null
+select cross_owner_task_id, other_owner_id, 'Cross owner legacy morning task', 'planned', null::date
 from plans_upgrade_fixture
 union all
 select scheduled_task_id, owner_id, 'Legacy scheduled task', 'planned', scheduled_date

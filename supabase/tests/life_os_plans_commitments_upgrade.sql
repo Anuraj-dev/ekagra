@@ -25,13 +25,31 @@ insert into auth.users (
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 )
 select
-  owner_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'plans-upgrade-owner@example.test', 'test', now(), '{}', '{}', now(), now()
+  owner_id,
+  '00000000-0000-0000-0000-000000000000'::uuid,
+  'authenticated',
+  'authenticated',
+  'plans-upgrade-owner@example.test',
+  'test',
+  now(),
+  '{}'::jsonb,
+  '{}'::jsonb,
+  now(),
+  now()
 from plans_upgrade_fixture
 union all
 select
-  other_owner_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  'plans-upgrade-other@example.test', 'test', now(), '{}', '{}', now(), now()
+  other_owner_id,
+  '00000000-0000-0000-0000-000000000000'::uuid,
+  'authenticated',
+  'authenticated',
+  'plans-upgrade-other@example.test',
+  'test',
+  now(),
+  '{}'::jsonb,
+  '{}'::jsonb,
+  now(),
+  now()
 from plans_upgrade_fixture;
 
 insert into public.tasks (id, owner_id, title, status, scheduled_for)

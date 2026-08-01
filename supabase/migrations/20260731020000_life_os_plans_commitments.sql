@@ -289,9 +289,13 @@ create table public.commitments (
 create index commitments_owner_subject_idx
   on public.commitments (owner_id, subject_type, subject_id);
 
+-- SECURITY DEFINER so integrity checks see plan/subject rows even when the
+-- invoker's RLS would hide them. Access control remains on the commitments
+-- RLS policies (WITH CHECK owner_id = auth.uid()).
 create or replace function public.enforce_commitment_subject()
 returns trigger
 language plpgsql
+security definer
 set search_path = public, pg_catalog
 as $$
 declare
@@ -654,7 +658,16 @@ as $$
 declare
   local_today date;
   day_plan_id uuid;
+  previous_bypass text := current_setting('ekagra.morning_commit_bypass', true);
 begin
+  -- Empty commits are allowed (clear Today). Non-empty still 1..3 unique open tasks.
+  if p_owner_id is null
+     or coalesce(cardinality(p_task_ids), 0) > 3 then
+    raise exception using
+      errcode = '23514',
+      message = 'today commit must contain at most 3 tasks';
+  end if;
+
   local_today := public.owner_local_date(p_owner_id);
   day_plan_id := public.ensure_owner_plan(p_owner_id, 'day', local_today);
 
@@ -670,7 +683,42 @@ begin
     and scheduled_for = local_today
     and not (id = any(coalesce(p_task_ids, '{}'::uuid[])));
 
+  -- Preserve planned/inbox semantics for clients that still key off status.
+  -- "planned" here means committed for today, not necessarily calendar-scheduled.
+  begin
+    perform set_config('ekagra.morning_commit_bypass', 'on', true);
+
+    update public.tasks
+    set status = 'inbox'
+    where owner_id = p_owner_id and status = 'planned';
+
+    if coalesce(cardinality(p_task_ids), 0) > 0 then
+      update public.tasks
+      set status = 'planned'
+      where owner_id = p_owner_id and id = any(p_task_ids);
+    end if;
+
+    perform set_config(
+      'ekagra.morning_commit_bypass',
+      coalesce(previous_bypass, ''),
+      true
+    );
+  exception when others then
+    perform set_config(
+      'ekagra.morning_commit_bypass',
+      coalesce(previous_bypass, ''),
+      true
+    );
+    raise;
+  end;
+
   perform public.commit_today_tasks(p_owner_id, p_task_ids);
+
+  update public.plans
+  set legacy_morning_task_ids = coalesce(p_task_ids, '{}'::uuid[]),
+      legacy_record_updated_at = now()
+  where id = day_plan_id;
+
   return jsonb_build_object('planId', day_plan_id);
 end;
 $$;

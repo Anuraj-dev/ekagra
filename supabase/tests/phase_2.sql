@@ -183,12 +183,14 @@ select is(
   'planned',
   'morning commit sets the selected plan'
 );
+-- day_records is an immutable upgrade archive; live morning ids live on the day plan.
 select is(
-  (select morning_task_ids from public.day_records
+  (select legacy_morning_task_ids from public.plans
    where owner_id = '00000000-0000-0000-0000-000000000001'
-     and record_date = current_date),
+     and horizon = 'day'
+     and starts_on = public.owner_local_date('00000000-0000-0000-0000-000000000001')),
   array['70000000-0000-0000-0000-000000000002']::uuid[],
-  'morning commit records the selected tasks on the day record'
+  'morning commit records the selected tasks on the day plan'
 );
 select throws_ok(
   $$select public.commit_morning_plan(

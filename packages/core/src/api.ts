@@ -13,6 +13,7 @@ export const API_ENDPOINTS = {
   deviceAction: '/functions/v1/device-action',
   friends: '/functions/v1/friends',
   motivation: '/functions/v1/motivation',
+  plans: '/functions/v1/plans',
 } as const;
 
 export type ApiErrorCode =
@@ -72,6 +73,34 @@ export type Identity = {
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type PlanHorizon = 'year' | 'quarter' | 'month' | 'week' | 'day';
+
+export type Plan = {
+  id: string;
+  horizon: PlanHorizon;
+  startsOn: string;
+  parentPlanId: string | null;
+};
+
+export type CommitmentSubjectType = 'goal' | 'task' | 'occurrence';
+
+export type Commitment = {
+  id: string;
+  subjectType: CommitmentSubjectType;
+  subjectId: string;
+  createdAt: string;
+  task: Task | null;
+};
+
+export type TodayPlan = {
+  plan: Plan;
+  commitments: Commitment[];
+};
+
+export type TodayCommitRequest = {
+  taskIds: string[];
 };
 
 export type Goal = {
@@ -519,6 +548,12 @@ function parseDate(value: unknown, field: string): string | null | undefined {
   return value;
 }
 
+function requiredDate(value: unknown, field: string): string {
+  const result = parseDate(value, field);
+  if (typeof result !== 'string') throw new ContractError(`${field} must be an ISO date.`);
+  return result;
+}
+
 /**
  * The identity fields of a goal write. `identityId` is authoritative; `identityRole`
  * stays accepted while callers migrate, and the database resolves it to an identity.
@@ -581,6 +616,82 @@ export function parseMorningCommitRequest(value: unknown): MorningCommitRequest 
   const taskIds = input.taskIds.map((id) => uuidValue(id, 'taskIds'));
   if (new Set(taskIds).size !== taskIds.length) throw new ContractError('taskIds must be unique.');
   return { taskIds };
+}
+
+export function parseTodayCommitRequest(value: unknown): TodayCommitRequest {
+  const input = objectValue(value, 'request');
+  if (!Array.isArray(input.taskIds) || input.taskIds.length > 3) {
+    throw new ContractError('taskIds must contain at most 3 tasks.');
+  }
+  const taskIds = input.taskIds.map((id) => uuidValue(id, 'taskIds'));
+  if (new Set(taskIds).size !== taskIds.length) {
+    throw new ContractError('taskIds must be unique.');
+  }
+  return { taskIds };
+}
+
+function planHorizon(value: unknown, field: string): PlanHorizon {
+  if (!['year', 'quarter', 'month', 'week', 'day'].includes(String(value))) {
+    throw new ContractError(`${field} is invalid.`);
+  }
+  return value as PlanHorizon;
+}
+
+function commitmentSubjectType(value: unknown, field: string): CommitmentSubjectType {
+  if (!['goal', 'task', 'occurrence'].includes(String(value))) {
+    throw new ContractError(`${field} is invalid.`);
+  }
+  return value as CommitmentSubjectType;
+}
+
+function parseTaskView(value: unknown): Task {
+  const input = objectValue(value, 'task');
+  return {
+    id: uuidValue(input.id, 'task.id'),
+    title: storedStringValue(input.title, 'task.title'),
+    status: parseTaskStatus(input.status, 'task.status'),
+    goalId: optionalUuid(input.goalId, 'task.goalId') ?? null,
+    estimatedBlocks:
+      input.estimatedBlocks === null || input.estimatedBlocks === undefined
+        ? null
+        : integerValue(input.estimatedBlocks, 'task.estimatedBlocks', 1, 100),
+    completedAt: nullableString(input.completedAt, 'task.completedAt', 40),
+    createdAt: stringValue(input.createdAt, 'task.createdAt', 40),
+    updatedAt: stringValue(input.updatedAt, 'task.updatedAt', 40),
+    priority: parsePriority(input.priority, 'task.priority') ?? null,
+    scheduledFor: parseDate(input.scheduledFor, 'task.scheduledFor') ?? null,
+    scheduledTime: parseTimeOfDay(input.scheduledTime, 'task.scheduledTime') ?? null,
+    deadline: parseDate(input.deadline, 'task.deadline') ?? null,
+    notes: nullableString(input.notes, 'task.notes', 2000),
+  };
+}
+
+/** Parses the authenticated Plans edge response used by CLI and mobile Today. */
+export function parseTodayPlan(value: unknown): TodayPlan {
+  const input = objectValue(value, 'today');
+  const rawPlan = objectValue(input.plan, 'plan');
+  const rawCommitments = input.commitments;
+  if (!Array.isArray(rawCommitments)) {
+    throw new ContractError('commitments must be an array.');
+  }
+  return {
+    plan: {
+      id: uuidValue(rawPlan.id, 'plan.id'),
+      horizon: planHorizon(rawPlan.horizon, 'plan.horizon'),
+      startsOn: requiredDate(rawPlan.startsOn, 'plan.startsOn'),
+      parentPlanId: optionalUuid(rawPlan.parentPlanId, 'plan.parentPlanId') ?? null,
+    },
+    commitments: rawCommitments.map((value) => {
+      const raw = objectValue(value, 'commitment');
+      return {
+        id: uuidValue(raw.id, 'commitment.id'),
+        subjectType: commitmentSubjectType(raw.subjectType, 'commitment.subjectType'),
+        subjectId: uuidValue(raw.subjectId, 'commitment.subjectId'),
+        createdAt: stringValue(raw.createdAt, 'commitment.createdAt', 40),
+        task: raw.task === null || raw.task === undefined ? null : parseTaskView(raw.task),
+      };
+    }),
+  };
 }
 
 export function parseEveningCloseRequest(value: unknown): EveningCloseRequest {

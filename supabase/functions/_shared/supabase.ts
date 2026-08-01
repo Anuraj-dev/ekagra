@@ -102,12 +102,7 @@ function sessionRepository(client: SupabaseClient): SessionRepository {
       return row(result.data as SessionRow | null, result.error);
     },
     async ensureDayRecord(ownerId) {
-      const result = await client
-        .from('day_records')
-        .upsert(
-          { owner_id: ownerId },
-          { onConflict: 'owner_id,record_date', ignoreDuplicates: true },
-        );
+      const result = await client.rpc('ensure_today_plan', { p_owner_id: ownerId });
       if (result.error) return databaseError(result.error);
     },
     async getDevicePollAggregates(ownerId) {

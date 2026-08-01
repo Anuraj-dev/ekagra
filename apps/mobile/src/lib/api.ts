@@ -25,9 +25,11 @@ import type {
   TaskCreateRequest,
   TaskStatus,
   TaskUpdateRequest,
+  TodayCommitRequest,
+  TodayPlan,
   WeeklyReview,
 } from '@ekagra/core';
-import { parseDayRecord, parseIdentity } from '@ekagra/core';
+import { parseDayRecord, parseIdentity, parseTodayPlan } from '@ekagra/core';
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, supabase } from './supabase';
 
 const DAY_RECORD_COLUMNS = 'record_date,morning_task_ids,plan_match,went_wrong_tag,note,updated_at';
@@ -121,6 +123,14 @@ export const tasksApi = {
   remove: (id: string) => request<void>('/tasks', { method: 'DELETE', query: { id } }),
 };
 
+// --- Plans ------------------------------------------------------------------
+
+export const plansApi = {
+  today: () => request<unknown>('/plans').then(parseTodayPlan),
+  commitToday: (payload: TodayCommitRequest): Promise<TodayPlan> =>
+    request<unknown>('/plans', { method: 'POST', body: payload }).then(parseTodayPlan),
+};
+
 // --- Goals ------------------------------------------------------------------
 
 export const goalsApi = {
@@ -159,13 +169,13 @@ export const identitiesApi = {
 
 export const ritualsApi = {
   morningCommit: (payload: MorningCommitRequest) =>
-    request<{ ritual: 'morning-commit'; dayRecord: unknown }>('/rituals', {
+    request<{ ritual: 'morning-commit'; planId: string }>('/rituals', {
       method: 'POST',
       query: { ritual: 'morning-commit' },
       body: payload,
     }),
   eveningClose: (payload: EveningCloseRequest) =>
-    request<{ ritual: 'evening-close'; dayRecord: unknown }>('/rituals', {
+    request<{ ritual: 'evening-close'; planId: string }>('/rituals', {
       method: 'POST',
       query: { ritual: 'evening-close' },
       body: payload,

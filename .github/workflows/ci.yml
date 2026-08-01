@@ -50,7 +50,8 @@ jobs:
           # Globbing (not a hand-written list) keeps new tests in this suite.
           mapfile -t suite < <(
             find supabase/tests -maxdepth 1 -name '*.sql' \
-              ! -name 'life_os_identities_upgrade.sql' | sort
+              ! -name 'life_os_identities_upgrade.sql' \
+              ! -name 'life_os_plans_commitments_upgrade.sql' | sort
           )
           supabase test db "${suite[@]}"
       - name: Export local Supabase connection values
@@ -74,6 +75,13 @@ jobs:
           exit 1
       - run: bun scripts/phase-2-smoke.ts
       - run: bun scripts/phase-8-cli-smoke.ts
+      - name: Replay the plans and commitments upgrade
+        run: |
+          supabase db reset --local --version 20260731010000
+          migration_fixture=supabase/tests/life_os_plans_commitments_migration.inc
+          cp supabase/migrations/20260731020000_life_os_plans_commitments.sql "$migration_fixture"
+          trap 'rm -f "$migration_fixture"' EXIT
+          supabase test db supabase/tests/life_os_plans_commitments_upgrade.sql
       # Strictly the last database test. Reset to the migration immediately
       # before identities, then replay the identities migration against that
       # disposable schema. Pinning the starting version keeps later Identity

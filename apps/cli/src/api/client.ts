@@ -8,7 +8,9 @@ import type {
   TaskCreateRequest,
   TaskStatus,
   TaskUpdateRequest,
+  TodayPlan,
 } from '@ekagra/core';
+import { parseTodayPlan } from '@ekagra/core';
 import type { TokenProvider } from '../auth/session';
 import type { CliConfig } from '../config';
 
@@ -60,6 +62,7 @@ export type ApiClient = {
   createTask(input: TaskCreateRequest): Promise<Task>;
   updateTask(id: string, input: TaskUpdateRequest): Promise<Task>;
   commitMorning(taskIds: [string, ...string[]]): Promise<void>;
+  todayPlan(): Promise<TodayPlan>;
   currentSession(): Promise<CurrentSessionResponse>;
   startSession(input: SessionStartRequest): Promise<SessionResponse>;
   sessionCommand(command: SessionCommand): Promise<SessionResponse>;
@@ -154,6 +157,7 @@ export function createHttpClient(
         query: { ritual: 'morning-commit' },
         body: { taskIds },
       }).then(() => undefined),
+    todayPlan: () => fn('/plans').then(parseTodayPlan),
     currentSession: () => fn('/sessions') as Promise<CurrentSessionResponse>,
     startSession: (input) =>
       fn('/sessions', { method: 'POST', body: input }) as Promise<SessionResponse>,

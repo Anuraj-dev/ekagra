@@ -660,12 +660,30 @@ declare
   day_plan_id uuid;
   previous_bypass text := current_setting('ekagra.morning_commit_bypass', true);
 begin
-  -- Empty commits are allowed (clear Today). Non-empty still 1..3 unique open tasks.
+  -- Validate BEFORE any status writes so a rejected commit leaves the prior plan intact.
   if p_owner_id is null
      or coalesce(cardinality(p_task_ids), 0) > 3 then
     raise exception using
       errcode = '23514',
       message = 'today commit must contain at most 3 tasks';
+  end if;
+  if exists (
+    select 1 from unnest(coalesce(p_task_ids, '{}'::uuid[])) as requested(task_id)
+    group by requested.task_id having count(*) > 1
+  ) then
+    raise exception using errcode = '23514', message = 'today commit tasks must be unique';
+  end if;
+  if exists (
+    select 1
+    from unnest(coalesce(p_task_ids, '{}'::uuid[])) as requested(task_id)
+    left join public.tasks
+      on tasks.id = requested.task_id
+     and tasks.owner_id = p_owner_id
+    where tasks.id is null or tasks.status not in ('inbox', 'planned')
+  ) then
+    raise exception using
+      errcode = '23514',
+      message = 'today commit tasks must belong to you and be open';
   end if;
 
   local_today := public.owner_local_date(p_owner_id);

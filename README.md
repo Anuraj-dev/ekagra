@@ -130,3 +130,7 @@ bun run typecheck
 - [Domain language](CONTEXT.md): Identity, Goal, Plan, Commitment, Task, Block and Session.
 - [Supabase notes](supabase/README.md) and [firmware notes](firmware/README.md).
 - [AGENTS.md](AGENTS.md): where to start for coding agents.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
